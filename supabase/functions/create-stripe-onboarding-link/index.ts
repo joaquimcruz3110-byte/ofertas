@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
@@ -30,6 +31,7 @@ serve(async (req: Request) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     if (!user) {
+      console.error('Unauthorized: No user session found.');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
@@ -39,21 +41,27 @@ serve(async (req: Request) => {
     const { shopkeeperId, returnUrl, refreshUrl } = await req.json();
 
     if (user.id !== shopkeeperId) {
+      console.error(`Forbidden: User ID mismatch. User: ${user.id}, ShopkeeperId: ${shopkeeperId}`);
       return new Response(JSON.stringify({ error: 'User ID mismatch' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
       });
     }
 
-    // Inicializa o Stripe com a chave secreta
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'), {
-      apiVersion: '2024-06-20', // Use a versão mais recente da API do Stripe
+    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeSecretKey) {
+      console.error('STRIPE_SECRET_KEY is not set in Supabase secrets.');
+      throw new Error('Stripe secret key is not configured.');
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2024-06-20',
       typescript: true,
     });
 
     let accountId: string;
 
-    // Verifica se o lojista já tem uma conta Stripe conectada
+    console.log(`Fetching payout details for shopkeeper: ${shopkeeperId}`);
     const { data: payoutDetails, error: fetchError } = await supabaseClient
       .from('shopkeeper_payout_details')
       .select('stripe_account_id')
@@ -61,57 +69,57 @@ serve(async (req: Request) => {
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-      console.error('Error fetching payout details:', fetchError.message);
-      throw new Error('Failed to fetch payout details.');
+      console.error('Error fetching payout details from DB:', fetchError.message);
+      throw new Error('Failed to fetch payout details from database.');
     }
 
     if (payoutDetails) {
       accountId = payoutDetails.stripe_account_id;
-      // Se a conta já existe, podemos verificar o status ou gerar um link de login
-      // Para simplificar, vamos gerar um link de conta para o lojista gerenciar
-      const accountLink = await stripe.accountLinks.create({
-        account: accountId,
-        refresh_url: refreshUrl,
-        return_url: returnUrl,
-        type: 'account_onboarding', // Ou 'account_update' se for para atualizar
-      });
-      return new Response(JSON.stringify({ url: accountLink.url }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    } else {
-      // Cria uma nova conta conectada no Stripe
-      const account = await stripe.accounts.create({
-        type: 'express', // Ou 'standard' ou 'custom' dependendo do seu modelo
-        country: 'BR', // Ou o país do seu marketplace
-        email: user.email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: 'individual', // Ou 'company'
-      });
-
-      accountId = account.id;
-
-      // Salva o accountId no seu banco de dados
-      const { error: insertError } = await supabaseClient
-        .from('shopkeeper_payout_details')
-        .insert({ shopkeeper_id: shopkeeperId, stripe_account_id: accountId });
-
-      if (insertError) {
-        console.error('Error inserting Stripe account ID:', insertError.message);
-        throw new Error('Failed to save Stripe account ID.');
-      }
-
-      // Cria o link de onboarding para o lojista completar o cadastro
+      console.log(`Existing Stripe account found: ${accountId}`);
       const accountLink = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: refreshUrl,
         return_url: returnUrl,
         type: 'account_onboarding',
       });
+      console.log(`Generated account link for existing account: ${accountLink.url}`);
+      return new Response(JSON.stringify({ url: accountLink.url }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } else {
+      console.log('No existing Stripe account found. Creating a new one.');
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'BR',
+        email: user.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_type: 'individual',
+      });
 
+      accountId = account.id;
+      console.log(`New Stripe account created: ${accountId}`);
+
+      const { error: insertError } = await supabaseClient
+        .from('shopkeeper_payout_details')
+        .insert({ shopkeeper_id: shopkeeperId, stripe_account_id: accountId });
+
+      if (insertError) {
+        console.error('Error inserting Stripe account ID into DB:', insertError.message);
+        throw new Error('Failed to save Stripe account ID to database.');
+      }
+      console.log('Stripe account ID saved to DB.');
+
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
+        type: 'account_onboarding',
+      });
+      console.log(`Generated account link for new account: ${accountLink.url}`);
       return new Response(JSON.stringify({ url: accountLink.url }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -119,7 +127,7 @@ serve(async (req: Request) => {
     }
 
   } catch (error: unknown) {
-    console.error('Edge Function error:', (error as Error).message);
+    console.error('Edge Function caught an error:', (error as Error).message);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
