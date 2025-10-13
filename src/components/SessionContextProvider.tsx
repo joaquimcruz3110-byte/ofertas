@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
 
 interface SessionContextType {
   session: Session | null;
@@ -48,13 +49,41 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
 
     getInitialSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, currentSession) => { // 'event' renomeado para '_'
-      setSession(currentSession); // Update session state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      setSession(currentSession);
       setIsLoading(false);
+
+      if (event === 'SIGNED_IN' && currentSession?.user) {
+        const pendingRole = localStorage.getItem('pendingRole');
+        if (pendingRole && pendingRole !== 'comprador') { // Se um papel diferente de comprador foi selecionado
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', currentSession.user.id)
+            .single();
+
+          if (!profileError && profileData?.role === 'comprador') { // Se o papel atual é comprador e precisa ser atualizado
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ role: pendingRole })
+              .eq('id', currentSession.user.id);
+
+            if (updateError) {
+              showError('Erro ao atualizar papel do usuário: ' + updateError.message);
+              console.error('Erro ao atualizar papel do usuário:', updateError.message);
+            } else {
+              showSuccess(`Seu papel foi atualizado para ${pendingRole}!`);
+              // Re-fetch profile to update context with new role
+              fetchUserProfile(currentSession.user.id);
+            }
+          }
+        }
+        localStorage.removeItem('pendingRole'); // Limpar o papel pendente
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []); // Empty dependency array for the auth listener setup
+  }, [fetchUserProfile]); // Depend on fetchUserProfile
 
   // Effect to react to changes in the 'session' state and fetch profile
   useEffect(() => {
