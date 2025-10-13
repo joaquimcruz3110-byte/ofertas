@@ -10,7 +10,8 @@ import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon } from 
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 import useEmblaCarousel from 'embla-carousel-react';
-import { DotButton, PrevButton, NextButton } from '@/components/CarouselButtons'; // Componentes de navegação do carrossel
+import { DotButton, PrevButton, NextButton } from '@/components/CarouselButtons';
+import { Dialog, DialogContent } from "@/components/ui/dialog"; // Importar Dialog e DialogContent
 
 interface Product {
   id: string;
@@ -19,7 +20,7 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_urls: string[] | null; // Alterado para array de strings
+  photo_urls: string[] | null;
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
@@ -42,6 +43,9 @@ const ProductDetail = () => {
   const [nextBtnDisabled, setNextBtnDisabled] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false); // Estado para controlar o modal
+  const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Imagem a ser exibida no modal
 
   const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -114,6 +118,11 @@ const ProductDetail = () => {
     });
   };
 
+  const openImageModal = (imageUrl: string) => {
+    setCurrentModalImage(imageUrl);
+    setIsImageModalOpen(true);
+  };
+
   if (isSessionLoading || isLoadingProduct) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
@@ -170,7 +179,8 @@ const ProductDetail = () => {
                       <img
                         src={url}
                         alt={`${product.name} - Imagem ${index + 1}`}
-                        className="w-full max-h-96 object-contain rounded-md shadow-sm"
+                        className="w-full max-h-96 object-contain rounded-md shadow-sm cursor-pointer"
+                        onClick={() => openImageModal(url)} // Abre o modal ao clicar na imagem
                       />
                     </div>
                   ))}
@@ -238,6 +248,19 @@ const ProductDetail = () => {
           </Button>
         </div>
       </div>
+
+      {/* Modal de visualização de imagem */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
+          {currentModalImage && (
+            <img
+              src={currentModalImage}
+              alt="Visualização da Imagem"
+              className="w-full h-auto max-h-[90vh] object-contain rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
