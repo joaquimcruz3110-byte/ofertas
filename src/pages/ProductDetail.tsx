@@ -251,7 +251,7 @@ const ProductDetail = () => {
 
       {/* Modal de visualização de imagem */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-screen-lg w-auto p-4 border-none bg-transparent shadow-none">
+        <DialogContent className="p-4 border-none bg-transparent shadow-none"> {/* Removidas classes de largura */}
           {currentModalImage && (
             <img
               src={currentModalImage}
