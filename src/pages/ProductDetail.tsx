@@ -251,12 +251,12 @@ const ProductDetail = () => {
 
       {/* Modal de visualização de imagem */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
+        <DialogContent className="max-w-screen-lg w-auto p-4 border-none bg-transparent shadow-none">
           {currentModalImage && (
             <img
               src={currentModalImage}
               alt="Visualização da Imagem"
-              className="w-full h-auto max-h-[90vh] object-contain rounded-md"
+              className="max-w-full max-h-[90vh] object-contain rounded-md"
             />
           )}
         </DialogContent>
