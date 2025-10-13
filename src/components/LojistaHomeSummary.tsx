@@ -84,7 +84,7 @@ const LojistaHomeSummary = () => {
 
       if (salesError) {
         showError('Erro ao carregar dados de vendas: ' + salesError.message);
-        console.error('Erro ao carregar dados de vendas:', salesError.message);
+        console.error('Erro ao carregar dados do painel:', salesError.message);
       } else {
         const salesCount = salesData ? salesData.length : 0;
         const revenue = salesData ? salesData.reduce((sum, sale) => sum + (sale.total_price || 0), 0) : 0;
@@ -98,7 +98,8 @@ const LojistaHomeSummary = () => {
     if (session && userRole === 'lojista') {
       fetchSummaryData();
     }
-  }, [session, userRole]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, userRole]); // Adicionado userRole como dependência
 
   if (isLoadingData) {
     return <div className="text-center text-gray-500">Carregando resumo do lojista...</div>;
@@ -142,7 +143,7 @@ const LojistaHomeSummary = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">
               Receita bruta dos seus produtos
             </p>

@@ -127,8 +127,8 @@ const MeusPedidos = () => {
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.product_name}</TableCell>
                   <TableCell>{order.quantity}</TableCell>
-                  <TableCell>R$ {order.product_price.toFixed(2)}</TableCell>
-                  <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
+                  <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.product_price)}</TableCell>
+                  <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_price)}</TableCell>
                   <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

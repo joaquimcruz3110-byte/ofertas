@@ -136,10 +136,10 @@ const ProductDetail = () => {
           <h1 className="text-4xl font-bold mb-2 text-dyad-dark-blue">{product.name}</h1>
           <p className="text-lg text-gray-600 mb-4">{product.category || 'Geral'}</p>
           <p className="text-2xl font-bold text-dyad-vibrant-orange mb-4">
-            R$ {finalPrice.toFixed(2)}
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalPrice)}
             {product.discount && product.discount > 0 && (
               <span className="ml-3 text-lg text-gray-500 line-through">
-                R$ {product.price.toFixed(2)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
               </span>
             )}
           </p>

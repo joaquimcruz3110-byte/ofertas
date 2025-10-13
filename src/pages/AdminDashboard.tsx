@@ -211,7 +211,7 @@ const AdminDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta de todas as vendas
               </p>
@@ -223,7 +223,7 @@ const AdminDashboard = () => {
               <Percent className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ {totalCommission.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCommission)}</div>
               <p className="text-xs text-muted-foreground">
                 Comissão total gerada para a plataforma
               </p>
@@ -265,10 +265,10 @@ const AdminDashboard = () => {
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.buyer_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>R$ {productPrice.toFixed(2)}</TableCell>
-                      <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );

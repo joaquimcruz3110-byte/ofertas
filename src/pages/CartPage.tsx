@@ -5,15 +5,14 @@ import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom'; // Removido useNavigate
-import { showError, showLoading, dismissToast } from '@/utils/toast'; // Removido showSuccess
+import { Link } from 'react-router-dom';
+import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { useState } from 'react';
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  // const navigate = useNavigate(); // Removido, pois não é mais usado
 
   const handleCheckout = async () => {
     if (!session?.user?.id) {
@@ -100,7 +99,7 @@ const CartPage = () => {
               )}
               <div className="flex-grow">
                 <h2 className="text-lg font-semibold text-dyad-dark-blue">{item.name}</h2>
-                <p className="text-gray-600">R$ {item.price.toFixed(2)}</p>
+                <p className="text-gray-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <Button
@@ -139,7 +138,7 @@ const CartPage = () => {
 
           <div className="flex justify-between items-center pt-6 border-t mt-6">
             <h3 className="text-xl font-bold text-dyad-dark-blue">Total:</h3>
-            <span className="text-2xl font-bold text-dyad-vibrant-orange">R$ {totalPrice.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-dyad-vibrant-orange">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}</span>
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">

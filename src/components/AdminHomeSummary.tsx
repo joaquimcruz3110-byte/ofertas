@@ -59,7 +59,7 @@ const AdminHomeSummary = () => {
         showError('Erro ao carregar total de vendas: ' + countError.message);
         console.error('Erro ao carregar total de vendas:', countError.message);
       } else {
-        setTotalSalesCount(salesCount || 0);
+        setTotalSalesCount(countError ? 0 : salesCount || 0);
       }
 
       // Fetch total revenue and total commission
@@ -83,7 +83,8 @@ const AdminHomeSummary = () => {
     if (session && userRole === 'administrador') {
       fetchSummaryData();
     }
-  }, [session, userRole]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, userRole]); // Adicionado userRole como dependência
 
   if (isLoadingData) {
     return <div className="text-center text-gray-500">Carregando resumo do administrador...</div>;
@@ -115,7 +116,7 @@ const AdminHomeSummary = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">
               Receita bruta de todas as vendas
             </p>
@@ -127,7 +128,7 @@ const AdminHomeSummary = () => {
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalCommission.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCommission)}</div>
             <p className="text-xs text-muted-foreground">
               Comissão total gerada para a plataforma
             </p>

@@ -231,7 +231,7 @@ const LojistaDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta dos seus produtos
               </p>
@@ -273,11 +273,11 @@ const LojistaDashboard = () => {
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>R$ {productPrice.toFixed(2)}</TableCell>
-                      <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
-                      <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
+                      <TableCell className="font-semibold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountToReceive)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );

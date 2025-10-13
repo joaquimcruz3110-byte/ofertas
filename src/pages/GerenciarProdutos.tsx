@@ -324,10 +324,19 @@ const GerenciarProdutos = () => {
 
   if (!session || userRole !== 'administrador') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
-        <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-          <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
+      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        <Sidebar />
+        <div className="flex flex-col">
+          <Header />
+          <main className="flex-grow p-4 bg-dyad-light-gray">
+            <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
+              <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+                <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
+                <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
+              </div>
+            </div>
+          </main>
+          <MadeWithDyad />
         </div>
       </div>
     );
@@ -384,7 +393,7 @@ const GerenciarProdutos = () => {
                           )}
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>R$ {product.price.toFixed(2)}</TableCell>
+                        <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}</TableCell>
                         <TableCell>{product.quantity}</TableCell>
                         <TableCell>{product.category || 'N/A'}</TableCell>
                         <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>

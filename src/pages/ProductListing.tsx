@@ -152,10 +152,10 @@ const ProductListing = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
-                      R$ {product.price.toFixed(2)}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
                       {product.discount && product.discount > 0 && (
                         <span className="ml-2 text-sm text-gray-500 line-through">
-                          R$ {(product.price / (1 - product.discount / 100)).toFixed(2)}
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price / (1 - product.discount / 100))}
                         </span>
                       )}
                     </p>

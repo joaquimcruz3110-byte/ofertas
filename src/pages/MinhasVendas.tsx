@@ -161,11 +161,11 @@ const MinhasVendas = () => {
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{productName}</TableCell>
                     <TableCell>{sale.quantity}</TableCell>
-                    <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
-                    <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                    <TableCell>{productPrice ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice) : 'N/A'}</TableCell>
+                    <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
                     <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                    <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
-                    <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell>
+                    <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
+                    <TableCell className="font-semibold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountToReceive)}</TableCell>
                     <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                   </TableRow>
                 );
