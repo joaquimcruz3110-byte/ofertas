@@ -59,7 +59,7 @@ const Header = () => {
           <SheetContent side="left" className="flex flex-col bg-dyad-white p-0">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 bg-dyad-dark-blue text-dyad-white">
               <Link to="/" className="flex items-center gap-2 font-semibold">
-                <span className="text-lg">Ponta de Estoque</span>
+                <span className="text-lg">Olímpia Ofertas</span>
               </Link>
             </div>
             <div className="flex-1 overflow-auto py-2">
@@ -67,7 +67,7 @@ const Header = () => {
             </div>
           </SheetContent>
         </Sheet>
-        <h1 className="text-2xl font-bold">Ponta de Estoque</h1>
+        <h1 className="text-2xl font-bold">Olímpia Ofertas</h1>
       </div>
       <div className="flex items-center space-x-4">
         {userRole === 'comprador' && (

@@ -15,10 +15,10 @@ const LandingPage = () => {
       <div className="text-center max-w-3xl">
         <ShoppingBag className="mx-auto h-24 w-24 text-dyad-vibrant-orange mb-6" />
         <h1 className="text-5xl font-bold mb-6 leading-tight">
-          Bem-vindo(a) ao <span className="text-dyad-vibrant-orange">Ponta de Estoque</span>
+          Bem-vindo(a) ao <span className="text-dyad-vibrant-orange">Olímpia Ofertas</span>
         </h1>
         <p className="text-xl mb-8">
-          Descubra uma nova forma de comprar e vender produtos online.
+          Olímpia Ofertas: compre mais, gaste menos! Descubra uma nova forma de comprar e vender produtos online.
           Conecte-se com lojistas e encontre tudo o que você precisa, ou comece a vender seus próprios produtos hoje mesmo!
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
@@ -39,7 +39,7 @@ const LandingPage = () => {
       <ProductCarousel /> {/* Adicionando o carrossel de produtos aqui */}
 
       <footer className="mt-12 text-sm text-gray-300">
-        <p>&copy; {new Date().getFullYear()} Ponta de Estoque. Todos os direitos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} Olímpia Ofertas. Todos os direitos reservados.</p>
       </footer>
 
       <RoleSelectionDialog

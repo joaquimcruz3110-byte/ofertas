@@ -30,7 +30,7 @@ const Sidebar = () => {
     <div className="hidden md:flex flex-col h-full border-r bg-dyad-white shadow-md w-64">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 bg-dyad-dark-blue text-dyad-white">
         <Link to="/" className="flex items-center gap-2 font-semibold">
-          <span className="text-lg">Ponta de Estoque</span>
+          <span className="text-lg">Olímpia Ofertas</span>
         </Link>
       </div>
       <div className="flex-1 overflow-auto py-2">
