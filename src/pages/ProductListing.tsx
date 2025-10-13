@@ -144,6 +144,8 @@ const ProductListing = () => {
                 ? product.price * (1 - product.discount / 100)
                 : product.price;
 
+              console.log('Product:', product.name, 'Original Price:', product.price, 'Final Price:', finalPrice);
+              
               return (
                 <Card key={product.id} className="flex flex-col justify-between">
                   <Link to={`/product/${product.id}`} className="block">
