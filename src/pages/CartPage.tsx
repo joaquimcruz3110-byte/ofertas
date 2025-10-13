@@ -5,15 +5,15 @@ import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Loader2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { useState } from 'react'; // Adicionado: Importação de useState
+import { Link } from 'react-router-dom'; // Removido useNavigate
+import { showError, showLoading, dismissToast } from '@/utils/toast'; // Removido showSuccess
+import { useState } from 'react';
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removido, pois não é mais usado
 
   const handleCheckout = async () => {
     if (!session?.user?.id) {
@@ -26,10 +26,10 @@ const CartPage = () => {
     }
 
     setIsProcessingCheckout(true);
-    const toastId = showLoading('Finalizando sua compra...');
+    const toastId = showLoading('Redirecionando para o pagamento...');
 
     try {
-      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/purchase-product', {
+      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,28 +41,16 @@ const CartPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.results && Array.isArray(data.results)) {
-          const failedItems = data.results.filter((r: any) => !r.success);
-          if (failedItems.length > 0) {
-            const errorMessages = failedItems.map((r: any) => r.message).join('\n');
-            showError(`Alguns itens não puderam ser comprados:\n${errorMessages}`);
-          } else {
-            showError(data.error || 'Erro desconhecido ao finalizar a compra.');
-          }
-        } else {
-          showError(data.error || 'Erro desconhecido ao finalizar a compra.');
-        }
+        showError(data.error || 'Erro desconhecido ao criar a sessão de checkout.');
         return;
       }
 
-      showSuccess('Compra finalizada com sucesso!');
-      clearCart();
-      navigate('/meus-pedidos'); // Redireciona para a página de pedidos
-    } catch (error: any) {
-      console.error('Erro ao finalizar compra:', error);
-      showError('Erro ao finalizar compra: ' + error.message);
-    } finally {
       dismissToast(toastId);
+      window.location.href = data.url; // Redireciona para a página de checkout do Stripe
+    } catch (error: any) {
+      console.error('Erro ao iniciar checkout:', error);
+      showError('Erro ao iniciar checkout: ' + error.message);
+    } finally {
       setIsProcessingCheckout(false);
     }
   };

@@ -26,7 +26,7 @@ import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
-import ShopkeeperPayouts from "./pages/ShopkeeperPayouts"; // Importar a nova página
+import StripeSuccessPage from "./pages/StripeSuccessPage"; // Importar a nova página de sucesso do Stripe
 
 const queryClient = new QueryClient();
 
@@ -56,6 +56,7 @@ const App = () => (
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/checkout-success" element={<ProtectedRoute><StripeSuccessPage /></ProtectedRoute>} /> {/* Nova rota de sucesso do Stripe */}
 
               {/* Todas as rotas protegidas agora usam o MainLayout */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
@@ -69,7 +70,7 @@ const App = () => (
                 <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
                 <Route path="/meus-produtos" element={<MeusProdutos />} />
                 <Route path="/minhas-vendas" element={<MinhasVendas />} />
-                <Route path="/meus-pagamentos" element={<ShopkeeperPayouts />} /> {/* Nova rota */}
+                {/* <Route path="/meus-pagamentos" element={<ShopkeeperPayouts />} /> Removido */}
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />

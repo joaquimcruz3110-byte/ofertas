@@ -2,11 +2,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// @ts-ignore
+import Stripe from 'https://esm.sh/stripe@16.2.0?target=deno';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  photo_url: string | null;
+}
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -14,16 +24,43 @@ serve(async (req: Request) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const supabaseClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: { headers: { Authorization: authHeader! } },
-      }
-    );
+    // @ts-ignore
+    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeSecretKey) {
+      throw new Error('Stripe secret key is not configured.');
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2024-06-20',
+      typescript: true,
+    });
+
+    const { sessionId } = await req.json();
+
+    if (!sessionId) {
+      return new Response(JSON.stringify({ error: 'Session ID is required' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (checkoutSession.payment_status !== 'paid') {
+      return new Response(JSON.stringify({ error: 'Payment not successful' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    const buyerId = checkoutSession.metadata?.buyer_id;
+    const cartItemsString = checkoutSession.metadata?.cart_items;
+
+    if (!buyerId || !cartItemsString) {
+      throw new Error('Missing metadata in Stripe session.');
+    }
+
+    const cartItems: CartItem[] = JSON.parse(cartItemsString);
 
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
@@ -32,28 +69,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      });
-    }
-
-    const { cartItems } = await req.json(); // Espera um array de itens do carrinho
-
-    if (!Array.isArray(cartItems) || cartItems.length === 0) {
-      return new Response(JSON.stringify({ error: 'Cart items are required' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
-    }
-
-    const purchaseResults: Array<{ productId: string; success: boolean; message: string }> = [];
-    let overallSuccess = true;
-
-    // Buscar taxa de comissão ativa uma vez para todas as compras
+    // Fetch active commission rate using service role client
     const { data: commissionRateData, error: commissionError } = await supabaseServiceRoleClient
       .from('commission_rates')
       .select('rate')
@@ -64,24 +80,18 @@ serve(async (req: Request) => {
 
     if (commissionError) {
       console.error('Commission rate fetch error (service role):', commissionError.message);
-      return new Response(JSON.stringify({ error: 'Failed to fetch commission rate' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
+      throw new Error('Failed to fetch commission rate');
     }
     const commissionRate = commissionRateData?.rate || 0;
+
+    const purchaseResults: Array<{ productId: string; success: boolean; message: string }> = [];
+    let overallSuccess = true;
 
     for (const item of cartItems) {
       const { id: productId, quantity: requestedQuantity } = item;
 
-      if (!productId || !requestedQuantity || requestedQuantity <= 0) {
-        purchaseResults.push({ productId, success: false, message: 'Invalid product ID or quantity' });
-        overallSuccess = false;
-        continue;
-      }
-
-      // Buscar detalhes reais do produto para validar preço e estoque
-      const { data: product, error: productError } = await supabaseClient
+      // Fetch real product details to validate price and stock (using service role for direct access)
+      const { data: product, error: productError } = await supabaseServiceRoleClient
         .from('products')
         .select('id, name, price, quantity, shopkeeper_id')
         .eq('id', productId)
@@ -100,13 +110,12 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Calcular preço total para este item com base no preço real do produto
       const totalPriceForItem = product.price * requestedQuantity;
 
-      // Realizar a compra usando a função RPC
-      const { error: purchaseError } = await supabaseClient.rpc('perform_purchase', {
+      // Perform the purchase using the RPC function
+      const { error: purchaseError } = await supabaseServiceRoleClient.rpc('perform_purchase', {
         p_product_id: productId,
-        p_buyer_id: user.id,
+        p_buyer_id: buyerId,
         p_quantity: requestedQuantity,
         p_total_price: totalPriceForItem,
         p_commission_rate: commissionRate,
@@ -129,7 +138,7 @@ serve(async (req: Request) => {
     } else {
       return new Response(JSON.stringify({ error: 'Some purchases failed', results: purchaseResults }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400, // Ou 207 Multi-Status se sucesso parcial for aceitável
+        status: 400,
       });
     }
 

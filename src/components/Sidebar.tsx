@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard, User, CreditCard } from 'lucide-react'; // Importar o ícone CreditCard
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard, User } from 'lucide-react'; // Removido o ícone CreditCard
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -17,15 +17,15 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
-  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] }, // Novo item para o perfil
+  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] },
   { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
-  { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] }, // Novo item para o Admin
+  { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
-  { name: 'Meus Pagamentos', href: '/meus-pagamentos', icon: CreditCard, roles: ['lojista'] }, // Novo item para pagamentos
+  // { name: 'Meus Pagamentos', href: '/meus-pagamentos', icon: CreditCard, roles: ['lojista'] }, Removido
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
   { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Store, roles: ['administrador'] },
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
