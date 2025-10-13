@@ -58,7 +58,7 @@ const productFormSchema = z.object({
   photo_url: z.string().optional(), // photo_url agora é opcional no schema do formulário
   discount: z.preprocess( // Desconto agora é obrigatório
     (val) => Number(val),
-    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
+    z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -84,7 +84,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0, // Valor padrão para desconto
+      discount: 0.01, // Valor padrão para desconto, agora maior que zero
     },
   });
 
@@ -119,7 +119,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0,
+      discount: 0.01, // Valor padrão para desconto, agora maior que zero
     });
     setSelectedFile(null);
     setImagePreview(null);
@@ -135,7 +135,7 @@ const GerenciarProdutos = () => {
       quantity: product.quantity,
       category: product.category || "",
       photo_url: product.photo_url || "",
-      discount: product.discount || 0,
+      discount: product.discount || 0.01, // Garante que o valor seja > 0
     });
     setSelectedFile(null);
     setImagePreview(product.photo_url);
@@ -490,7 +490,7 @@ const GerenciarProdutos = () => {
                     <FormItem>
                       <FormLabel>Desconto (%)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="1" placeholder="0" {...field} />
+                        <Input type="number" step="0.01" placeholder="0.01" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
