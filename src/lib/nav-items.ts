@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -16,6 +16,7 @@ export const navItems: NavItem[] = [
   { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
+  { name: 'Meu Carrinho', href: '/cart', icon: ShoppingCart, roles: ['comprador'] }, // Adicionado o carrinho para compradores
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
