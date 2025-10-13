@@ -15,7 +15,7 @@ interface Product {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null;
+  photo_urls: string[] | null; // Alterado para photo_urls
 }
 
 interface CartItem {
@@ -23,7 +23,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null;
+  photo_url: string | null; // Mantido como photo_url para compatibilidade com o frontend do carrinho
 }
 
 serve(async (req: Request) => {
@@ -76,7 +76,7 @@ serve(async (req: Request) => {
     const productIds = cartItems.map((item: CartItem) => item.id);
     const { data: productsData, error: productsError } = await supabaseClient
       .from('products')
-      .select('id, name, price, quantity, photo_url')
+      .select('id, name, price, quantity, photo_urls') // Alterado para photo_urls
       .in('id', productIds);
 
     if (productsError) {
@@ -99,7 +99,7 @@ serve(async (req: Request) => {
           currency: 'brl',
           product_data: {
             name: product.name,
-            images: product.photo_url ? [product.photo_url] : [],
+            images: (product.photo_urls && product.photo_urls.length > 0) ? [product.photo_urls[0]] : [], // Pega a primeira URL do array
           },
           unit_amount: Math.round(product.price * 100), // Stripe expects amount in cents
         },
@@ -108,7 +108,7 @@ serve(async (req: Request) => {
     });
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'boleto'], // Pix removido temporariamente
+      payment_method_types: ['card', 'boleto'],
       line_items: lineItems,
       mode: 'payment',
       // @ts-ignore
