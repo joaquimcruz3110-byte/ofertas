@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -26,7 +23,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label"; // Removido pois não é usado
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -182,127 +178,118 @@ const GerenciarComissoes = () => {
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header />
-        <main className="flex-grow p-4 bg-dyad-light-gray">
-          <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Gerenciar Comissões</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Aqui você pode visualizar, adicionar, editar e excluir as taxas de comissão da plataforma.
-            </p>
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+      <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Gerenciar Comissões</h1>
+      <p className="text-lg text-gray-600 mb-8">
+        Aqui você pode visualizar, adicionar, editar e excluir as taxas de comissão da plataforma.
+      </p>
 
-            <div className="flex justify-end mb-4">
-              <Button onClick={handleAddRateClick}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
-              </Button>
-            </div>
-
-            {commissionRates.length === 0 ? (
-              <p className="text-center text-gray-500">Nenhuma taxa de comissão encontrada.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Taxa (%)</TableHead>
-                      <TableHead>Ativa</TableHead>
-                      <TableHead>Definida em</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissionRates.map((rate) => (
-                      <TableRow key={rate.id}>
-                        <TableCell className="font-medium">{rate.rate.toFixed(2)}%</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${rate.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {rate.active ? 'Sim' : 'Não'}
-                          </span>
-                        </TableCell>
-                        <TableCell>{new Date(rate.set_date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditRateClick(rate)}
-                            className="mr-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteRate(rate.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </main>
-        <MadeWithDyad />
-
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingRate ? "Editar Taxa de Comissão" : "Adicionar Nova Taxa de Comissão"}</DialogTitle>
-              <DialogDescription>
-                {editingRate ? "Faça alterações na taxa de comissão existente." : "Preencha os detalhes para adicionar uma nova taxa de comissão."}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="rate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Taxa de Comissão (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="Ex: 5.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Ativa</FormLabel>
-                        <DialogDescription>
-                          Define se esta taxa de comissão está atualmente em uso.
-                        </DialogDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingRate ? "Salvar Alterações" : "Adicionar Taxa"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+      <div className="flex justify-end mb-4">
+        <Button onClick={handleAddRateClick}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+        </Button>
       </div>
+
+      {commissionRates.length === 0 ? (
+        <p className="text-center text-gray-500">Nenhuma taxa de comissão encontrada.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Taxa (%)</TableHead>
+                <TableHead>Ativa</TableHead>
+                <TableHead>Definida em</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {commissionRates.map((rate) => (
+                <TableRow key={rate.id}>
+                  <TableCell className="font-medium">{rate.rate.toFixed(2)}%</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${rate.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {rate.active ? 'Sim' : 'Não'}
+                    </span>
+                  </TableCell>
+                  <TableCell>{new Date(rate.set_date).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditRateClick(rate)}
+                      className="mr-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteRate(rate.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingRate ? "Editar Taxa de Comissão" : "Adicionar Nova Taxa de Comissão"}</DialogTitle>
+            <DialogDescription>
+              {editingRate ? "Faça alterações na taxa de comissão existente." : "Preencha os detalhes para adicionar uma nova taxa de comissão."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="rate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Taxa de Comissão (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="Ex: 5.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Ativa</FormLabel>
+                      <DialogDescription>
+                        Define se esta taxa de comissão está atualmente em uso.
+                      </DialogDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingRate ? "Salvar Alterações" : "Adicionar Taxa"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

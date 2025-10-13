@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -130,62 +127,53 @@ const MinhasVendas = () => {
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header />
-        <main className="flex-grow p-4 bg-dyad-light-gray">
-          <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Minhas Vendas</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Aqui você pode visualizar todas as vendas dos seus produtos.
-            </p>
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+      <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Minhas Vendas</h1>
+      <p className="text-lg text-gray-600 mb-8">
+        Aqui você pode visualizar todas as vendas dos seus produtos.
+      </p>
 
-            {sales.length === 0 ? (
-              <p className="text-center text-gray-500">Nenhuma venda encontrada para seus produtos.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Quantidade</TableHead>
-                      <TableHead>Preço Unitário</TableHead>
-                      <TableHead>Preço Total</TableHead>
-                      <TableHead>Comissão (%)</TableHead>
-                      <TableHead>Comissão Paga</TableHead>
-                      <TableHead>Valor a Receber</TableHead> {/* Nova coluna */}
-                      <TableHead>Data da Venda</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sales.map((sale) => {
-                      const productName = sale.products[0]?.name || 'Produto Desconhecido';
-                      const productPrice = sale.products[0]?.price;
-                      const commissionAmount = sale.total_price * (sale.commission_rate / 100);
-                      const amountToReceive = sale.total_price - commissionAmount; // Cálculo do valor a receber
+      {sales.length === 0 ? (
+        <p className="text-center text-gray-500">Nenhuma venda encontrada para seus produtos.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Preço Unitário</TableHead>
+                <TableHead>Preço Total</TableHead>
+                <TableHead>Comissão (%)</TableHead>
+                <TableHead>Comissão Paga</TableHead>
+                <TableHead>Valor a Receber</TableHead>
+                <TableHead>Data da Venda</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sales.map((sale) => {
+                const productName = sale.products[0]?.name || 'Produto Desconhecido';
+                const productPrice = sale.products[0]?.price;
+                const commissionAmount = sale.total_price * (sale.commission_rate / 100);
+                const amountToReceive = sale.total_price - commissionAmount;
 
-                      return (
-                        <TableRow key={sale.id}>
-                          <TableCell className="font-medium">{productName}</TableCell>
-                          <TableCell>{sale.quantity}</TableCell>
-                          <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
-                          <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
-                          <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                          <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
-                          <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell> {/* Exibindo o valor a receber */}
-                          <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </main>
-        <MadeWithDyad />
-      </div>
+                return (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-medium">{productName}</TableCell>
+                    <TableCell>{sale.quantity}</TableCell>
+                    <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
+                    <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                    <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
+                    <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
+                    <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell>
+                    <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 };

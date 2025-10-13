@@ -5,7 +5,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/SessionContextProvider';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // Importar Link
 
 const Login = () => {
   const { session, isLoading } = useSession();
@@ -92,6 +92,11 @@ const Login = () => {
             },
           }}
         />
+        <div className="mt-6 text-center">
+          <Link to="/landing" className="text-dyad-dark-blue hover:text-dyad-vibrant-orange text-sm underline">
+            Voltar para a página inicial
+          </Link>
+        </div>
       </div>
     </div>
   );

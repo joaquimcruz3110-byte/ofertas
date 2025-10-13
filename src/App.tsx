@@ -10,7 +10,7 @@ import { SessionContextProvider, useSession } from "./components/SessionContextP
 import { CartProvider } from "./components/CartProvider";
 import React from "react";
 
-// Importar as novas páginas
+// Importar as novas páginas e o MainLayout
 import MeusPedidos from "./pages/MeusPedidos";
 import MeusProdutos from "./pages/MeusProdutos";
 import MinhasVendas from "./pages/MinhasVendas";
@@ -23,7 +23,9 @@ import LojistaDashboard from "./pages/LojistaDashboard";
 import CompradorDashboard from "./pages/CompradorDashboard";
 import UserProfile from "./pages/UserProfile";
 import CartPage from "./pages/CartPage";
-import AdminDashboard from "./pages/AdminDashboard"; // Importar AdminDashboard
+import AdminDashboard from "./pages/AdminDashboard";
+import LandingPage from "./pages/LandingPage";
+import MainLayout from "./components/MainLayout"; // Importar MainLayout
 
 const queryClient = new QueryClient();
 
@@ -36,7 +38,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/landing" replace />; // Redireciona para a landing page se não autenticado
   }
 
   return <>{children}</>;
@@ -51,123 +53,27 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Rota para o Perfil do Usuário (acessível por todos os papéis) */}
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Rotas para Comprador */}
-              <Route
-                path="/comprador-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <CompradorDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/explorar-produtos"
-                element={
-                  <ProtectedRoute>
-                    <ProductListing />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/product/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProductDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/meus-pedidos"
-                element={
-                  <ProtectedRoute>
-                    <MeusPedidos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/cart"
-                element={
-                  <ProtectedRoute>
-                    <CartPage />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Rotas para Lojista */}
-              <Route
-                path="/lojista-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <LojistaDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/meus-produtos"
-                element={
-                  <ProtectedRoute>
-                    <MeusProdutos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/minhas-vendas"
-                element={
-                  <ProtectedRoute>
-                    <MinhasVendas />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Rotas para Administrador */}
-              <Route
-                path="/admin-dashboard" // Nova rota para o Painel do Administrador
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gerenciar-usuarios"
-                element={
-                  <ProtectedRoute>
-                    <GerenciarUsuarios />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gerenciar-produtos"
-                element={
-                  <ProtectedRoute>
-                    <GerenciarProdutos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gerenciar-comissoes"
-                element={
-                  <ProtectedRoute>
-                    <GerenciarComissoes />
-                  </ProtectedRoute>
-                }
-              />
+
+              {/* Todas as rotas protegidas agora usam o MainLayout */}
+              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route path="/" element={<Index />} />
+                <Route path="/profile" element={<UserProfile />} />
+                <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
+                <Route path="/explorar-produtos" element={<ProductListing />} />
+                <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="/meus-pedidos" element={<MeusPedidos />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
+                <Route path="/meus-produtos" element={<MeusProdutos />} />
+                <Route path="/minhas-vendas" element={<MinhasVendas />} />
+                <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
+                <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
+                <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
+              </Route>
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

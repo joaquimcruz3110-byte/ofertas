@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -105,49 +102,40 @@ const MeusPedidos = () => {
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header />
-        <main className="flex-grow p-4 bg-dyad-light-gray">
-          <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meus Pedidos</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Aqui você pode visualizar todos os seus pedidos de compra.
-            </p>
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+      <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meus Pedidos</h1>
+      <p className="text-lg text-gray-600 mb-8">
+        Aqui você pode visualizar todos os seus pedidos de compra.
+      </p>
 
-            {orders.length === 0 ? (
-              <p className="text-center text-gray-500">Nenhum pedido encontrado.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Quantidade</TableHead>
-                      <TableHead>Preço Unitário</TableHead>
-                      <TableHead>Preço Total</TableHead>
-                      <TableHead>Data do Pedido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.product_name}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>R$ {order.product_price.toFixed(2)}</TableCell>
-                        <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
-                        <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </main>
-        <MadeWithDyad />
-      </div>
+      {orders.length === 0 ? (
+        <p className="text-center text-gray-500">Nenhum pedido encontrado.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Preço Unitário</TableHead>
+                <TableHead>Preço Total</TableHead>
+                <TableHead>Data do Pedido</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium">{order.product_name}</TableCell>
+                  <TableCell>{order.quantity}</TableCell>
+                  <TableCell>R$ {order.product_price.toFixed(2)}</TableCell>
+                  <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
+                  <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 };

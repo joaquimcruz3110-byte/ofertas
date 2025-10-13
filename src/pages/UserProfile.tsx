@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -238,108 +235,99 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header />
-        <main className="flex-grow p-4 bg-dyad-light-gray">
-          <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-2xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meu Perfil</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Gerencie suas informações pessoais e foto de perfil.
-            </p>
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meu Perfil</h1>
+      <p className="text-lg text-gray-600 mb-8">
+        Gerencie suas informações pessoais e foto de perfil.
+      </p>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="flex flex-col items-center gap-4 mb-6">
-                  <div className="relative w-32 h-32">
-                    <Avatar className="w-32 h-32 border-2 border-dyad-dark-blue">
-                      <AvatarImage src={avatarPreview || undefined} alt="Avatar do Usuário" />
-                      <AvatarFallback className="bg-dyad-vibrant-orange text-dyad-white text-4xl font-bold">
-                        {profile?.first_name ? profile.first_name[0].toUpperCase() : <UserIcon className="w-16 h-16" />}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-dyad-dark-blue text-dyad-white p-2 rounded-full cursor-pointer hover:bg-dyad-vibrant-orange transition-colors">
-                      <Camera className="h-5 w-5" />
-                      <Input
-                        id="avatar-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarFileChange}
-                        className="hidden"
-                      />
-                    </Label>
-                  </div>
-                  <p className="text-sm text-gray-500">Clique na câmera para mudar seu avatar</p>
-                  {profile?.avatar_url && ( // Mostrar botão de remover apenas se houver um avatar
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleRemoveAvatar}
-                      disabled={isRemovingAvatar}
-                      className="mt-2"
-                    >
-                      {isRemovingAvatar ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                      Remover Avatar
-                    </Button>
-                  )}
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Primeiro Nome</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Seu primeiro nome" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="flex flex-col items-center gap-4 mb-6">
+            <div className="relative w-32 h-32">
+              <Avatar className="w-32 h-32 border-2 border-dyad-dark-blue">
+                <AvatarImage src={avatarPreview || undefined} alt="Avatar do Usuário" />
+                <AvatarFallback className="bg-dyad-vibrant-orange text-dyad-white text-4xl font-bold">
+                  {profile?.first_name ? profile.first_name[0].toUpperCase() : <UserIcon className="w-16 h-16" />}
+                </AvatarFallback>
+              </Avatar>
+              <Label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-dyad-dark-blue text-dyad-white p-2 rounded-full cursor-pointer hover:bg-dyad-vibrant-orange transition-colors">
+                <Camera className="h-5 w-5" />
+                <Input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="hidden"
                 />
-                <FormField
-                  control={form.control}
-                  name="last_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sobrenome</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Seu sobrenome" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <Input value={session.user.email || ''} disabled className="bg-gray-100" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Papel</FormLabel>
-                  <FormControl>
-                    <Input value={profile?.role || 'comprador'} disabled className="capitalize bg-gray-100" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-
-                <Button type="submit" className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                  Salvar Alterações
-                </Button>
-              </form>
-            </Form>
+              </Label>
+            </div>
+            <p className="text-sm text-gray-500">Clique na câmera para mudar seu avatar</p>
+            {profile?.avatar_url && ( // Mostrar botão de remover apenas se houver um avatar
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleRemoveAvatar}
+                disabled={isRemovingAvatar}
+                className="mt-2"
+              >
+                {isRemovingAvatar ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Remover Avatar
+              </Button>
+            )}
           </div>
-        </main>
-        <MadeWithDyad />
-      </div>
+
+          <FormField
+            control={form.control}
+            name="first_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Primeiro Nome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Seu primeiro nome" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="last_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sobrenome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Seu sobrenome" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormItem>
+            <FormLabel>E-mail</FormLabel>
+            <FormControl>
+              <Input value={session.user.email || ''} disabled className="bg-gray-100" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+          <FormItem>
+            <FormLabel>Papel</FormLabel>
+            <FormControl>
+              <Input value={profile?.role || 'comprador'} disabled className="capitalize bg-gray-100" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+
+          <Button type="submit" className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            Salvar Alterações
+          </Button>
+        </form>
+      </Form>
     </div>
   );
 };
