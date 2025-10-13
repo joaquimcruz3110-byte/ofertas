@@ -49,12 +49,16 @@ serve(async (req: Request) => {
     }
 
     // 1. Criar um cliente Supabase com o token do usuário para verificar a sessão
+    // Passando o cabeçalho de autorização diretamente nas opções do cliente.
     const supabaseUserClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
+        auth: {
+          persistSession: false, // Importante para ambientes sem estado como Edge Functions
+        },
         global: {
           headers: {
             Authorization: `Bearer ${token}`,
