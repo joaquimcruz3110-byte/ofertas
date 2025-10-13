@@ -14,8 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { showError } from '@/utils/toast'; // showSuccess removido
-// import { Loader2 } from 'lucide-react'; // Removido pois não é usado
+import { showError } from '@/utils/toast';
 
 interface Sale {
   id: string;
@@ -44,7 +43,30 @@ const MinhasVendas = () => {
       return;
     }
 
-    const { data, error } = await supabase
+    // Passo 1: Obter os IDs dos produtos que pertencem ao lojista atual
+    const { data: shopkeeperProducts, error: productsError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('shopkeeper_id', session.user.id);
+
+    if (productsError) {
+      showError('Erro ao carregar produtos do lojista: ' + productsError.message);
+      console.error('Erro ao carregar produtos do lojista:', productsError.message);
+      setSales([]);
+      setIsLoadingSales(false);
+      return;
+    }
+
+    const productIds = shopkeeperProducts.map(p => p.id);
+
+    if (productIds.length === 0) {
+      setSales([]);
+      setIsLoadingSales(false);
+      return;
+    }
+
+    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos
+    const { data, error: salesError } = await supabase
       .from('sales')
       .select(`
         id,
@@ -59,11 +81,11 @@ const MinhasVendas = () => {
           price
         )
       `)
-      .eq('products.shopkeeper_id', session.user.id);
+      .in('product_id', productIds); // Filtrar vendas pelos IDs dos produtos
 
-    if (error) {
-      showError('Erro ao carregar vendas: ' + error.message);
-      console.error('Erro ao carregar vendas:', error.message);
+    if (salesError) {
+      showError('Erro ao carregar vendas: ' + salesError.message);
+      console.error('Erro ao carregar vendas:', salesError.message);
       setSales([]);
     } else {
       const typedSales: Sale[] = data.map(sale => ({
@@ -120,7 +142,7 @@ const MinhasVendas = () => {
                       <TableHead>Preço Unitário</TableHead>
                       <TableHead>Preço Total</TableHead>
                       <TableHead>Comissão (%)</TableHead>
-                      <TableHead>Comissão Recebida</TableHead> {/* Nova coluna */}
+                      <TableHead>Comissão Recebida</TableHead>
                       <TableHead>Data da Venda</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -137,7 +159,7 @@ const MinhasVendas = () => {
                           <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
                           <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
                           <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                          <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell> {/* Exibindo o valor da comissão */}
+                          <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
                           <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                         </TableRow>
                       );
