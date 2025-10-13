@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showError } from '@/utils/toast';
 import { DollarSign, ShoppingBag, Percent, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportToPdf } from '@/utils/pdfGenerator'; // Importar a função de exportação de PDF
+import { exportToPdf } from '@/utils/pdfGenerator';
 import {
   Table,
   TableBody,
@@ -19,7 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import RevenueOverTimeChart from '@/components/RevenueOverTimeChart'; // Importar o novo componente de gráfico
+import RevenueOverTimeChart from '@/components/RevenueOverTimeChart';
+import { DatePickerWithRange } from '@/components/DatePickerWithRange'; // Importar o novo componente
+import { DateRange } from 'react-day-picker';
+import { addDays } from 'date-fns';
 
 interface SaleDetail {
   id: string;
@@ -29,9 +32,9 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  product_name: string; // Adicionado para o nome do produto
-  product_price: number; // Adicionado para o preço do produto
-  buyer_name: string; // Adicionado para o nome do comprador
+  product_name: string;
+  product_price: number;
+  buyer_name: string;
 }
 
 const AdminDashboard = () => {
@@ -43,8 +46,12 @@ const AdminDashboard = () => {
   const [revenueChartData, setRevenueChartData] = useState<Array<{ date: string; totalRevenue: number }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30), // Últimos 30 dias como padrão
+    to: new Date(),
+  });
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (startDate?: Date, endDate?: Date) => {
     setIsLoadingData(true);
     if (!session?.user?.id) {
       setTotalSalesCount(0);
@@ -56,35 +63,31 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Fetch total sales count
-    const { count: salesCount, error: countError } = await supabase
-      .from('sales')
-      .select('id', { count: 'exact' });
+    let salesQuery = supabase.from('sales').select(`
+      id,
+      product_id,
+      buyer_id,
+      quantity,
+      total_price,
+      commission_rate,
+      sale_date
+    `, { count: 'exact' });
 
-    if (countError) {
-      showError('Erro ao carregar total de vendas: ' + countError.message);
-      console.error('Erro ao carregar total de vendas:', countError.message);
-    } else {
-      setTotalSalesCount(salesCount || 0);
+    if (startDate) {
+      salesQuery = salesQuery.gte('sale_date', startDate.toISOString());
+    }
+    if (endDate) {
+      salesQuery = salesQuery.lte('sale_date', endDate.toISOString());
     }
 
-    // Passo 1: Fetch sales data without nested product details
-    const { data: salesRawData, error: salesError } = await supabase
-      .from('sales')
-      .select(`
-        id,
-        product_id,
-        buyer_id,
-        quantity,
-        total_price,
-        commission_rate,
-        sale_date
-      `)
-      .order('sale_date', { ascending: false });
+    salesQuery = salesQuery.order('sale_date', { ascending: false });
+
+    const { data: salesRawData, error: salesError, count: salesCount } = await salesQuery;
 
     if (salesError) {
       showError('Erro ao carregar dados de vendas: ' + salesError.message);
       console.error('Erro ao carregar dados de vendas:', salesError.message);
+      setTotalSalesCount(0);
       setTotalRevenue(0);
       setTotalCommission(0);
       setDetailedSales([]);
@@ -93,15 +96,16 @@ const AdminDashboard = () => {
       return;
     }
 
+    setTotalSalesCount(salesCount || 0);
+
     const revenue = salesRawData ? salesRawData.reduce((sum, sale) => sum + (sale.total_price || 0), 0) : 0;
     const commission = salesRawData ? salesRawData.reduce((sum, sale) => sum + ((sale.total_price || 0) * (sale.commission_rate / 100)), 0) : 0;
     setTotalRevenue(revenue);
     setTotalCommission(commission);
 
-    // Processar dados para o gráfico de receita
     const revenueByDateMap = new Map<string, number>();
     salesRawData.forEach(sale => {
-      const saleDate = new Date(sale.sale_date).toISOString().split('T')[0]; // Formato YYYY-MM-DD
+      const saleDate = new Date(sale.sale_date).toISOString().split('T')[0];
       const currentRevenue = revenueByDateMap.get(saleDate) || 0;
       revenueByDateMap.set(saleDate, currentRevenue + sale.total_price);
     });
@@ -112,8 +116,6 @@ const AdminDashboard = () => {
     
     setRevenueChartData(sortedRevenueData);
 
-
-    // Passo 2: Fetch product details for all unique product_ids in salesRawData
     const uniqueProductIds = [...new Set(salesRawData.map(sale => sale.product_id))];
     const { data: productsData, error: productsError } = await supabase
       .from('products')
@@ -122,11 +124,9 @@ const AdminDashboard = () => {
 
     if (productsError) {
       console.error('Erro ao carregar detalhes dos produtos:', productsError.message);
-      // Continuar sem nomes/preços de produtos se houver um erro
     }
     const productDetailsMap = new Map(productsData?.map(p => [p.id, { name: p.name, price: p.price }]));
 
-    // Passo 3: Fetch buyer names for all unique buyer_ids in salesRawData
     const buyerIds = [...new Set(salesRawData.map(sale => sale.buyer_id))];
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
@@ -138,7 +138,6 @@ const AdminDashboard = () => {
     }
     const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Comprador Desconhecido']));
 
-    // Combinar os dados
     const formattedSales: SaleDetail[] = salesRawData.map(sale => ({
       ...sale,
       product_name: productDetailsMap.get(sale.product_id)?.name || 'Produto Desconhecido',
@@ -152,9 +151,9 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'administrador') {
-      fetchDashboardData();
+      fetchDashboardData(dateRange?.from, dateRange?.to);
     }
-  }, [session, isSessionLoading, userRole]);
+  }, [session, isSessionLoading, userRole, dateRange]); // Adicionar dateRange como dependência
 
   const handleExportPdf = () => {
     if (reportRef.current) {
@@ -188,15 +187,18 @@ const AdminDashboard = () => {
           <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-3xl font-bold text-dyad-dark-blue">Painel do Administrador</h1>
-              <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
-                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
-              </Button>
+              <div className="flex items-center space-x-4">
+                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
+                  <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                </Button>
+              </div>
             </div>
             <p className="text-lg text-gray-600 mb-8">
               Visão geral das atividades da plataforma.
             </p>
 
-            <div ref={reportRef} className="p-4"> {/* Conteúdo a ser exportado */}
+            <div ref={reportRef} className="p-4">
               <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Resumo Geral</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
                 <Card>
