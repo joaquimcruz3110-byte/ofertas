@@ -83,28 +83,25 @@ const MinhasVendas = () => {
       showError('Erro ao carregar vendas: ' + salesError.message);
       console.error('Erro ao carregar vendas:', salesError.message);
       setSales([]);
-      setIsLoadingSales(false);
-      return;
+    } else {
+      // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
+      const salesWithProductDetails = await Promise.all(
+        salesData.map(async (sale) => {
+          const { data: productData, error: singleProductError } = await supabase
+            .from('products')
+            .select('name, price')
+            .eq('id', sale.product_id)
+            .single();
+
+          if (singleProductError) {
+            console.error(`Erro ao buscar produto ${sale.product_id}:`, singleProductError.message);
+            return { ...sale, products: [] }; // Retorna produtos vazios em caso de erro
+          }
+          return { ...sale, products: [productData] };
+        })
+      );
+      setSales(salesWithProductDetails as Sale[]);
     }
-
-    // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
-    const salesWithProductDetails = await Promise.all(
-      salesData.map(async (sale) => {
-        const { data: productData, error: singleProductError } = await supabase
-          .from('products')
-          .select('name, price')
-          .eq('id', sale.product_id)
-          .single();
-
-        if (singleProductError) {
-          console.error(`Erro ao buscar produto ${sale.product_id}:`, singleProductError.message);
-          return { ...sale, products: [] }; // Retorna produtos vazios em caso de erro
-        }
-        return { ...sale, products: [productData] };
-      })
-    );
-
-    setSales(salesWithProductDetails as Sale[]);
     setIsLoadingSales(false);
   };
 
@@ -153,7 +150,7 @@ const MinhasVendas = () => {
                       <TableHead>Preço Unitário</TableHead>
                       <TableHead>Preço Total</TableHead>
                       <TableHead>Comissão (%)</TableHead>
-                      <TableHead>Comissão Recebida</TableHead>
+                      <TableHead>Comissão Paga</TableHead> {/* Alterado de 'Comissão Recebida' para 'Comissão Paga' */}
                       <TableHead>Data da Venda</TableHead>
                     </TableRow>
                   </TableHeader>
