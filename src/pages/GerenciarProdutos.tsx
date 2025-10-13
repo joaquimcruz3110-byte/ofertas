@@ -38,9 +38,12 @@ interface Product {
   quantity: number;
   category: string | null;
   photo_url: string | null;
-  discount: number; // Alterado para ser obrigatório
-  shopkeeper_id: string; // Adicionado para consistência com o schema
+  discount: number;
+  shopkeeper_id: string;
   created_at: string;
+  shop_details: { // Adicionado para incluir os detalhes da loja
+    shop_name: string;
+  } | null;
 }
 
 const productFormSchema = z.object({
@@ -55,8 +58,8 @@ const productFormSchema = z.object({
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
   category: z.string().optional(),
-  photo_url: z.string().optional(), // photo_url agora é opcional no schema do formulário
-  discount: z.preprocess( // Desconto agora é obrigatório
+  photo_url: z.string().optional(),
+  discount: z.preprocess(
     (val) => Number(val),
     z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
   ),
@@ -84,7 +87,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0.01, // Valor padrão para desconto, agora maior que zero
+      discount: 0.01,
     },
   });
 
@@ -92,7 +95,7 @@ const GerenciarProdutos = () => {
     setIsLoadingProducts(true);
     const { data, error } = await supabase
       .from('products')
-      .select('*');
+      .select('*, shop_details(shop_name)'); // Inclui o nome da loja
 
     if (error) {
       showError('Erro ao carregar produtos: ' + error.message);
@@ -119,7 +122,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0.01, // Valor padrão para desconto, agora maior que zero
+      discount: 0.01,
     });
     setSelectedFile(null);
     setImagePreview(null);
@@ -135,7 +138,7 @@ const GerenciarProdutos = () => {
       quantity: product.quantity,
       category: product.category || "",
       photo_url: product.photo_url || "",
-      discount: product.discount || 0.01, // Garante que o valor seja > 0
+      discount: product.discount || 0.01,
     });
     setSelectedFile(null);
     setImagePreview(product.photo_url);
@@ -353,6 +356,7 @@ const GerenciarProdutos = () => {
               <TableRow>
                 <TableHead>Imagem</TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead>Loja</TableHead> {/* Nova coluna para o nome da loja */}
                 <TableHead>Preço</TableHead>
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Categoria</TableHead>
@@ -377,7 +381,8 @@ const GerenciarProdutos = () => {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{formatCurrency(Number(product.price))}</TableCell> {/* Garantindo que o preço é um número */}
+                  <TableCell>{product.shop_details?.shop_name || 'N/A'}</TableCell> {/* Exibe o nome da loja */}
+                  <TableCell>{formatCurrency(Number(product.price))}</TableCell>
                   <TableCell>{product.quantity}</TableCell>
                   <TableCell>{product.category || 'N/A'}</TableCell>
                   <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
