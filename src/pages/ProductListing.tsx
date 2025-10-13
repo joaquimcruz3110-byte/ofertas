@@ -8,10 +8,11 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { showError } from '@/utils/toast'; // Removido showSuccess, showLoading, dismissToast
-import { ShoppingCart } from 'lucide-react'; // Removido Loader2
+import { showError } from '@/utils/toast';
+import { ShoppingCart, Search } from 'lucide-react'; // Importar o ícone Search
 import { Link } from 'react-router-dom';
-import { useCart } from '@/components/CartProvider'; // Importar useCart
+import { useCart } from '@/components/CartProvider';
+import { Input } from '@/components/ui/input'; // Importar o componente Input
 
 interface Product {
   id: string;
@@ -28,17 +29,24 @@ interface Product {
 
 const ProductListing = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
-  const { addItem } = useCart(); // Usar o hook useCart
+  const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  // Removido o estado isBuying, pois a adição ao carrinho é local
+  const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de pesquisa
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('products')
       .select('*')
       .gt('quantity', 0); // Apenas produtos com quantidade maior que 0
+
+    if (searchTerm) {
+      // Adiciona filtro por nome ou descrição se houver um termo de pesquisa
+      query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       showError('Erro ao carregar produtos: ' + error.message);
@@ -52,12 +60,17 @@ const ProductListing = () => {
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'comprador') {
-      fetchProducts();
+      const handler = setTimeout(() => { // Adiciona um debounce para a pesquisa
+        fetchProducts();
+      }, 300); // Atraso de 300ms para evitar muitas requisições
+
+      return () => {
+        clearTimeout(handler);
+      };
     }
-  }, [session, isSessionLoading, userRole]);
+  }, [session, isSessionLoading, userRole, searchTerm]); // Depende do searchTerm
 
   const handleAddToCart = (product: Product) => {
-    // Adiciona o produto ao carrinho
     addItem({
       id: product.id,
       name: product.name,
@@ -92,6 +105,18 @@ const ProductListing = () => {
             <p className="text-lg text-gray-600 mb-8">
               Confira os produtos disponíveis para compra na plataforma.
             </p>
+
+            {/* Barra de Pesquisa */}
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                type="text"
+                placeholder="Pesquisar produtos por nome ou descrição..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-dyad-vibrant-orange"
+              />
+            </div>
 
             {products.length === 0 ? (
               <p className="text-center text-gray-500">Nenhum produto encontrado no momento.</p>
