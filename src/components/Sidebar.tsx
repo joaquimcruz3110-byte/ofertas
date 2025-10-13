@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard } from 'lucide-react'; // Importar LayoutDashboard
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
-  { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] }, // Novo item para lojista
+  { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] }, // Novo item para comprador
+  { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
@@ -36,7 +37,7 @@ const Sidebar = () => {
     <nav className="flex flex-col space-y-1 p-4">
       {userRole && navItems.filter(item => item.roles.includes(userRole)).map((item) => (
         <Link
-          key={item.name}
+          key={item.name + item.href} // Adicionado item.href para garantir unicidade da chave
           to={item.href}
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2 text-dyad-dark-blue transition-all hover:bg-dyad-vibrant-orange hover:text-dyad-white",
@@ -65,7 +66,9 @@ const Sidebar = () => {
               <span className="text-lg">Meu App</span>
             </Link>
           </div>
-          {renderNavLinks()}
+          <div className="flex-1 overflow-auto py-2">
+            {renderNavLinks()}
+          </div>
         </SheetContent>
       </Sheet>
     );

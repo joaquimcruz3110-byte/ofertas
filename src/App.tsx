@@ -18,7 +18,8 @@ import GerenciarProdutos from "./pages/GerenciarProdutos";
 import GerenciarComissoes from "./pages/GerenciarComissoes";
 import ProductListing from "./pages/ProductListing";
 import ProductDetail from "./pages/ProductDetail";
-import LojistaDashboard from "./pages/LojistaDashboard"; // Importar a nova página do painel do lojista
+import LojistaDashboard from "./pages/LojistaDashboard";
+import CompradorDashboard from "./pages/CompradorDashboard"; // Importar a nova página do painel do comprador
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,14 @@ const App = () => (
             />
             {/* Rotas para Comprador */}
             <Route
+              path="/comprador-dashboard" // Nova rota para o painel do comprador
+              element={
+                <ProtectedRoute>
+                  <CompradorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/explorar-produtos"
               element={
                 <ProtectedRoute>
@@ -81,7 +90,7 @@ const App = () => (
             />
             {/* Rotas para Lojista */}
             <Route
-              path="/lojista-dashboard" // Nova rota para o painel do lojista
+              path="/lojista-dashboard"
               element={
                 <ProtectedRoute>
                   <LojistaDashboard />
