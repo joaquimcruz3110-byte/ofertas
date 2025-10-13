@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Product {
   id: string;
@@ -33,6 +35,12 @@ interface Product {
   created_at: string;
 }
 
+interface Shopkeeper {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 const PRODUCTS_PER_PAGE = 8;
 
 const ProductListing = () => {
@@ -41,10 +49,14 @@ const ProductListing = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [shopkeepers, setShopkeepers] = useState<Shopkeeper[]>([]);
+  const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchProducts = async (page: number, term: string) => {
+  const fetchProducts = useCallback(async (page: number, term: string, shopkeeperId?: string, minP?: string, maxP?: string) => {
     setIsLoadingProducts(true);
     const from = (page - 1) * PRODUCTS_PER_PAGE;
     const to = from + PRODUCTS_PER_PAGE - 1;
@@ -56,6 +68,15 @@ const ProductListing = () => {
 
     if (term) {
       query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+    if (shopkeeperId) {
+      query = query.eq('shopkeeper_id', shopkeeperId);
+    }
+    if (minP && !isNaN(Number(minP))) {
+      query = query.gte('price', Number(minP));
+    }
+    if (maxP && !isNaN(Number(maxP))) {
+      query = query.lte('price', Number(maxP));
     }
 
     const { data, error, count } = await query.range(from, to);
@@ -70,19 +91,38 @@ const ProductListing = () => {
       setTotalPages(Math.ceil((count || 0) / PRODUCTS_PER_PAGE));
     }
     setIsLoadingProducts(false);
-  };
+  }, []);
+
+  const fetchShopkeepers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .eq('role', 'lojista');
+
+    if (error) {
+      console.error('Erro ao buscar lojistas:', error.message);
+    } else {
+      setShopkeepers(data || []);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSessionLoading && session && userRole === 'comprador') {
+      fetchShopkeepers();
+    }
+  }, [isSessionLoading, session, userRole, fetchShopkeepers]);
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'comprador') {
       const handler = setTimeout(() => {
-        fetchProducts(currentPage, searchTerm);
-      }, 300);
+        fetchProducts(currentPage, searchTerm, selectedShopkeeperId, minPrice, maxPrice);
+      }, 300); // Debounce para pesquisa e filtros de preço
 
       return () => {
         clearTimeout(handler);
       };
     }
-  }, [session, isSessionLoading, userRole, searchTerm, currentPage]);
+  }, [session, isSessionLoading, userRole, searchTerm, currentPage, selectedShopkeeperId, minPrice, maxPrice, fetchProducts]);
 
   const handleAddToCart = (product: Product) => {
     const finalPrice = product.discount
@@ -99,6 +139,29 @@ const ProductListing = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleShopkeeperChange = (value: string) => {
+    setSelectedShopkeeperId(value === 'all' ? undefined : value);
+    setCurrentPage(1); // Resetar para a primeira página ao mudar o filtro
+  };
+
+  const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMinPrice(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMaxPrice(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedShopkeeperId(undefined);
+    setMinPrice('');
+    setMaxPrice('');
+    setCurrentPage(1);
   };
 
   if (isSessionLoading || isLoadingProducts) {
@@ -123,15 +186,65 @@ const ProductListing = () => {
         Confira os produtos disponíveis para compra na plataforma.
       </p>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-        <Input
-          type="text"
-          placeholder="Pesquisar produtos por nome ou descrição..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-dyad-vibrant-orange"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 items-end">
+        <div className="relative">
+          <Label htmlFor="search-product">Pesquisar Produto</Label>
+          <Search className="absolute left-3 top-[38px] -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Input
+            id="search-product"
+            type="text"
+            placeholder="Nome ou descrição..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-dyad-vibrant-orange"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="filter-shopkeeper">Filtrar por Loja</Label>
+          <Select value={selectedShopkeeperId || 'all'} onValueChange={handleShopkeeperChange}>
+            <SelectTrigger id="filter-shopkeeper" className="w-full">
+              <SelectValue placeholder="Todas as Lojas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Lojas</SelectItem>
+              {shopkeepers.map(shopkeeper => (
+                <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
+                  {shopkeeper.first_name || 'Lojista Desconhecido'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="min-price">Preço Mínimo</Label>
+          <Input
+            id="min-price"
+            type="number"
+            placeholder="0.00"
+            value={minPrice}
+            onChange={handleMinPriceChange}
+            className="w-full"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="max-price">Preço Máximo</Label>
+          <Input
+            id="max-price"
+            type="number"
+            placeholder="999.99"
+            value={maxPrice}
+            onChange={handleMaxPriceChange}
+            className="w-full"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end mb-6">
+        <Button variant="outline" onClick={handleClearFilters}>
+          Limpar Filtros
+        </Button>
       </div>
 
       {products.length === 0 ? (
@@ -140,7 +253,7 @@ const ProductListing = () => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => {
-              const originalPrice = Number(product.price); // Garante que é um número
+              const originalPrice = Number(product.price);
               const finalPrice = product.discount
                 ? originalPrice * (1 - Number(product.discount) / 100)
                 : originalPrice;

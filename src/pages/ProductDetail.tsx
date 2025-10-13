@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters';
 
 interface Product {
   id: string;
