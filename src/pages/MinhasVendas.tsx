@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
@@ -14,8 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { showSuccess, showError } from '@/utils/toast';
-import { Loader2 } from 'lucide-react';
+import { showError } from '@/utils/toast'; // showSuccess removido
+// import { Loader2 } from 'lucide-react'; // Removido pois não é usado
 
 interface Sale {
   id: string;
@@ -25,10 +25,10 @@ interface Sale {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  products: Array<{ // Alterado para Array
+  products: Array<{
     name: string;
     price: number;
-  }>; // Removido '| null' pois um array vazio pode representar a ausência
+  }>;
 }
 
 const MinhasVendas = () => {
@@ -66,10 +66,9 @@ const MinhasVendas = () => {
       console.error('Erro ao carregar vendas:', error.message);
       setSales([]);
     } else {
-      // Mapeia os dados para garantir que 'products' seja um array, mesmo que vazio
       const typedSales: Sale[] = data.map(sale => ({
         ...sale,
-        products: sale.products || [], // Garante que products é um array (pode ser vazio)
+        products: sale.products || [],
       })) as Sale[];
       setSales(typedSales);
     }
@@ -121,20 +120,28 @@ const MinhasVendas = () => {
                       <TableHead>Preço Unitário</TableHead>
                       <TableHead>Preço Total</TableHead>
                       <TableHead>Comissão (%)</TableHead>
+                      <TableHead>Comissão Recebida</TableHead> {/* Nova coluna */}
                       <TableHead>Data da Venda</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sales.map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="font-medium">{sale.products[0]?.name || 'Produto Desconhecido'}</TableCell>
-                        <TableCell>{sale.quantity}</TableCell>
-                        <TableCell>R$ {sale.products[0]?.price ? sale.products[0].price.toFixed(2) : 'N/A'}</TableCell>
-                        <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
-                        <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                        <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
+                    {sales.map((sale) => {
+                      const productName = sale.products[0]?.name || 'Produto Desconhecido';
+                      const productPrice = sale.products[0]?.price;
+                      const commissionAmount = sale.total_price * (sale.commission_rate / 100);
+
+                      return (
+                        <TableRow key={sale.id}>
+                          <TableCell className="font-medium">{productName}</TableCell>
+                          <TableCell>{sale.quantity}</TableCell>
+                          <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
+                          <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                          <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
+                          <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell> {/* Exibindo o valor da comissão */}
+                          <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from '@/components/ui/button';
+// import { Button } from '@/components/ui/button'; // Removido pois não é usado
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
-import { Loader2 } from 'lucide-react';
+// import { Loader2 } from 'lucide-react'; // Removido pois não é usado
 
 interface Order {
   id: string;
@@ -24,10 +24,10 @@ interface Order {
   quantity: number;
   total_price: number;
   sale_date: string;
-  products: Array<{ // Alterado para Array
+  products: Array<{
     name: string;
     price: number;
-  }>; // Removido '| null' pois um array vazio pode representar a ausência
+  }>;
 }
 
 const MeusPedidos = () => {
@@ -64,10 +64,9 @@ const MeusPedidos = () => {
       console.error('Erro ao carregar pedidos:', error.message);
       setOrders([]);
     } else {
-      // Mapeia os dados para garantir que 'products' seja um array, mesmo que vazio
       const typedOrders: Order[] = data.map(order => ({
         ...order,
-        products: order.products || [], // Garante que products é um array (pode ser vazio)
+        products: order.products || [],
       })) as Order[];
       setOrders(typedOrders);
     }
@@ -122,15 +121,20 @@ const MeusPedidos = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.products[0]?.name || 'Produto Desconhecido'}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>R$ {order.products[0]?.price ? order.products[0].price.toFixed(2) : 'N/A'}</TableCell>
-                        <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
-                        <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
+                    {orders.map((order) => {
+                      const productName = order.products[0]?.name || 'Produto Desconhecido';
+                      const productPrice = order.products[0]?.price;
+
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{productName}</TableCell>
+                          <TableCell>{order.quantity}</TableCell>
+                          <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
+                          <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
+                          <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

@@ -48,7 +48,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
 
     getInitialSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, currentSession) => { // 'event' renomeado para '_'
       setSession(currentSession); // Update session state
       setIsLoading(false);
     });

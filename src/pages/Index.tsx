@@ -4,7 +4,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { useSession } from "@/components/SessionContextProvider";
-import { useEffect } from "react"; // Removido useState para userName e userRole
+// import { useEffect } from "react"; // Removido useState para userName e userRole
 
 const Index = () => {
   const { session, isLoading, userName, userRole } = useSession(); // Obtendo do contexto
