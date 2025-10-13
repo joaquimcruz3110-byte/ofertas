@@ -75,6 +75,7 @@ const MeusProdutos = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isRemovingImage, setIsRemovingImage] = useState(false); // Novo estado
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -206,6 +207,63 @@ const MeusProdutos = () => {
     return publicUrlData.publicUrl;
   };
 
+  // Nova função para remover a imagem
+  const handleRemoveImage = async () => {
+    if (!editingProduct || !editingProduct.photo_url || !session?.user?.id) {
+      showError('Nenhuma imagem para remover ou produto não selecionado.');
+      return;
+    }
+
+    if (!window.confirm("Tem certeza que deseja remover a imagem deste produto?")) {
+      return;
+    }
+
+    setIsRemovingImage(true);
+    const toastId = showLoading('Removendo imagem...');
+
+    try {
+      // Extrair o caminho do arquivo da URL pública
+      const urlParts = editingProduct.photo_url.split('product_images/');
+      const filePathInStorage = urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
+
+      if (filePathInStorage) {
+        const { error: deleteStorageError } = await supabase.storage
+          .from('product_images')
+          .remove([filePathInStorage]);
+
+        if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+          throw new Error('Erro ao remover imagem do storage: ' + deleteStorageError.message);
+        }
+      }
+
+      // Atualizar o produto no banco de dados para definir photo_url como null
+      const { error: updateDbError } = await supabase
+        .from('products')
+        .update({ photo_url: null })
+        .eq('id', editingProduct.id)
+        .eq('shopkeeper_id', session.user.id);
+
+      if (updateDbError) {
+        throw new Error('Erro ao atualizar produto no banco de dados: ' + updateDbError.message);
+      }
+
+      dismissToast(toastId);
+      showSuccess('Imagem removida com sucesso!');
+
+      // Atualizar o estado local
+      setEditingProduct(prev => prev ? { ...prev, photo_url: null } : null);
+      setImagePreview(null);
+      setSelectedFile(null);
+      fetchProducts(); // Re-fetch products para garantir que a tabela seja atualizada
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao remover imagem: ' + error.message);
+      console.error('Erro ao remover imagem:', error.message);
+    } finally {
+      setIsRemovingImage(false);
+    }
+  };
+
   const onSubmit = async (values: ProductFormValues) => {
     setIsSubmitting(true);
     const toastId = showLoading(editingProduct ? 'Atualizando produto...' : 'Adicionando produto...');
@@ -238,6 +296,7 @@ const MeusProdutos = () => {
       if (selectedFile && currentProductId) {
         photoUrlToSave = await uploadImage(currentProductId, selectedFile);
       } else if (!selectedFile && editingProduct && !editingProduct.photo_url) {
+        // Se não há novo arquivo e não havia avatar, garantir que avatar_url seja null
         photoUrlToSave = null;
       }
 
@@ -472,8 +531,24 @@ const MeusProdutos = () => {
                   <FormMessage />
                 </FormItem>
                 {imagePreview && (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col items-center">
                     <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
+                    {editingProduct && editingProduct.photo_url && ( // Só mostra se estiver editando e houver uma foto existente
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemoveImage}
+                        disabled={isRemovingImage}
+                        className="mt-2"
+                      >
+                        {isRemovingImage ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Remover Imagem Atual
+                      </Button>
+                    )}
                   </div>
                 )}
                 <DialogFooter>
