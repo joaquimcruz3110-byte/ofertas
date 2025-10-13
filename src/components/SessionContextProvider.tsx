@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,52 +19,52 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  // Memoize fetchUserProfile to ensure it's stable across renders
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, role')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar perfil do usuário:', error.message);
+      setUserName("Usuário");
+      setUserRole("comprador"); // Fallback
+    } else if (data) {
+      setUserName(data.first_name || data.last_name || "Usuário");
+      setUserRole(data.role || "comprador"); // Fallback
+    }
+  }, []); // No dependencies, as it only uses supabase client and setters
+
+  // Effect to handle initial session and auth state changes
   useEffect(() => {
-    const fetchUserProfile = async (userId: string) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, role')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Erro ao buscar perfil do usuário:', error.message);
-        setUserName("Usuário");
-        setUserRole("comprador"); // Fallback
-      } else if (data) {
-        setUserName(data.first_name || data.last_name || "Usuário");
-        setUserRole(data.role || "comprador"); // Fallback
-      }
-    };
-
     const getInitialSession = async () => {
       setIsLoading(true);
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       setSession(initialSession);
-      if (initialSession?.user) {
-        await fetchUserProfile(initialSession.user.id);
-      } else {
-        setUserName(null);
-        setUserRole(null);
-      }
       setIsLoading(false);
     };
 
     getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      setSession(currentSession);
-      if (currentSession?.user) {
-        fetchUserProfile(currentSession.user.id);
-      } else {
-        setUserName(null);
-        setUserRole(null);
-      }
+      setSession(currentSession); // Update session state
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []); // Dependências vazias para rodar apenas uma vez na montagem
+  }, []); // Empty dependency array for the auth listener setup
+
+  // Effect to react to changes in the 'session' state and fetch profile
+  useEffect(() => {
+    if (session?.user) {
+      fetchUserProfile(session.user.id);
+    } else {
+      setUserName(null);
+      setUserRole(null);
+    }
+  }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
     <SessionContext.Provider value={{ session, isLoading, userName, userRole }}>
