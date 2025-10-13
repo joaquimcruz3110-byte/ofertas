@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon, Search, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Product {
   id: string;
@@ -45,6 +47,24 @@ interface Product {
     shop_name: string;
   } | null;
 }
+
+interface ShopDetail {
+  id: string;
+  shop_name: string;
+}
+
+const CATEGORIES = [
+  "Alimentos",
+  "Eletrônicos",
+  "Roupas",
+  "Livros",
+  "Casa e Decoração",
+  "Esportes",
+  "Beleza",
+  "Brinquedos",
+  "Automotivo",
+  "Outros"
+];
 
 const productFormSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório."),
@@ -78,6 +98,14 @@ const GerenciarProdutos = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isRemovingImage, setIsRemovingImage] = useState(false);
 
+  // Estados para os filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
+  const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
@@ -91,11 +119,29 @@ const GerenciarProdutos = () => {
     },
   });
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async (term: string, shopkeeperId?: string, category?: string, minP?: string, maxP?: string) => {
     setIsLoadingProducts(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('products')
-      .select('*, shop_details(shop_name)'); // Inclui o nome da loja
+      .select('*, shop_details(shop_name)');
+
+    if (term) {
+      query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+    if (shopkeeperId) {
+      query = query.eq('shopkeeper_id', shopkeeperId);
+    }
+    if (category) {
+      query = query.eq('category', category);
+    }
+    if (minP && !isNaN(Number(minP))) {
+      query = query.gte('price', Number(minP));
+    }
+    if (maxP && !isNaN(Number(maxP))) {
+      query = query.lte('price', Number(maxP));
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       showError('Erro ao carregar produtos: ' + error.message);
@@ -105,13 +151,37 @@ const GerenciarProdutos = () => {
       setProducts(data as Product[]);
     }
     setIsLoadingProducts(false);
-  };
+  }, []);
+
+  const fetchShopkeepers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('shop_details')
+      .select('id, shop_name');
+
+    if (error) {
+      console.error('Erro ao buscar detalhes das lojas:', error.message);
+    } else {
+      setShopkeepers(data || []);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'administrador') {
-      fetchProducts();
+      fetchShopkeepers();
     }
-  }, [session, isSessionLoading, userRole]);
+  }, [isSessionLoading, session, userRole, fetchShopkeepers]);
+
+  useEffect(() => {
+    if (!isSessionLoading && session && userRole === 'administrador') {
+      const handler = setTimeout(() => {
+        fetchProducts(searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
+      }, 300); // Debounce para a pesquisa
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }
+  }, [session, isSessionLoading, userRole, searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice, fetchProducts]);
 
   const handleAddProductClick = () => {
     setEditingProduct(null);
@@ -242,7 +312,7 @@ const GerenciarProdutos = () => {
       setEditingProduct(prev => prev ? { ...prev, photo_url: null } : null);
       setImagePreview(null);
       setSelectedFile(null);
-      fetchProducts();
+      fetchProducts(searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao remover imagem: ' + error.message);
@@ -309,7 +379,7 @@ const GerenciarProdutos = () => {
       dismissToast(toastId);
       showSuccess(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto adicionado com sucesso!');
       setIsDialogOpen(false);
-      fetchProducts();
+      fetchProducts(searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao salvar produto: ' + error.message);
@@ -317,6 +387,22 @@ const GerenciarProdutos = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleShopkeeperChange = (value: string) => {
+    setSelectedShopkeeperId(value === 'all' ? undefined : value);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value === 'all' ? undefined : value);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedShopkeeperId(undefined);
+    setSelectedCategory(undefined);
+    setMinPrice('');
+    setMaxPrice('');
   };
 
   if (isSessionLoading || isLoadingProducts) {
@@ -347,6 +433,85 @@ const GerenciarProdutos = () => {
         </Button>
       </div>
 
+      {/* Filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 items-end">
+        <div className="relative">
+          <Label htmlFor="search-product">Pesquisar Produto</Label>
+          <Search className="absolute left-3 top-[38px] -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Input
+            id="search-product"
+            type="text"
+            placeholder="Nome ou descrição..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-dyad-vibrant-orange"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="filter-shopkeeper">Filtrar por Loja</Label>
+          <Select value={selectedShopkeeperId || 'all'} onValueChange={handleShopkeeperChange}>
+            <SelectTrigger id="filter-shopkeeper" className="w-full">
+              <SelectValue placeholder="Todas as Lojas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Lojas</SelectItem>
+              {shopkeepers.map(shopkeeper => (
+                <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
+                  {shopkeeper.shop_name || 'Loja Desconhecida'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="filter-category">Filtrar por Categoria</Label>
+          <Select value={selectedCategory || 'all'} onValueChange={handleCategoryChange}>
+            <SelectTrigger id="filter-category" className="w-full">
+              <SelectValue placeholder="Todas as Categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Categorias</SelectItem>
+              {CATEGORIES.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="min-price">Preço Mínimo</Label>
+          <Input
+            id="min-price"
+            type="number"
+            placeholder="0.00"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="max-price">Preço Máximo</Label>
+          <Input
+            id="max-price"
+            type="number"
+            placeholder="999.99"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            className="w-full"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end mb-6">
+        <Button variant="outline" onClick={handleClearFilters}>
+          <XCircle className="mr-2 h-4 w-4" /> Limpar Filtros
+        </Button>
+      </div>
+
       {products.length === 0 ? (
         <p className="text-center text-gray-500">Nenhum produto encontrado.</p>
       ) : (
@@ -356,7 +521,7 @@ const GerenciarProdutos = () => {
               <TableRow>
                 <TableHead>Imagem</TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Loja</TableHead> {/* Nova coluna para o nome da loja */}
+                <TableHead>Loja</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Categoria</TableHead>
@@ -381,7 +546,7 @@ const GerenciarProdutos = () => {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.shop_details?.shop_name || 'N/A'}</TableCell> {/* Exibe o nome da loja */}
+                  <TableCell>{product.shop_details?.shop_name || 'N/A'}</TableCell>
                   <TableCell>{formatCurrency(Number(product.price))}</TableCell>
                   <TableCell>{product.quantity}</TableCell>
                   <TableCell>{product.category || 'N/A'}</TableCell>
