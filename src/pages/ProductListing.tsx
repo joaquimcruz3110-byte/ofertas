@@ -35,10 +35,9 @@ interface Product {
   created_at: string;
 }
 
-interface Shopkeeper {
+interface ShopDetail { // Nova interface para detalhes da loja
   id: string;
-  first_name: string | null;
-  last_name: string | null;
+  shop_name: string;
 }
 
 const PRODUCTS_PER_PAGE = 8;
@@ -49,7 +48,7 @@ const ProductListing = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [shopkeepers, setShopkeepers] = useState<Shopkeeper[]>([]);
+  const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]); // Alterado para ShopDetail[]
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
@@ -95,12 +94,11 @@ const ProductListing = () => {
 
   const fetchShopkeepers = useCallback(async () => {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .eq('role', 'lojista');
+      .from('shop_details') // Busca da tabela shop_details
+      .select('id, shop_name'); // Seleciona id e shop_name
 
     if (error) {
-      console.error('Erro ao buscar lojistas:', error.message);
+      console.error('Erro ao buscar detalhes das lojas:', error.message);
     } else {
       setShopkeepers(data || []);
     }
@@ -210,7 +208,7 @@ const ProductListing = () => {
               <SelectItem value="all">Todas as Lojas</SelectItem>
               {shopkeepers.map(shopkeeper => (
                 <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
-                  {shopkeeper.first_name || 'Lojista Desconhecido'}
+                  {shopkeeper.shop_name || 'Loja Desconhecida'} {/* Exibe o nome da loja */}
                 </SelectItem>
               ))}
             </SelectContent>
