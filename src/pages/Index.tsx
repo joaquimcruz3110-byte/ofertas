@@ -14,14 +14,14 @@ const Index = () => {
   useEffect(() => {
     if (!isLoading && session) {
       if (userRole === 'administrador') {
-        // Redireciona administradores para a página de gerenciamento de usuários
-        navigate('/gerenciar-usuarios');
+        // Redireciona administradores para o Painel do Administrador
+        navigate('/admin-dashboard');
       } else if (userRole === 'lojista') {
-        // Redireciona lojistas para a página de seus produtos
-        navigate('/meus-produtos');
+        // Redireciona lojistas para o Painel do Lojista
+        navigate('/lojista-dashboard');
       } else if (userRole === 'comprador') {
-        // Para compradores, redirecionar para a página de explorar produtos
-        navigate('/explorar-produtos');
+        // Para compradores, redirecionar para o Painel do Comprador
+        navigate('/comprador-dashboard');
       }
     }
   }, [session, isLoading, userName, userRole, navigate]);
