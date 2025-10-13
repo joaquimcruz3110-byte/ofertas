@@ -27,7 +27,7 @@ const LandingPage = () => {
             </Button>
           </Link>
           <Button
-            className="w-full sm:w-auto bg-dyad-vibrant-orange text-dyad-white hover:bg-orange-600 py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
+            className="w-full sm:w-auto bg-dyad-dark-blue text-dyad-white hover:bg-blue-950 py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
             onClick={() => setIsRoleSelectionOpen(true)} // Abre o diálogo
           >
             <UserPlus className="mr-2 h-5 w-5" /> Cadastrar
