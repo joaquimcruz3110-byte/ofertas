@@ -108,7 +108,7 @@ serve(async (req: Request) => {
     });
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'pix', 'boleto'], // <--- Alterado para incluir Pix e Boleto
       line_items: lineItems,
       mode: 'payment',
       // @ts-ignore
