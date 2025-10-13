@@ -22,12 +22,12 @@ const LandingPage = () => {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link to="/login">
-            <Button className="w-full sm:w-auto bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
+            <Button className="w-full sm:w-auto bg-dyad-dark-blue hover:bg-blue-950 text-dyad-white py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
               <LogIn className="mr-2 h-5 w-5" /> Entrar
             </Button>
           </Link>
           <Button
-            className="w-full sm:w-auto bg-dyad-dark-blue text-dyad-white hover:bg-dyad-vibrant-orange py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
+            className="w-full sm:w-auto bg-dyad-vibrant-orange text-dyad-white hover:bg-orange-600 py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
             onClick={() => setIsRoleSelectionOpen(true)} // Abre o diálogo
           >
             <UserPlus className="mr-2 h-5 w-5" /> Cadastrar
