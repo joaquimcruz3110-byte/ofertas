@@ -28,7 +28,7 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  products: Array<{ name: string; price: number }> | null;
+  products: Array<{ name: string; price: number }> | null; // Corrigido para Array
   buyer_name: string; // Adicionado para o nome do comprador
 }
 
@@ -74,8 +74,8 @@ const AdminDashboard = () => {
         quantity,
         total_price,
         commission_rate,
-        products (name, price),
-        sale_date
+        sale_date,
+        products (name, price)
       `)
       .order('sale_date', { ascending: false });
 

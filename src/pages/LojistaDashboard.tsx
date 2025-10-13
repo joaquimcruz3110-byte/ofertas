@@ -28,7 +28,7 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  products: Array<{ name: string; price: number }> | null; // Detalhes do produto aninhados
+  products: Array<{ name: string; price: number }> | null; // Corrigido para Array
 }
 
 const LojistaDashboard = () => {
@@ -98,8 +98,8 @@ const LojistaDashboard = () => {
         quantity,
         total_price,
         commission_rate,
-        products (name, price),
-        sale_date
+        sale_date,
+        products (name, price)
       `)
       .eq('products.shopkeeper_id', shopkeeperId)
       .order('sale_date', { ascending: false });
