@@ -5,9 +5,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { showError } from '@/utils/toast'; // Removido showSuccess, showLoading, dismissToast
-import { ShoppingCart, ArrowLeft } from 'lucide-react'; // Removido Loader2
-import { useCart } from '@/components/CartProvider'; // Importar useCart
+import { showError } from '@/utils/toast';
+import { ShoppingCart, ArrowLeft } from 'lucide-react';
+import { useCart } from '@/components/CartProvider';
 
 interface Product {
   id: string;
@@ -26,10 +26,9 @@ const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session, isLoading: isSessionLoading, userRole } = useSession();
-  const { addItem } = useCart(); // Usar o hook useCart
+  const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-  // Removido o estado isBuying, pois a adição ao carrinho é local
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -50,7 +49,7 @@ const ProductDetail = () => {
         showError('Erro ao carregar detalhes do produto: ' + error.message);
         console.error('Erro ao carregar detalhes do produto:', error.message);
         setProduct(null);
-        navigate('/explorar-produtos'); // Redireciona se o produto não for encontrado
+        navigate('/explorar-produtos');
       } else {
         setProduct(data as Product);
       }
@@ -67,10 +66,14 @@ const ProductDetail = () => {
       showError('Produto não disponível para adicionar ao carrinho.');
       return;
     }
+    const finalPrice = product.discount
+      ? product.price * (1 - product.discount / 100)
+      : product.price;
+
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: finalPrice,
       photo_url: product.photo_url,
     });
   };
@@ -108,6 +111,13 @@ const ProductDetail = () => {
     ? product.price * (1 - product.discount / 100)
     : product.price;
 
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <Button
@@ -136,10 +146,10 @@ const ProductDetail = () => {
           <h1 className="text-4xl font-bold mb-2 text-dyad-dark-blue">{product.name}</h1>
           <p className="text-lg text-gray-600 mb-4">{product.category || 'Geral'}</p>
           <p className="text-2xl font-bold text-dyad-vibrant-orange mb-4">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalPrice)}
+            {currencyFormatter.format(finalPrice)}
             {product.discount && product.discount > 0 && (
               <span className="ml-3 text-lg text-gray-500 line-through">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                {currencyFormatter.format(product.price)}
               </span>
             )}
           </p>

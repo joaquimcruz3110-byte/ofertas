@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import SalesByProductChart from '@/components/SalesByProductChart';
-import { DatePickerWithRange } from '@/components/DatePickerWithRange'; // Importar o componente DatePickerWithRange
+import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
 
@@ -29,8 +29,8 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  product_name: string; // Adicionado para armazenar o nome do produto
-  product_price: number; // Adicionado para armazenar o preço unitário do produto
+  product_name: string;
+  product_price: number;
 }
 
 const LojistaDashboard = () => {
@@ -43,7 +43,7 @@ const LojistaDashboard = () => {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30), // Últimos 30 dias como padrão
+    from: addDays(new Date(), -30),
     to: new Date(),
   });
 
@@ -156,9 +156,9 @@ const LojistaDashboard = () => {
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'lojista') {
-      fetchDashboardData(dateRange?.from, dateRange?.to); // Passar o dateRange para a função de busca
+      fetchDashboardData(dateRange?.from, dateRange?.to);
     }
-  }, [session, isSessionLoading, userRole, dateRange]); // Adicionar dateRange como dependência
+  }, [session, isSessionLoading, userRole, dateRange]);
 
   const handleExportPdf = () => {
     if (reportRef.current) {
@@ -183,12 +183,19 @@ const LojistaDashboard = () => {
     );
   }
 
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-dyad-dark-blue">Painel do Lojista</h1>
         <div className="flex items-center space-x-4">
-          <DatePickerWithRange date={dateRange} setDate={setDateRange} /> {/* Adicionar o seletor de data */}
+          <DatePickerWithRange date={dateRange} setDate={setDateRange} />
           <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
             <FileText className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
@@ -231,7 +238,7 @@ const LojistaDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
+              <div className="text-2xl font-bold">{currencyFormatter.format(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta dos seus produtos
               </p>
@@ -273,11 +280,11 @@ const LojistaDashboard = () => {
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice)}</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
+                      <TableCell>{currencyFormatter.format(productPrice)}</TableCell>
+                      <TableCell>{currencyFormatter.format(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
-                      <TableCell className="font-semibold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountToReceive)}</TableCell>
+                      <TableCell>{currencyFormatter.format(commissionAmount)}</TableCell>
+                      <TableCell className="font-semibold text-green-600">{currencyFormatter.format(amountToReceive)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );

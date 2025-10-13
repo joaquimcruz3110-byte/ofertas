@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { showSuccess } from '@/utils/toast'; // Removido showError
+import { showSuccess } from '@/utils/toast';
 
 interface CartItem {
   id: string; // Product ID
@@ -47,7 +47,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         showSuccess(`${product.name} quantity updated in cart!`);
         return prevItems.map(item =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + quantityToAdd }
+            ? {
+                ...item,
+                quantity: item.quantity + quantityToAdd,
+                name: product.name, // Atualiza o nome
+                price: product.price, // Atualiza o preço
+                photo_url: product.photo_url, // Atualiza a URL da foto
+              }
             : item
         );
       } else {

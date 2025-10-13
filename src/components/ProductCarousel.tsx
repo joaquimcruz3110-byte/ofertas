@@ -82,6 +82,13 @@ const ProductCarousel = () => {
     );
   }
 
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <div className="embla overflow-hidden w-full max-w-5xl mx-auto mt-12">
       <div className="embla__viewport" ref={emblaRef}>
@@ -101,7 +108,7 @@ const ProductCarousel = () => {
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg font-semibold text-dyad-dark-blue truncate">{product.name}</CardTitle>
                   <CardDescription className="text-sm text-gray-600">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                    {currencyFormatter.format(product.price)}
                   </CardDescription>
                 </CardHeader>
                 <div className="p-4 pt-0">

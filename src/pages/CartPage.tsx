@@ -69,6 +69,13 @@ const CartPage = () => {
     );
   }
 
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meu Carrinho</h1>
@@ -99,7 +106,7 @@ const CartPage = () => {
               )}
               <div className="flex-grow">
                 <h2 className="text-lg font-semibold text-dyad-dark-blue">{item.name}</h2>
-                <p className="text-gray-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</p>
+                <p className="text-gray-600">{currencyFormatter.format(item.price)}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <Button
@@ -138,7 +145,7 @@ const CartPage = () => {
 
           <div className="flex justify-between items-center pt-6 border-t mt-6">
             <h3 className="text-xl font-bold text-dyad-dark-blue">Total:</h3>
-            <span className="text-2xl font-bold text-dyad-vibrant-orange">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}</span>
+            <span className="text-2xl font-bold text-dyad-vibrant-orange">{currencyFormatter.format(totalPrice)}</span>
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">

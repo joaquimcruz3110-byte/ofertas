@@ -32,7 +32,7 @@ interface Product {
   created_at: string;
 }
 
-const PRODUCTS_PER_PAGE = 8; // Definir quantos produtos por página
+const PRODUCTS_PER_PAGE = 8;
 
 const ProductListing = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
@@ -50,7 +50,7 @@ const ProductListing = () => {
 
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' }) // Contar o total de itens
+      .select('*', { count: 'exact' })
       .gt('quantity', 0);
 
     if (term) {
@@ -84,10 +84,14 @@ const ProductListing = () => {
   }, [session, isSessionLoading, userRole, searchTerm, currentPage]);
 
   const handleAddToCart = (product: Product) => {
+    const finalPrice = product.discount
+      ? product.price * (1 - product.discount / 100)
+      : product.price;
+
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: finalPrice,
       photo_url: product.photo_url,
     });
   };
@@ -110,6 +114,13 @@ const ProductListing = () => {
       </div>
     );
   }
+
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
@@ -134,49 +145,55 @@ const ProductListing = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <Card key={product.id} className="flex flex-col justify-between">
-                <Link to={`/product/${product.id}`} className="block">
-                  <CardHeader>
-                    {product.photo_url && (
-                      <img
-                        src={product.photo_url}
-                        alt={product.name}
-                        className="w-full h-48 object-cover rounded-md mb-4"
-                      />
-                    )}
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <CardDescription className="text-sm text-gray-500">
-                      {product.category || 'Geral'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
-                      {product.discount && product.discount > 0 && (
-                        <span className="ml-2 text-sm text-gray-500 line-through">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price / (1 - product.discount / 100))}
-                        </span>
+            {products.map((product) => {
+              const finalPrice = product.discount
+                ? product.price * (1 - product.discount / 100)
+                : product.price;
+
+              return (
+                <Card key={product.id} className="flex flex-col justify-between">
+                  <Link to={`/product/${product.id}`} className="block">
+                    <CardHeader>
+                      {product.photo_url && (
+                        <img
+                          src={product.photo_url}
+                          alt={product.name}
+                          className="w-full h-48 object-cover rounded-md mb-4"
+                        />
                       )}
-                    </p>
-                    <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Disponível: {product.quantity} unidades
-                    </p>
-                  </CardContent>
-                </Link>
-                <CardFooter>
-                  <Button
-                    className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-                    onClick={() => handleAddToCart(product)}
-                    disabled={product.quantity <= 0}
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                      <CardTitle className="text-lg">{product.name}</CardTitle>
+                      <CardDescription className="text-sm text-gray-500">
+                        {product.category || 'Geral'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
+                        {currencyFormatter.format(finalPrice)}
+                        {product.discount && product.discount > 0 && (
+                          <span className="ml-2 text-sm text-gray-500 line-through">
+                            {currencyFormatter.format(product.price)}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Disponível: {product.quantity} unidades
+                      </p>
+                    </CardContent>
+                  </Link>
+                  <CardFooter>
+                    <Button
+                      className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.quantity <= 0}
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
           </div>
 
           {totalPages > 1 && (

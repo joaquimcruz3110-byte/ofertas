@@ -74,7 +74,7 @@ const MinhasVendas = () => {
         commission_rate,
         sale_date
       `)
-      .in('product_id', productIds); // Filtrar vendas pelos IDs dos produtos
+      .in('product_id', productIds);
 
     if (salesError) {
       showError('Erro ao carregar vendas: ' + salesError.message);
@@ -126,6 +126,13 @@ const MinhasVendas = () => {
     );
   }
 
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Minhas Vendas</h1>
@@ -161,11 +168,11 @@ const MinhasVendas = () => {
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{productName}</TableCell>
                     <TableCell>{sale.quantity}</TableCell>
-                    <TableCell>{productPrice ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice) : 'N/A'}</TableCell>
-                    <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
+                    <TableCell>{productPrice ? currencyFormatter.format(productPrice) : 'N/A'}</TableCell>
+                    <TableCell>{currencyFormatter.format(sale.total_price)}</TableCell>
                     <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                    <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
-                    <TableCell className="font-semibold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountToReceive)}</TableCell>
+                    <TableCell>{currencyFormatter.format(commissionAmount)}</TableCell>
+                    <TableCell className="font-semibold text-green-600">{currencyFormatter.format(amountToReceive)}</TableCell>
                     <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                   </TableRow>
                 );

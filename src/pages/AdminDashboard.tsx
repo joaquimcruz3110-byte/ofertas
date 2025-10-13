@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import RevenueOverTimeChart from '@/components/RevenueOverTimeChart';
-import { DatePickerWithRange } from '@/components/DatePickerWithRange'; // Importar o novo componente
+import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
 
@@ -44,7 +44,7 @@ const AdminDashboard = () => {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30), // Últimos 30 dias como padrão
+    from: addDays(new Date(), -30),
     to: new Date(),
   });
 
@@ -150,7 +150,7 @@ const AdminDashboard = () => {
     if (!isSessionLoading && session && userRole === 'administrador') {
       fetchDashboardData(dateRange?.from, dateRange?.to);
     }
-  }, [session, isSessionLoading, userRole, dateRange]); // Adicionar dateRange como dependência
+  }, [session, isSessionLoading, userRole, dateRange]);
 
   const handleExportPdf = () => {
     if (reportRef.current) {
@@ -174,6 +174,13 @@ const AdminDashboard = () => {
       </div>
     );
   }
+
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
@@ -211,7 +218,7 @@ const AdminDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}</div>
+              <div className="text-2xl font-bold">{currencyFormatter.format(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta de todas as vendas
               </p>
@@ -223,7 +230,7 @@ const AdminDashboard = () => {
               <Percent className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCommission)}</div>
+              <div className="text-2xl font-bold">{currencyFormatter.format(totalCommission)}</div>
               <p className="text-xs text-muted-foreground">
                 Comissão total gerada para a plataforma
               </p>
@@ -265,10 +272,10 @@ const AdminDashboard = () => {
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.buyer_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(productPrice)}</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sale.total_price)}</TableCell>
+                      <TableCell>{currencyFormatter.format(productPrice)}</TableCell>
+                      <TableCell>{currencyFormatter.format(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(commissionAmount)}</TableCell>
+                      <TableCell>{currencyFormatter.format(commissionAmount)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );
