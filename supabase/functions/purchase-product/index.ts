@@ -8,20 +8,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req: Request) => { // Tipando 'req' como Request
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    // O token não é usado diretamente aqui, mas é bom ter a variável caso precise
+    // const token = authHeader?.replace('Bearer ', '');
+
     const supabaseClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
-        global: { headers: { Authorization: req.headers.get('Authorization')! } },
+        global: { headers: { Authorization: authHeader! } },
       }
+    );
+
+    // Criar um cliente com a chave de serviço para buscar taxas de comissão, ignorando RLS
+    const supabaseServiceRoleClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -42,7 +54,7 @@ serve(async (req: Request) => { // Tipando 'req' como Request
       });
     }
 
-    // Fetch product details
+    // Buscar detalhes do produto usando o cliente do usuário (respeita RLS para produtos)
     const { data: product, error: productError } = await supabaseClient
       .from('products')
       .select('id, name, price, quantity, shopkeeper_id')
@@ -64,8 +76,8 @@ serve(async (req: Request) => { // Tipando 'req' como Request
       });
     }
 
-    // Fetch active commission rate
-    const { data: commissionRateData, error: commissionError } = await supabaseClient
+    // Buscar taxa de comissão ativa usando o cliente com chave de serviço (ignora RLS)
+    const { data: commissionRateData, error: commissionError } = await supabaseServiceRoleClient
       .from('commission_rates')
       .select('rate')
       .eq('active', true)
@@ -73,18 +85,16 @@ serve(async (req: Request) => { // Tipando 'req' como Request
       .limit(1)
       .single();
 
-    // --- Adicionando logs para depuração ---
-    console.log('Fetched commission rate data:', commissionRateData);
-    console.log('Commission rate fetch error:', commissionError);
-    // --- Fim dos logs ---
+    console.log('Fetched commission rate data (service role):', commissionRateData);
+    console.log('Commission rate fetch error (service role):', commissionError);
 
-    const commissionRate = commissionRateData?.rate || 0; // Default to 0 if no active rate
+    const commissionRate = commissionRateData?.rate || 0; // Padrão para 0 se nenhuma taxa ativa for encontrada
 
-    // Perform the transaction
+    // Realizar a transação
     const { error: updateError } = await supabaseClient.rpc('perform_purchase', {
       p_product_id: productId,
       p_buyer_id: user.id,
-      p_quantity: 1, // For now, assume 1 unit per purchase
+      p_quantity: 1, // Por enquanto, assume 1 unidade por compra
       p_total_price: product.price,
       p_commission_rate: commissionRate,
     });
@@ -102,9 +112,9 @@ serve(async (req: Request) => { // Tipando 'req' como Request
       status: 200,
     });
 
-  } catch (error: unknown) { // Tipando 'error' como unknown
-    console.error('Edge Function error:', (error as Error).message); // Acessando 'message' com asserção de tipo
-    return new Response(JSON.stringify({ error: (error as Error).message }), { // Acessando 'message' com asserção de tipo
+  } catch (error: unknown) {
+    console.error('Edge Function error:', (error as Error).message);
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
