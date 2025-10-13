@@ -15,9 +15,6 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    // O token não é usado diretamente aqui, mas é bom ter a variável caso precise
-    // const token = authHeader?.replace('Bearer ', '');
-
     const supabaseClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -28,7 +25,6 @@ serve(async (req: Request) => {
       }
     );
 
-    // Criar um cliente com a chave de serviço para buscar taxas de comissão, ignorando RLS
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -45,38 +41,19 @@ serve(async (req: Request) => {
       });
     }
 
-    const { productId } = await req.json();
+    const { cartItems } = await req.json(); // Espera um array de itens do carrinho
 
-    if (!productId) {
-      return new Response(JSON.stringify({ error: 'Product ID is required' }), {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
+      return new Response(JSON.stringify({ error: 'Cart items are required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
 
-    // Buscar detalhes do produto usando o cliente do usuário (respeita RLS para produtos)
-    const { data: product, error: productError } = await supabaseClient
-      .from('products')
-      .select('id, name, price, quantity, shopkeeper_id')
-      .eq('id', productId)
-      .single();
+    const purchaseResults: Array<{ productId: string; success: boolean; message: string }> = [];
+    let overallSuccess = true;
 
-    if (productError || !product) {
-      console.error('Product fetch error:', productError?.message);
-      return new Response(JSON.stringify({ error: 'Product not found or could not be fetched' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 404,
-      });
-    }
-
-    if (product.quantity <= 0) {
-      return new Response(JSON.stringify({ error: 'Product is out of stock' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
-    }
-
-    // Buscar taxa de comissão ativa usando o cliente com chave de serviço (ignora RLS)
+    // Buscar taxa de comissão ativa uma vez para todas as compras
     const { data: commissionRateData, error: commissionError } = await supabaseServiceRoleClient
       .from('commission_rates')
       .select('rate')
@@ -85,32 +62,76 @@ serve(async (req: Request) => {
       .limit(1)
       .single();
 
-    console.log('Fetched commission rate data (service role):', commissionRateData);
-    console.log('Commission rate fetch error (service role):', commissionError);
-
-    const commissionRate = commissionRateData?.rate || 0; // Padrão para 0 se nenhuma taxa ativa for encontrada
-
-    // Realizar a transação
-    const { error: updateError } = await supabaseClient.rpc('perform_purchase', {
-      p_product_id: productId,
-      p_buyer_id: user.id,
-      p_quantity: 1, // Por enquanto, assume 1 unidade por compra
-      p_total_price: product.price,
-      p_commission_rate: commissionRate,
-    });
-
-    if (updateError) {
-      console.error('Purchase transaction error:', updateError.message);
-      return new Response(JSON.stringify({ error: 'Failed to complete purchase: ' + updateError.message }), {
+    if (commissionError) {
+      console.error('Commission rate fetch error (service role):', commissionError.message);
+      return new Response(JSON.stringify({ error: 'Failed to fetch commission rate' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       });
     }
+    const commissionRate = commissionRateData?.rate || 0;
 
-    return new Response(JSON.stringify({ message: 'Purchase successful!' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    for (const item of cartItems) {
+      const { id: productId, quantity: requestedQuantity } = item;
+
+      if (!productId || !requestedQuantity || requestedQuantity <= 0) {
+        purchaseResults.push({ productId, success: false, message: 'Invalid product ID or quantity' });
+        overallSuccess = false;
+        continue;
+      }
+
+      // Buscar detalhes reais do produto para validar preço e estoque
+      const { data: product, error: productError } = await supabaseClient
+        .from('products')
+        .select('id, name, price, quantity, shopkeeper_id')
+        .eq('id', productId)
+        .single();
+
+      if (productError || !product) {
+        console.error(`Product fetch error for ${productId}:`, productError?.message);
+        purchaseResults.push({ productId, success: false, message: 'Product not found or could not be fetched' });
+        overallSuccess = false;
+        continue;
+      }
+
+      if (product.quantity < requestedQuantity) {
+        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}` });
+        overallSuccess = false;
+        continue;
+      }
+
+      // Calcular preço total para este item com base no preço real do produto
+      const totalPriceForItem = product.price * requestedQuantity;
+
+      // Realizar a compra usando a função RPC
+      const { error: purchaseError } = await supabaseClient.rpc('perform_purchase', {
+        p_product_id: productId,
+        p_buyer_id: user.id,
+        p_quantity: requestedQuantity,
+        p_total_price: totalPriceForItem,
+        p_commission_rate: commissionRate,
+      });
+
+      if (purchaseError) {
+        console.error(`Purchase transaction error for ${product.name}:`, purchaseError.message);
+        purchaseResults.push({ productId, success: false, message: `Failed to purchase ${product.name}: ${purchaseError.message}` });
+        overallSuccess = false;
+      } else {
+        purchaseResults.push({ productId, success: true, message: `Successfully purchased ${product.name}` });
+      }
+    }
+
+    if (overallSuccess) {
+      return new Response(JSON.stringify({ message: 'All items purchased successfully!', results: purchaseResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } else {
+      return new Response(JSON.stringify({ error: 'Some purchases failed', results: purchaseResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, // Ou 207 Multi-Status se sucesso parcial for aceitável
+      });
+    }
 
   } catch (error: unknown) {
     console.error('Edge Function error:', (error as Error).message);

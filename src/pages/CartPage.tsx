@@ -7,12 +7,68 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { useState } from 'react'; // Adicionado: Importação de useState
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const navigate = useNavigate();
+
+  const handleCheckout = async () => {
+    if (!session?.user?.id) {
+      showError('Você precisa estar logado para finalizar a compra.');
+      return;
+    }
+    if (cartItems.length === 0) {
+      showError('Seu carrinho está vazio.');
+      return;
+    }
+
+    setIsProcessingCheckout(true);
+    const toastId = showLoading('Finalizando sua compra...');
+
+    try {
+      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/purchase-product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ cartItems }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.results && Array.isArray(data.results)) {
+          const failedItems = data.results.filter((r: any) => !r.success);
+          if (failedItems.length > 0) {
+            const errorMessages = failedItems.map((r: any) => r.message).join('\n');
+            showError(`Alguns itens não puderam ser comprados:\n${errorMessages}`);
+          } else {
+            showError(data.error || 'Erro desconhecido ao finalizar a compra.');
+          }
+        } else {
+          showError(data.error || 'Erro desconhecido ao finalizar a compra.');
+        }
+        return;
+      }
+
+      showSuccess('Compra finalizada com sucesso!');
+      clearCart();
+      navigate('/meus-pedidos'); // Redireciona para a página de pedidos
+    } catch (error: any) {
+      console.error('Erro ao finalizar compra:', error);
+      showError('Erro ao finalizar compra: ' + error.message);
+    } finally {
+      dismissToast(toastId);
+      setIsProcessingCheckout(false);
+    }
+  };
 
   if (isSessionLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
@@ -110,14 +166,16 @@ const CartPage = () => {
                   <Button
                     variant="outline"
                     onClick={clearCart}
-                    disabled={cartItems.length === 0}
+                    disabled={cartItems.length === 0 || isProcessingCheckout}
                   >
                     Limpar Carrinho
                   </Button>
                   <Button
                     className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-                    disabled={cartItems.length === 0}
+                    onClick={handleCheckout}
+                    disabled={cartItems.length === 0 || isProcessingCheckout}
                   >
+                    {isProcessingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Finalizar Compra
                   </Button>
                 </div>
