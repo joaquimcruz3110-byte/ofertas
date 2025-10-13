@@ -40,14 +40,13 @@ const Login = () => {
                   defaultButtonBackgroundHover: '#152B6A', // Azul escuro mais escuro para hover
                   inputBackground: '#F3F4F6', // Cinza claro para inputs
                   inputBorder: '#D1D5DB', // Borda cinza
-                  inputFocusBorder: '#F97316', // Borda laranja no foco
                   inputText: '#1F2937', // Texto cinza escuro
                   messageText: '#1F2937', // Texto de mensagem
                   messageBackground: '#F3F4F6', // Fundo de mensagem
                 },
                 radii: {
                   borderRadiusButton: '8px',
-                  borderRadiusInput: '8px',
+                  inputBorderRadius: '8px',
                 },
               },
             },
@@ -61,9 +60,9 @@ const Login = () => {
                 email_input_placeholder: 'Digite seu e-mail',
                 password_input_placeholder: 'Digite sua senha',
                 button_label: 'Entrar',
-                social_auth_typography: 'Ou continue com',
+                social_provider_text: 'Ou continue com',
                 link_text: 'Já tem uma conta? Entrar',
-                forgotten_password_text: 'Esqueceu sua senha?',
+                forgotten_password: 'Esqueceu sua senha?', // Corrigido de forgotten_password_text
                 confirmation_text: 'Verifique seu e-mail para o link de login',
               },
               sign_up: {
@@ -72,7 +71,7 @@ const Login = () => {
                 email_input_placeholder: 'Digite seu e-mail',
                 password_input_placeholder: 'Crie sua senha',
                 button_label: 'Cadastrar',
-                social_auth_typography: 'Ou continue com',
+                social_provider_text: 'Ou continue com',
                 link_text: 'Não tem uma conta? Cadastrar',
                 confirmation_text: 'Verifique seu e-mail para o link de confirmação',
               },
