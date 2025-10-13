@@ -1,0 +1,14 @@
+Olá!
+
+Você foi convidado(a) para se juntar ao Ponta de Estoque. Para aceitar o convite e configurar sua conta, por favor, clique no link abaixo:
+
+{{ .URL }}
+
+Se você não esperava este convite, pode ignorar este e-mail com segurança.
+
+Atenciosamente,
+A Equipe Ponta de Estoque
+
+---
+© {{ .Year }} Ponta de Estoque. Todos os direitos reservados.
+Visite nosso site: {{ .SiteURL }}
