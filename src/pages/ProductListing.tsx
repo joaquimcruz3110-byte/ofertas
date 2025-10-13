@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search, Store as StoreIcon } from 'lucide-react'; // Adicionado StoreIcon
+import { ShoppingCart, Search, Store as StoreIcon, XCircle } from 'lucide-react'; // Adicionado XCircle para limpar filtros
 import { Link } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,18 @@ interface ShopDetail {
 }
 
 const PRODUCTS_PER_PAGE = 8;
+const CATEGORIES = [
+  "Alimentos",
+  "Eletrônicos",
+  "Roupas",
+  "Livros",
+  "Casa e Decoração",
+  "Esportes",
+  "Beleza",
+  "Brinquedos",
+  "Automotivo",
+  "Outros"
+];
 
 const ProductListing = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
@@ -54,12 +66,13 @@ const ProductListing = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined); // Novo estado para categoria
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchProducts = useCallback(async (page: number, term: string, shopkeeperId?: string, minP?: string, maxP?: string) => {
+  const fetchProducts = useCallback(async (page: number, term: string, shopkeeperId?: string, category?: string, minP?: string, maxP?: string) => {
     setIsLoadingProducts(true);
     const from = (page - 1) * PRODUCTS_PER_PAGE;
     const to = from + PRODUCTS_PER_PAGE - 1;
@@ -74,6 +87,9 @@ const ProductListing = () => {
     }
     if (shopkeeperId) {
       query = query.eq('shopkeeper_id', shopkeeperId);
+    }
+    if (category) { // Novo filtro por categoria
+      query = query.eq('category', category);
     }
     if (minP && !isNaN(Number(minP))) {
       query = query.gte('price', Number(minP));
@@ -117,14 +133,14 @@ const ProductListing = () => {
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'comprador') {
       const handler = setTimeout(() => {
-        fetchProducts(currentPage, searchTerm, selectedShopkeeperId, minPrice, maxPrice);
+        fetchProducts(currentPage, searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
       }, 300);
 
       return () => {
         clearTimeout(handler);
       };
     }
-  }, [session, isSessionLoading, userRole, searchTerm, currentPage, selectedShopkeeperId, minPrice, maxPrice, fetchProducts]);
+  }, [session, isSessionLoading, userRole, searchTerm, currentPage, selectedShopkeeperId, selectedCategory, minPrice, maxPrice, fetchProducts]);
 
   const handleAddToCart = (product: Product) => {
     const originalPrice = Number(product.price);
@@ -149,6 +165,11 @@ const ProductListing = () => {
     setCurrentPage(1);
   };
 
+  const handleCategoryChange = (value: string) => { // Novo handler para categoria
+    setSelectedCategory(value === 'all' ? undefined : value);
+    setCurrentPage(1);
+  };
+
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMinPrice(e.target.value);
     setCurrentPage(1);
@@ -162,6 +183,7 @@ const ProductListing = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedShopkeeperId(undefined);
+    setSelectedCategory(undefined); // Limpa a categoria
     setMinPrice('');
     setMaxPrice('');
     setCurrentPage(1);
@@ -189,7 +211,7 @@ const ProductListing = () => {
         Confira os produtos disponíveis para compra na plataforma.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 items-end"> {/* Ajustado para 5 colunas */}
         <div className="relative">
           <Label htmlFor="search-product">Pesquisar Produto</Label>
           <Search className="absolute left-3 top-[38px] -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -214,6 +236,23 @@ const ProductListing = () => {
               {shopkeepers.map(shopkeeper => (
                 <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
                   {shopkeeper.shop_name || 'Loja Desconhecida'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="filter-category">Filtrar por Categoria</Label> {/* Novo filtro de categoria */}
+          <Select value={selectedCategory || 'all'} onValueChange={handleCategoryChange}>
+            <SelectTrigger id="filter-category" className="w-full">
+              <SelectValue placeholder="Todas as Categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Categorias</SelectItem>
+              {CATEGORIES.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -246,7 +285,7 @@ const ProductListing = () => {
       </div>
       <div className="flex justify-end mb-6">
         <Button variant="outline" onClick={handleClearFilters}>
-          Limpar Filtros
+          <XCircle className="mr-2 h-4 w-4" /> Limpar Filtros
         </Button>
       </div>
 
