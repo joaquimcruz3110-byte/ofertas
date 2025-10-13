@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Loader2, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom'; // Importar Link
 
 interface Product {
   id: string;
@@ -121,33 +122,35 @@ const ProductListing = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {products.map((product) => (
                   <Card key={product.id} className="flex flex-col justify-between">
-                    <CardHeader>
-                      {product.photo_url && (
-                        <img
-                          src={product.photo_url}
-                          alt={product.name}
-                          className="w-full h-48 object-cover rounded-md mb-4"
-                        />
-                      )}
-                      <CardTitle className="text-lg">{product.name}</CardTitle>
-                      <CardDescription className="text-sm text-gray-500">
-                        {product.category || 'Geral'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
-                        R$ {product.price.toFixed(2)}
-                        {product.discount && product.discount > 0 && (
-                          <span className="ml-2 text-sm text-gray-500 line-through">
-                            R$ {(product.price / (1 - product.discount / 100)).toFixed(2)}
-                          </span>
+                    <Link to={`/product/${product.id}`} className="block"> {/* Link para a página de detalhes */}
+                      <CardHeader>
+                        {product.photo_url && (
+                          <img
+                            src={product.photo_url}
+                            alt={product.name}
+                            className="w-full h-48 object-cover rounded-md mb-4"
+                          />
                         )}
-                      </p>
-                      <p className="text-sm text-gray-600">{product.description}</p>
-                      <p className="text-xs text-gray-400 mt-2">
-                        Disponível: {product.quantity} unidades
-                      </p>
-                    </CardContent>
+                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                        <CardDescription className="text-sm text-gray-500">
+                          {product.category || 'Geral'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
+                          R$ {product.price.toFixed(2)}
+                          {product.discount && product.discount > 0 && (
+                            <span className="ml-2 text-sm text-gray-500 line-through">
+                              R$ {(product.price / (1 - product.discount / 100)).toFixed(2)}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Disponível: {product.quantity} unidades
+                        </p>
+                      </CardContent>
+                    </Link>
                     <CardFooter>
                       <Button
                         className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"

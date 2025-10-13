@@ -16,7 +16,8 @@ import MinhasVendas from "./pages/MinhasVendas";
 import GerenciarUsuarios from "./pages/GerenciarUsuarios";
 import GerenciarProdutos from "./pages/GerenciarProdutos";
 import GerenciarComissoes from "./pages/GerenciarComissoes";
-import ProductListing from "./pages/ProductListing"; // Importar a nova página
+import ProductListing from "./pages/ProductListing";
+import ProductDetail from "./pages/ProductDetail"; // Importar a nova página de detalhes
 
 const queryClient = new QueryClient();
 
@@ -54,10 +55,18 @@ const App = () => (
             />
             {/* Rotas para Comprador */}
             <Route
-              path="/explorar-produtos" // Nova rota
+              path="/explorar-produtos"
               element={
                 <ProtectedRoute>
                   <ProductListing />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/product/:id" // Nova rota para detalhes do produto
+              element={
+                <ProtectedRoute>
+                  <ProductDetail />
                 </ProtectedRoute>
               }
             />
