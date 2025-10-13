@@ -27,9 +27,10 @@ const ProductCarousel = () => {
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
+    console.log("Fetching products for carousel with select: 'id, name, price, photo_urls'"); // Log para depuração
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, price, photo_urls') // Seleciona photo_urls
+      .select('id, name, price, photo_urls') // Removido o tipo genérico aqui
       .gt('quantity', 0) // Apenas produtos em estoque
       .limit(10); // Limitar a 10 produtos para o carrossel
 
@@ -38,7 +39,7 @@ const ProductCarousel = () => {
       console.error('Erro ao carregar produtos para o carrossel:', error.message);
       setProducts([]);
     } else {
-      setProducts(data as Product[]);
+      setProducts((data as Product[]) || []); // Cast explícito para Product[]
     }
     setIsLoading(false);
   }, []);
