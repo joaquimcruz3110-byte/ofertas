@@ -9,6 +9,14 @@ import Login from "./pages/Login";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
 import React from "react";
 
+// Importar as novas páginas
+import MeusPedidos from "./pages/MeusPedidos";
+import MeusProdutos from "./pages/MeusProdutos";
+import MinhasVendas from "./pages/MinhasVendas";
+import GerenciarUsuarios from "./pages/GerenciarUsuarios";
+import GerenciarProdutos from "./pages/GerenciarProdutos";
+import GerenciarComissoes from "./pages/GerenciarComissoes";
+
 const queryClient = new QueryClient();
 
 // Componente de rota protegida
@@ -40,6 +48,57 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              }
+            />
+            {/* Rotas para Comprador */}
+            <Route
+              path="/meus-pedidos"
+              element={
+                <ProtectedRoute>
+                  <MeusPedidos />
+                </ProtectedRoute>
+              }
+            />
+            {/* Rotas para Lojista */}
+            <Route
+              path="/meus-produtos"
+              element={
+                <ProtectedRoute>
+                  <MeusProdutos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/minhas-vendas"
+              element={
+                <ProtectedRoute>
+                  <MinhasVendas />
+                </ProtectedRoute>
+              }
+            />
+            {/* Rotas para Administrador */}
+            <Route
+              path="/gerenciar-usuarios"
+              element={
+                <ProtectedRoute>
+                  <GerenciarUsuarios />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gerenciar-produtos"
+              element={
+                <ProtectedRoute>
+                  <GerenciarProdutos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gerenciar-comissoes"
+              element={
+                <ProtectedRoute>
+                  <GerenciarComissoes />
                 </ProtectedRoute>
               }
             />
