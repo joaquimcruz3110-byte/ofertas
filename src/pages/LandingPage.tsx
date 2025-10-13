@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, LogIn, UserPlus } from 'lucide-react';
 import RoleSelectionDialog from '@/components/RoleSelectionDialog'; // Importar o novo componente
+import ProductCarousel from '@/components/ProductCarousel'; // Importar o novo carrossel
 
 const LandingPage = () => {
   const [isRoleSelectionOpen, setIsRoleSelectionOpen] = useState(false);
@@ -34,6 +35,9 @@ const LandingPage = () => {
           </Button>
         </div>
       </div>
+
+      <ProductCarousel /> {/* Adicionando o carrossel de produtos aqui */}
+
       <footer className="mt-12 text-sm text-gray-300">
         <p>&copy; {new Date().getFullYear()} Ponta de Estoque. Todos os direitos reservados.</p>
       </footer>
