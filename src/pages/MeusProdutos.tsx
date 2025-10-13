@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react'; // Importar ImageIcon
 import {
   Dialog,
   DialogContent,
@@ -320,6 +320,7 @@ const MeusProdutos = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Imagem</TableHead> {/* Nova coluna */}
                       <TableHead>Nome</TableHead>
                       <TableHead>Preço</TableHead>
                       <TableHead>Quantidade</TableHead>
@@ -331,6 +332,19 @@ const MeusProdutos = () => {
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
+                        <TableCell> {/* Conteúdo da nova coluna */}
+                          {product.photo_url ? (
+                            <img
+                              src={product.photo_url}
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                              <ImageIcon className="h-6 w-6" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>R$ {product.price.toFixed(2)}</TableCell>
                         <TableCell>{product.quantity}</TableCell>
