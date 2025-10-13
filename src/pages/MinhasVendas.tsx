@@ -83,25 +83,28 @@ const MinhasVendas = () => {
       showError('Erro ao carregar vendas: ' + salesError.message);
       console.error('Erro ao carregar vendas:', salesError.message);
       setSales([]);
-    } else {
-      // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
-      const salesWithProductDetails = await Promise.all(
-        salesData.map(async (sale) => {
-          const { data: productData, error: singleProductError } = await supabase
-            .from('products')
-            .select('name, price')
-            .eq('id', sale.product_id)
-            .single();
-
-          if (singleProductError) {
-            console.error(`Erro ao buscar produto ${sale.product_id}:`, singleProductError.message);
-            return { ...sale, products: [] }; // Retorna produtos vazios em caso de erro
-          }
-          return { ...sale, products: [productData] };
-        })
-      );
-      setSales(salesWithProductDetails as Sale[]);
+      setIsLoadingSales(false);
+      return;
     }
+
+    // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
+    const salesWithProductDetails = await Promise.all(
+      salesData.map(async (sale) => {
+        const { data: productData, error: singleProductError } = await supabase
+          .from('products')
+          .select('name, price')
+          .eq('id', sale.product_id)
+          .single();
+
+        if (singleProductError) {
+          console.error(`Erro ao buscar produto ${sale.product_id}:`, singleProductError.message);
+          return { ...sale, products: [] }; // Retorna produtos vazios em caso de erro
+        }
+        return { ...sale, products: [productData] };
+      })
+    );
+
+    setSales(salesWithProductDetails as Sale[]);
     setIsLoadingSales(false);
   };
 
@@ -150,7 +153,8 @@ const MinhasVendas = () => {
                       <TableHead>Preço Unitário</TableHead>
                       <TableHead>Preço Total</TableHead>
                       <TableHead>Comissão (%)</TableHead>
-                      <TableHead>Comissão Paga</TableHead> {/* Alterado de 'Comissão Recebida' para 'Comissão Paga' */}
+                      <TableHead>Comissão Paga</TableHead>
+                      <TableHead>Valor a Receber</TableHead> {/* Nova coluna */}
                       <TableHead>Data da Venda</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -159,6 +163,7 @@ const MinhasVendas = () => {
                       const productName = sale.products[0]?.name || 'Produto Desconhecido';
                       const productPrice = sale.products[0]?.price;
                       const commissionAmount = sale.total_price * (sale.commission_rate / 100);
+                      const amountToReceive = sale.total_price - commissionAmount; // Cálculo do valor a receber
 
                       return (
                         <TableRow key={sale.id}>
@@ -168,6 +173,7 @@ const MinhasVendas = () => {
                           <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
                           <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
                           <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
+                          <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell> {/* Exibindo o valor a receber */}
                           <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                         </TableRow>
                       );
