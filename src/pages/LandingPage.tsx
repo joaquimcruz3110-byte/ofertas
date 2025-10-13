@@ -10,7 +10,7 @@ const LandingPage = () => {
       <div className="text-center max-w-3xl">
         <ShoppingBag className="mx-auto h-24 w-24 text-dyad-vibrant-orange mb-6" />
         <h1 className="text-5xl font-bold mb-6 leading-tight">
-          Bem-vindo(a) ao <span className="text-dyad-vibrant-orange">Meu App</span>
+          Bem-vindo(a) ao <span className="text-dyad-vibrant-orange">Ponta de Estoque</span>
         </h1>
         <p className="text-xl mb-8">
           Descubra uma nova forma de comprar e vender produtos online.
@@ -30,7 +30,7 @@ const LandingPage = () => {
         </div>
       </div>
       <footer className="mt-12 text-sm text-gray-300">
-        <p>&copy; {new Date().getFullYear()} Meu App. Todos os direitos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} Ponta de Estoque. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

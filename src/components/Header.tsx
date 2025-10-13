@@ -24,7 +24,7 @@ const Header = () => {
 
   return (
     <header className="flex justify-between items-center p-4 bg-dyad-dark-blue text-dyad-white shadow-md">
-      <h1 className="text-2xl font-bold">Meu Aplicativo</h1>
+      <h1 className="text-2xl font-bold">Ponta de Estoque</h1>
       <div className="flex items-center space-x-4">
         <Link to="/cart" className="relative">
           <Button variant="ghost" className="text-dyad-white hover:bg-dyad-vibrant-orange hover:text-dyad-white">
