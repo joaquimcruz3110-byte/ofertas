@@ -27,9 +27,6 @@ const ConnectStripeAccount = ({ onAccountConnected, currentStripeAccountId }: Co
     const toastId = showLoading('Redirecionando para o Stripe...');
 
     try {
-      // Chamar uma Edge Function ou API para criar um link de onboarding do Stripe
-      // Por simplicidade, vamos simular um link aqui. Em um ambiente real,
-      // você faria uma chamada segura para seu backend/Edge Function.
       const { data, error } = await supabase.functions.invoke('create-stripe-onboarding-link', {
         body: {
           shopkeeperId: session.user.id,
@@ -69,8 +66,6 @@ const ConnectStripeAccount = ({ onAccountConnected, currentStripeAccountId }: Co
       const checkStripeAccount = async () => {
         const toastId = showLoading('Verificando conexão com o Stripe...');
         try {
-          // Em um cenário real, você chamaria uma Edge Function para verificar o status da conta Stripe
-          // e obter o account_id. Por agora, vamos simular.
           const { data, error } = await supabase
             .from('shopkeeper_payout_details')
             .select('stripe_account_id')
