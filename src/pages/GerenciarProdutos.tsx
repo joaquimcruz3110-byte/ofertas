@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -325,179 +322,164 @@ const GerenciarProdutos = () => {
 
   if (!session || userRole !== 'administrador') {
     return (
-      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <Sidebar />
-        <div className="flex flex-col">
-          <Header />
-          <main className="flex-grow p-4 bg-dyad-light-gray">
-            <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
-              <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-                <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-                <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
-              </div>
-            </div>
-          </main>
-          <MadeWithDyad />
+      <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
+        <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+          <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
+          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header />
-        <main className="flex-grow p-4 bg-dyad-light-gray">
-          <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Gerenciar Produtos</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Aqui você pode visualizar, adicionar, editar e excluir produtos da plataforma.
-            </p>
+    // Removido o grid e os componentes Sidebar, Header, MadeWithDyad
+    // O MainLayout já envolve esta página e fornece esses elementos.
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+      <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Gerenciar Produtos</h1>
+      <p className="text-lg text-gray-600 mb-8">
+        Aqui você pode visualizar, adicionar, editar e excluir produtos da plataforma.
+      </p>
 
-            <div className="flex justify-end mb-4">
-              <Button onClick={handleAddProductClick}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Produto
-              </Button>
-            </div>
+      <div className="flex justify-end mb-4">
+        <Button onClick={handleAddProductClick}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Produto
+        </Button>
+      </div>
 
-            {products.length === 0 ? (
-              <p className="text-center text-gray-500">Nenhum produto encontrado.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Imagem</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Preço</TableHead>
-                      <TableHead>Quantidade</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Desconto (%)</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          {product.photo_url ? (
-                            <img
-                              src={product.photo_url}
-                              alt={product.name}
-                              className="w-12 h-12 object-cover rounded-md"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
-                              <ImageIcon className="h-6 w-6" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{formatCurrency(product.price)}</TableCell>
-                        <TableCell>{product.quantity}</TableCell>
-                        <TableCell>{product.category || 'N/A'}</TableCell>
-                        <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditProductClick(product)}
-                            className="mr-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteProduct(product.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+      {products.length === 0 ? (
+        <p className="text-center text-gray-500">Nenhum produto encontrado.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Imagem</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Preço</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Desconto (%)</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    {product.photo_url ? (
+                      <img
+                        src={product.photo_url}
+                        alt={product.name}
+                        className="w-12 h-12 object-cover rounded-md"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                        <ImageIcon className="h-6 w-6" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>{formatCurrency(Number(product.price))}</TableCell> {/* Garantindo que o preço é um número */}
+                  <TableCell>{product.quantity}</TableCell>
+                  <TableCell>{product.category || 'N/A'}</TableCell>
+                  <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditProductClick(product)}
+                      className="mr-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteProduct(product.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? "Editar Produto" : "Adicionar Novo Produto"}</DialogTitle>
+            <DialogDescription>
+              {editingProduct ? "Faça alterações no produto existente." : "Preencha os detalhes para adicionar um novo produto."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Produto</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do produto" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Descrição do produto" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantidade</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" placeholder="0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
-          </div>
-        </main>
-        <MadeWithDyad />
-
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{editingProduct ? "Editar Produto" : "Adicionar Novo Produto"}</DialogTitle>
-              <DialogDescription>
-                {editingProduct ? "Faça alterações no produto existente." : "Preencha os detalhes para adicionar um novo produto."}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do Produto</FormLabel>
+                      <FormLabel>Categoria</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome do produto" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Descrição do produto" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço (R$)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantidade</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="1" placeholder="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoria</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
+                        <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -516,53 +498,52 @@ const GerenciarProdutos = () => {
                     </FormItem>
                   )}
                 />
+              </div>
+              <FormItem>
+                <FormLabel>Foto do Produto</FormLabel>
+                <FormControl>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+              {imagePreview && (
+                <div className="mt-4 flex flex-col items-center">
+                  <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
+                  {editingProduct && editingProduct.photo_url && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      disabled={isRemovingImage}
+                      className="mt-2"
+                    >
+                      {isRemovingImage ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Remover Imagem Atual
+                    </Button>
+                  )}
                 </div>
-                <FormItem>
-                  <FormLabel>Foto do Produto</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-                {imagePreview && (
-                  <div className="mt-4 flex flex-col items-center">
-                    <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
-                    {editingProduct && editingProduct.photo_url && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleRemoveImage}
-                        disabled={isRemovingImage}
-                        className="mt-2"
-                      >
-                        {isRemovingImage ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-2 h-4 w-4" />
-                        )}
-                        Remover Imagem Atual
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <DialogFooter>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
