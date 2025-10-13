@@ -5,6 +5,6 @@ export const formatCurrency = (value: number): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-  console.log(`formatCurrency received: ${value}, returned: ${formattedValue}`); // Temporário para depuração
+  // console.log(`formatCurrency received: ${value}, returned: ${formattedValue}`); // Temporário para depuração
   return formattedValue;
 };
