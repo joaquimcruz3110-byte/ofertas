@@ -14,9 +14,11 @@ const Index = () => {
   useEffect(() => {
     if (!isLoading && session) {
       if (userRole === 'administrador') {
-        navigate('/admin-dashboard');
+        // Redireciona administradores para a página de gerenciamento de usuários
+        navigate('/gerenciar-usuarios');
       } else if (userRole === 'lojista') {
-        navigate('/lojista-dashboard');
+        // Redireciona lojistas para a página de seus produtos
+        navigate('/meus-produtos');
       } else if (userRole === 'comprador') {
         // Para compradores, redirecionar para a página de explorar produtos
         navigate('/explorar-produtos');
