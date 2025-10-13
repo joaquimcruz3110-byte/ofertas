@@ -26,6 +26,7 @@ import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
+import ShopkeeperPayouts from "./pages/ShopkeeperPayouts"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
                 <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
                 <Route path="/meus-produtos" element={<MeusProdutos />} />
                 <Route path="/minhas-vendas" element={<MinhasVendas />} />
+                <Route path="/meus-pagamentos" element={<ShopkeeperPayouts />} /> {/* Nova rota */}
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />

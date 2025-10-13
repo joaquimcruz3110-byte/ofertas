@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard, User } from 'lucide-react'; // Importar o ícone User
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard, User, CreditCard } from 'lucide-react'; // Importar o ícone CreditCard
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
+  { name: 'Meus Pagamentos', href: '/meus-pagamentos', icon: CreditCard, roles: ['lojista'] }, // Novo item para pagamentos
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
   { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Store, roles: ['administrador'] },
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
