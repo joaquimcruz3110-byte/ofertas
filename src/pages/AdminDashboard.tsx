@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import RevenueOverTimeChart from '@/components/RevenueOverTimeChart'; // Importar o novo componente de gráfico
 
 interface SaleDetail {
   id: string;
@@ -39,6 +40,7 @@ const AdminDashboard = () => {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
   const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]);
+  const [revenueChartData, setRevenueChartData] = useState<Array<{ date: string; totalRevenue: number }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,7 @@ const AdminDashboard = () => {
       setTotalRevenue(0);
       setTotalCommission(0);
       setDetailedSales([]);
+      setRevenueChartData([]);
       setIsLoadingData(false);
       return;
     }
@@ -85,6 +88,7 @@ const AdminDashboard = () => {
       setTotalRevenue(0);
       setTotalCommission(0);
       setDetailedSales([]);
+      setRevenueChartData([]);
       setIsLoadingData(false);
       return;
     }
@@ -93,6 +97,21 @@ const AdminDashboard = () => {
     const commission = salesRawData ? salesRawData.reduce((sum, sale) => sum + ((sale.total_price || 0) * (sale.commission_rate / 100)), 0) : 0;
     setTotalRevenue(revenue);
     setTotalCommission(commission);
+
+    // Processar dados para o gráfico de receita
+    const revenueByDateMap = new Map<string, number>();
+    salesRawData.forEach(sale => {
+      const saleDate = new Date(sale.sale_date).toISOString().split('T')[0]; // Formato YYYY-MM-DD
+      const currentRevenue = revenueByDateMap.get(saleDate) || 0;
+      revenueByDateMap.set(saleDate, currentRevenue + sale.total_price);
+    });
+
+    const sortedRevenueData = Array.from(revenueByDateMap.entries())
+      .map(([date, totalRevenue]) => ({ date, totalRevenue }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    setRevenueChartData(sortedRevenueData);
+
 
     // Passo 2: Fetch product details for all unique product_ids in salesRawData
     const uniqueProductIds = [...new Set(salesRawData.map(sale => sale.product_id))];
@@ -216,6 +235,11 @@ const AdminDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
+              </div>
+
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Receita ao Longo do Tempo</h2>
+              <div className="mb-8">
+                <RevenueOverTimeChart data={revenueChartData} />
               </div>
 
               <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Detalhes das Vendas e Comissões</h2>
