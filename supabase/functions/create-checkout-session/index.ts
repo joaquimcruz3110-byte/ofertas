@@ -48,16 +48,22 @@ serve(async (req: Request) => {
       });
     }
 
-    // Criar um cliente Supabase com a service_role_key para operações de administrador
-    const supabaseAdminClient = createClient(
+    // 1. Criar um cliente Supabase com o token do usuário para verificar a sessão
+    const supabaseUserClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
     );
 
-    // Verificar o token do usuário usando o cliente admin
-    const { data: { user }, error: userError } = await supabaseAdminClient.auth.admin.getUserByAccessToken(token);
+    const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
 
     if (userError || !user) {
       console.error('Error verifying user token:', userError?.message);
@@ -87,10 +93,18 @@ serve(async (req: Request) => {
       typescript: true,
     });
 
+    // 2. Criar um cliente Supabase com a service_role_key para buscar detalhes do produto
+    // Isso garante que as políticas de RLS não bloqueiem a obtenção de dados de produtos
+    const supabaseServiceRoleClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
-    // Usar o cliente admin aqui também para evitar problemas de RLS na função Edge
     const productIds = cartItems.map((item: CartItem) => item.id);
-    const { data: productsData, error: productsError } = await supabaseAdminClient
+    const { data: productsData, error: productsError } = await supabaseServiceRoleClient
       .from('products')
       .select('id, name, price, quantity, photo_urls')
       .in('id', productIds);
