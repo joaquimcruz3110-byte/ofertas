@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
+  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] }, // Novo item
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
