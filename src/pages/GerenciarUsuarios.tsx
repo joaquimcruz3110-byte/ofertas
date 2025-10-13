@@ -26,6 +26,7 @@ interface Profile {
   first_name: string | null;
   last_name: string | null;
   role: 'comprador' | 'lojista' | 'administrador';
+  email: string; // Adicionado o campo email
 }
 
 const GerenciarUsuarios = () => {
@@ -36,9 +37,10 @@ const GerenciarUsuarios = () => {
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
+    // Alterado para buscar da nova view 'user_details'
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, role');
+      .from('user_details')
+      .select('id, first_name, last_name, role, email'); // Selecionando o email
 
     if (error) {
       showError('Erro ao carregar usuários: ' + error.message);
@@ -61,7 +63,7 @@ const GerenciarUsuarios = () => {
     const toastId = showLoading('Atualizando papel do usuário...');
 
     const { error } = await supabase
-      .from('profiles')
+      .from('profiles') // A atualização ainda é feita na tabela 'profiles'
       .update({ role: newRole })
       .eq('id', userId);
 
@@ -122,7 +124,7 @@ const GerenciarUsuarios = () => {
                   <TableCell className="font-medium">
                     {user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Nome não disponível'}
                   </TableCell>
-                  <TableCell>{session.user?.email}</TableCell> {/* Note: This will show the current user's email for all rows, as user.email is not directly available from profiles table. For full user emails, you'd need to join with auth.users table, which is not directly queryable via RLS. */}
+                  <TableCell>{user.email}</TableCell> {/* Agora exibe o email correto do usuário */}
                   <TableCell className="capitalize">
                     <Select
                       value={user.role}
@@ -143,7 +145,6 @@ const GerenciarUsuarios = () => {
                     {updatingUserId === user.id && (
                       <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
                     )}
-                    {/* Botão de salvar pode ser adicionado se a mudança não for automática no Select */}
                   </TableCell>
                 </TableRow>
               ))}
