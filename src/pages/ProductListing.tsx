@@ -33,9 +33,12 @@ interface Product {
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
+  shop_details: { // Adicionado para incluir os detalhes da loja
+    shop_name: string;
+  } | null;
 }
 
-interface ShopDetail { // Nova interface para detalhes da loja
+interface ShopDetail {
   id: string;
   shop_name: string;
 }
@@ -48,7 +51,7 @@ const ProductListing = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]); // Alterado para ShopDetail[]
+  const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
@@ -62,7 +65,7 @@ const ProductListing = () => {
 
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('*, shop_details(shop_name)', { count: 'exact' }) // Inclui o nome da loja
       .gt('quantity', 0);
 
     if (term) {
@@ -94,8 +97,8 @@ const ProductListing = () => {
 
   const fetchShopkeepers = useCallback(async () => {
     const { data, error } = await supabase
-      .from('shop_details') // Busca da tabela shop_details
-      .select('id, shop_name'); // Seleciona id e shop_name
+      .from('shop_details')
+      .select('id, shop_name');
 
     if (error) {
       console.error('Erro ao buscar detalhes das lojas:', error.message);
@@ -114,7 +117,7 @@ const ProductListing = () => {
     if (!isSessionLoading && session && userRole === 'comprador') {
       const handler = setTimeout(() => {
         fetchProducts(currentPage, searchTerm, selectedShopkeeperId, minPrice, maxPrice);
-      }, 300); // Debounce para pesquisa e filtros de preço
+      }, 300);
 
       return () => {
         clearTimeout(handler);
@@ -141,7 +144,7 @@ const ProductListing = () => {
 
   const handleShopkeeperChange = (value: string) => {
     setSelectedShopkeeperId(value === 'all' ? undefined : value);
-    setCurrentPage(1); // Resetar para a primeira página ao mudar o filtro
+    setCurrentPage(1);
   };
 
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,7 +211,7 @@ const ProductListing = () => {
               <SelectItem value="all">Todas as Lojas</SelectItem>
               {shopkeepers.map(shopkeeper => (
                 <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
-                  {shopkeeper.shop_name || 'Loja Desconhecida'} {/* Exibe o nome da loja */}
+                  {shopkeeper.shop_name || 'Loja Desconhecida'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -268,6 +271,9 @@ const ProductListing = () => {
                         />
                       )}
                       <CardTitle className="text-lg">{product.name}</CardTitle>
+                      <CardDescription className="text-sm text-gray-500">
+                        {product.shop_details?.shop_name || 'Loja Desconhecida'} {/* Exibe o nome da loja */}
+                      </CardDescription>
                       <CardDescription className="text-sm text-gray-500">
                         {product.category || 'Geral'}
                       </CardDescription>
