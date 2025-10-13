@@ -27,12 +27,13 @@ import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
 import StripeSuccessPage from "./pages/StripeSuccessPage"; // Importar a nova página de sucesso do Stripe
+import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
 
 const queryClient = new QueryClient();
 
 // Componente de rota protegida
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isLoading } = useSession();
+  const { session, isLoading, userRole, hasShopDetails } = useSession();
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando autenticação...</div>;
@@ -40,6 +41,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!session) {
     return <Navigate to="/landing" replace />; // Redireciona para a landing page se não autenticado
+  }
+
+  // Redireciona lojistas para a página de configuração da loja se não tiverem detalhes
+  if (userRole === 'lojista' && !hasShopDetails && window.location.pathname !== '/shop-setup') {
+    return <Navigate to="/shop-setup" replace />;
   }
 
   return <>{children}</>;
@@ -70,6 +76,7 @@ const App = () => (
                 <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
                 <Route path="/meus-produtos" element={<MeusProdutos />} />
                 <Route path="/minhas-vendas" element={<MinhasVendas />} />
+                <Route path="/shop-setup" element={<ShopSetupPage />} /> {/* Nova rota para configuração da loja */}
                 {/* <Route path="/meus-pagamentos" element={<ShopkeeperPayouts />} /> Removido */}
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />

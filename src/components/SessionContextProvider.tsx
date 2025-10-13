@@ -10,6 +10,7 @@ interface SessionContextType {
   isLoading: boolean;
   userName: string | null;
   userRole: string | null;
+  hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -19,22 +20,42 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [hasShopDetails, setHasShopDetails] = useState(false); // Estado para detalhes da loja
 
   // Memoize fetchUserProfile to ensure it's stable across renders
   const fetchUserProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('first_name, last_name, role')
       .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('Erro ao buscar perfil do usuário:', error.message);
+    if (profileError) {
+      console.error('Erro ao buscar perfil do usuário:', profileError.message);
       setUserName("Usuário");
       setUserRole("comprador"); // Fallback
-    } else if (data) {
-      setUserName(data.first_name || data.last_name || "Usuário");
-      setUserRole(data.role || "comprador"); // Fallback
+      setHasShopDetails(false);
+    } else if (profileData) {
+      setUserName(profileData.first_name || profileData.last_name || "Usuário");
+      setUserRole(profileData.role || "comprador"); // Fallback
+
+      // Check for shop details if the user is a shopkeeper
+      if (profileData.role === 'lojista') {
+        const { data: shopData, error: shopError } = await supabase
+          .from('shop_details')
+          .select('id')
+          .eq('id', userId)
+          .single();
+        
+        if (shopError && shopError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+          console.error('Erro ao buscar detalhes da loja:', shopError.message);
+          setHasShopDetails(false);
+        } else {
+          setHasShopDetails(!!shopData); // True if data exists, false otherwise
+        }
+      } else {
+        setHasShopDetails(false); // Not a shopkeeper, so no shop details
+      }
     }
   }, []); // No dependencies, as it only uses supabase client and setters
 
@@ -92,11 +113,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
     } else {
       setUserName(null);
       setUserRole(null);
+      setHasShopDetails(false);
     }
   }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, userName, userRole }}>
+    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails }}>
       {children}
     </SessionContext.Provider>
   );

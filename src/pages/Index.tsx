@@ -8,7 +8,7 @@ import LojistaHomeSummary from "@/components/LojistaHomeSummary";
 import AdminHomeSummary from "@/components/AdminHomeSummary";
 
 const Index = () => {
-  const { session, isLoading, userRole } = useSession();
+  const { session, isLoading, userRole, hasShopDetails } = useSession();
   const navigate = useNavigate();
 
   // Se não estiver carregando e não houver sessão, redireciona para o login.
@@ -16,8 +16,11 @@ const Index = () => {
   useEffect(() => {
     if (!isLoading && !session) {
       navigate('/login');
+    } else if (!isLoading && session && userRole === 'lojista' && !hasShopDetails) {
+      // Redireciona lojistas para a página de configuração da loja se não tiverem detalhes
+      navigate('/shop-setup');
     }
-  }, [isLoading, session, navigate]);
+  }, [isLoading, session, navigate, userRole, hasShopDetails]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
@@ -32,7 +35,9 @@ const Index = () => {
       case 'comprador':
         return <CompradorHomeSummary />;
       case 'lojista':
-        return <LojistaHomeSummary />;
+        // Se for lojista mas não tem detalhes da loja, não renderiza o summary aqui,
+        // pois o useEffect já redirecionou para /shop-setup
+        return hasShopDetails ? <LojistaHomeSummary /> : null;
       case 'administrador':
         return <AdminHomeSummary />;
       default:
