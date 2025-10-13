@@ -62,7 +62,8 @@ const Login = () => {
                 button_label: 'Entrar',
                 social_provider_text: 'Ou continue com',
                 link_text: 'Já tem uma conta? Entrar',
-                forgotten_password: 'Esqueceu sua senha?', // Corrigido de forgotten_password_text
+                // A propriedade forgotten_password_text não é necessária aqui,
+                // pois o bloco 'forgotten_password' no nível superior já cuida disso.
                 confirmation_text: 'Verifique seu e-mail para o link de login',
               },
               sign_up: {
