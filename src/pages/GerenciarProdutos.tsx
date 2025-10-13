@@ -8,7 +8,8 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 
 const GerenciarProdutos = () => {
   const { session, isLoading } = useSession();
-  const userRole = "administrador"; // Este papel será determinado dinamicamente no Index, mas para esta página, assumimos 'administrador'
+  // userRole não é mais necessário aqui, pois Sidebar o obtém do contexto
+  // const userRole = "administrador"; 
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
@@ -16,7 +17,7 @@ const GerenciarProdutos = () => {
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar userRole={userRole} />
+      <Sidebar />
       <div className="flex flex-col">
         <Header />
         <main className="flex-grow flex items-center justify-center p-4 bg-dyad-light-gray">

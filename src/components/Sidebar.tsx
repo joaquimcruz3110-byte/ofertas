@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
 
 interface NavItem {
   name: string;
@@ -25,16 +26,13 @@ const navItems: NavItem[] = [
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
 ];
 
-interface SidebarProps {
-  userRole: string;
-}
-
-const Sidebar = ({ userRole }: SidebarProps) => {
+const Sidebar = () => { // Removido userRole da prop
   const isMobile = useIsMobile();
+  const { userRole } = useSession(); // Obtendo userRole do contexto
 
   const renderNavLinks = () => (
     <nav className="flex flex-col space-y-1 p-4">
-      {navItems.filter(item => item.roles.includes(userRole)).map((item) => (
+      {userRole && navItems.filter(item => item.roles.includes(userRole)).map((item) => (
         <Link
           key={item.name}
           to={item.href}
