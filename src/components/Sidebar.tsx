@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard } from 'lucide-react'; // Importar LayoutDashboard
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
+import { useSession } from '@/components/SessionContextProvider';
 
 interface NavItem {
   name: string;
@@ -18,7 +18,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
-  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] }, // Novo item
+  { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] }, // Novo item para lojista
+  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
@@ -27,9 +28,9 @@ const navItems: NavItem[] = [
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
 ];
 
-const Sidebar = () => { // Removido userRole da prop
+const Sidebar = () => {
   const isMobile = useIsMobile();
-  const { userRole } = useSession(); // Obtendo userRole do contexto
+  const { userRole } = useSession();
 
   const renderNavLinks = () => (
     <nav className="flex flex-col space-y-1 p-4">

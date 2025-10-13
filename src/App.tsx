@@ -17,7 +17,8 @@ import GerenciarUsuarios from "./pages/GerenciarUsuarios";
 import GerenciarProdutos from "./pages/GerenciarProdutos";
 import GerenciarComissoes from "./pages/GerenciarComissoes";
 import ProductListing from "./pages/ProductListing";
-import ProductDetail from "./pages/ProductDetail"; // Importar a nova página de detalhes
+import ProductDetail from "./pages/ProductDetail";
+import LojistaDashboard from "./pages/LojistaDashboard"; // Importar a nova página do painel do lojista
 
 const queryClient = new QueryClient();
 
@@ -63,7 +64,7 @@ const App = () => (
               }
             />
             <Route
-              path="/product/:id" // Nova rota para detalhes do produto
+              path="/product/:id"
               element={
                 <ProtectedRoute>
                   <ProductDetail />
@@ -79,6 +80,14 @@ const App = () => (
               }
             />
             {/* Rotas para Lojista */}
+            <Route
+              path="/lojista-dashboard" // Nova rota para o painel do lojista
+              element={
+                <ProtectedRoute>
+                  <LojistaDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/meus-produtos"
               element={
