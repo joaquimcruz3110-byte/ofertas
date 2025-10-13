@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react'; // Importar ImageIcon
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -57,7 +57,6 @@ const productFormSchema = z.object({
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
   category: z.string().optional(),
-  // photo_url agora é opcional e não validado como URL aqui, pois será gerado após o upload
   photo_url: z.string().optional(),
   discount: z.preprocess(
     (val) => Number(val),
@@ -101,7 +100,7 @@ const MeusProdutos = () => {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('shopkeeper_id', session.user.id); // Filtrar por shopkeeper_id do usuário logado
+      .eq('shopkeeper_id', session.user.id);
 
     if (error) {
       showError('Erro ao carregar produtos: ' + error.message);
@@ -143,11 +142,11 @@ const MeusProdutos = () => {
       price: product.price,
       quantity: product.quantity,
       category: product.category || "",
-      photo_url: product.photo_url || "", // Manter a URL existente para exibição
+      photo_url: product.photo_url || "",
       discount: product.discount || 0,
     });
-    setSelectedFile(null); // Limpar arquivo selecionado ao editar
-    setImagePreview(product.photo_url); // Definir preview para a imagem existente
+    setSelectedFile(null);
+    setImagePreview(product.photo_url);
     setIsDialogOpen(true);
   };
 
@@ -161,7 +160,7 @@ const MeusProdutos = () => {
       .from('products')
       .delete()
       .eq('id', productId)
-      .eq('shopkeeper_id', session?.user?.id); // Garantir que só o próprio lojista pode excluir
+      .eq('shopkeeper_id', session?.user?.id);
 
     dismissToast(toastId);
     if (error) {
@@ -170,7 +169,6 @@ const MeusProdutos = () => {
     } else {
       showSuccess('Produto excluído com sucesso!');
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
-      // TODO: Considerar deletar a imagem do storage também
     }
   };
 
@@ -216,7 +214,6 @@ const MeusProdutos = () => {
     let currentProductId = editingProduct?.id;
 
     try {
-      // Se for um novo produto, primeiro insere para obter o ID
       if (!editingProduct) {
         const { data: newProductData, error: insertError } = await supabase
           .from('products')
@@ -238,15 +235,12 @@ const MeusProdutos = () => {
         currentProductId = newProductData.id;
       }
 
-      // Se um arquivo foi selecionado, faz o upload
       if (selectedFile && currentProductId) {
         photoUrlToSave = await uploadImage(currentProductId, selectedFile);
       } else if (!selectedFile && editingProduct && !editingProduct.photo_url) {
-        // Se não há novo arquivo e não havia URL, garante que photo_url seja null
         photoUrlToSave = null;
       }
 
-      // Atualiza o produto com a URL da foto (ou sem ela)
       if (currentProductId) {
         const { error: updateError } = await supabase
           .from('products')
@@ -260,7 +254,7 @@ const MeusProdutos = () => {
             discount: values.discount,
           })
           .eq('id', currentProductId)
-          .eq('shopkeeper_id', session?.user?.id); // Garantir que só o próprio lojista pode editar
+          .eq('shopkeeper_id', session?.user?.id);
 
         if (updateError) {
           throw new Error('Erro ao salvar produto: ' + updateError.message);
@@ -270,7 +264,7 @@ const MeusProdutos = () => {
       dismissToast(toastId);
       showSuccess(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto adicionado com sucesso!');
       setIsDialogOpen(false);
-      fetchProducts(); // Recarrega a lista de produtos
+      fetchProducts();
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao salvar produto: ' + error.message);
@@ -320,7 +314,7 @@ const MeusProdutos = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Imagem</TableHead> {/* Nova coluna */}
+                      <TableHead>Imagem</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Preço</TableHead>
                       <TableHead>Quantidade</TableHead>
@@ -332,7 +326,7 @@ const MeusProdutos = () => {
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell> {/* Conteúdo da nova coluna */}
+                        <TableCell>
                           {product.photo_url ? (
                             <img
                               src={product.photo_url}
@@ -344,13 +338,7 @@ const MeusProdutos = () => {
                               <ImageIcon className="h-6 w-6" />
                             </div>
                           )}
-                        </TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>R$ {product.price.toFixed(2)}</TableCell>
-                        <TableCell>{product.quantity}</TableCell>
-                        <TableCell>{product.category || 'N/A'}</TableCell>
-                        <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
-                        <TableCell className="text-right">
+                        </TableCell><TableCell className="font-medium">{product.name}</TableCell><TableCell>R$ {product.price.toFixed(2)}</TableCell><TableCell>{product.quantity}</TableCell><TableCell>{product.category || 'N/A'}</TableCell><TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell><TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
