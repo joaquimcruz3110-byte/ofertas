@@ -65,8 +65,8 @@ const MinhasVendas = () => {
       return;
     }
 
-    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos
-    const { data, error: salesError } = await supabase
+    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos, sem a consulta aninhada de produtos
+    const { data: salesData, error: salesError } = await supabase
       .from('sales')
       .select(`
         id,
@@ -75,11 +75,7 @@ const MinhasVendas = () => {
         quantity,
         total_price,
         commission_rate,
-        sale_date,
-        products (
-          name,
-          price
-        )
+        sale_date
       `)
       .in('product_id', productIds); // Filtrar vendas pelos IDs dos produtos
 
@@ -87,13 +83,28 @@ const MinhasVendas = () => {
       showError('Erro ao carregar vendas: ' + salesError.message);
       console.error('Erro ao carregar vendas:', salesError.message);
       setSales([]);
-    } else {
-      const typedSales: Sale[] = data.map(sale => ({
-        ...sale,
-        products: sale.products || [],
-      })) as Sale[];
-      setSales(typedSales);
+      setIsLoadingSales(false);
+      return;
     }
+
+    // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
+    const salesWithProductDetails = await Promise.all(
+      salesData.map(async (sale) => {
+        const { data: productData, error: singleProductError } = await supabase
+          .from('products')
+          .select('name, price')
+          .eq('id', sale.product_id)
+          .single();
+
+        if (singleProductError) {
+          console.error(`Erro ao buscar produto ${sale.product_id}:`, singleProductError.message);
+          return { ...sale, products: [] }; // Retorna produtos vazios em caso de erro
+        }
+        return { ...sale, products: [productData] };
+      })
+    );
+
+    setSales(salesWithProductDetails as Sale[]);
     setIsLoadingSales(false);
   };
 
