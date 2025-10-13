@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showError } from '@/utils/toast';
 import { Package, DollarSign, ShoppingBag, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportToPdf } from '@/utils/pdfGenerator'; // Importar a função de exportação de PDF
+import { exportToPdf } from '@/utils/pdfGenerator';
 import {
   Table,
   TableBody,
@@ -19,7 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import SalesByProductChart from '@/components/SalesByProductChart'; // Importar o novo componente de gráfico
+import SalesByProductChart from '@/components/SalesByProductChart';
+import { DatePickerWithRange } from '@/components/DatePickerWithRange'; // Importar o componente DatePickerWithRange
+import { DateRange } from 'react-day-picker';
+import { addDays } from 'date-fns';
 
 interface SaleDetail {
   id: string;
@@ -42,8 +45,12 @@ const LojistaDashboard = () => {
   const [salesByProductData, setSalesByProductData] = useState<Array<{ name: string; totalQuantity: number }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30), // Últimos 30 dias como padrão
+    to: new Date(),
+  });
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (startDate?: Date, endDate?: Date) => {
     setIsLoadingData(true);
     if (!session?.user?.id) {
       setTotalProducts(0);
@@ -89,8 +96,8 @@ const LojistaDashboard = () => {
       return;
     }
 
-    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos
-    const { data: salesData, error: salesError } = await supabase
+    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos, aplicando o filtro de data
+    let salesQuery = supabase
       .from('sales')
       .select(`
         id,
@@ -101,8 +108,18 @@ const LojistaDashboard = () => {
         commission_rate,
         sale_date
       `)
-      .in('product_id', productIds)
-      .order('sale_date', { ascending: false });
+      .in('product_id', productIds);
+
+    if (startDate) {
+      salesQuery = salesQuery.gte('sale_date', startDate.toISOString());
+    }
+    if (endDate) {
+      salesQuery = salesQuery.lte('sale_date', endDate.toISOString());
+    }
+
+    salesQuery = salesQuery.order('sale_date', { ascending: false });
+
+    const { data: salesData, error: salesError } = await salesQuery;
 
     if (salesError) {
       showError('Erro ao carregar vendas: ' + salesError.message);
@@ -142,9 +159,9 @@ const LojistaDashboard = () => {
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'lojista') {
-      fetchDashboardData();
+      fetchDashboardData(dateRange?.from, dateRange?.to); // Passar o dateRange para a função de busca
     }
-  }, [session, isSessionLoading, userRole]);
+  }, [session, isSessionLoading, userRole, dateRange]); // Adicionar dateRange como dependência
 
   const handleExportPdf = () => {
     if (reportRef.current) {
@@ -178,15 +195,18 @@ const LojistaDashboard = () => {
           <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-3xl font-bold text-dyad-dark-blue">Painel do Lojista</h1>
-              <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
-                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
-              </Button>
+              <div className="flex items-center space-x-4">
+                <DatePickerWithRange date={dateRange} setDate={setDateRange} /> {/* Adicionar o seletor de data */}
+                <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
+                  <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                </Button>
+              </div>
             </div>
             <p className="text-lg text-gray-600 mb-8">
               Visão geral das suas atividades na plataforma.
             </p>
 
-            <div ref={reportRef} className="p-4"> {/* Conteúdo a ser exportado */}
+            <div ref={reportRef} className="p-4">
               <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Resumo Geral</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
                 <Card>
