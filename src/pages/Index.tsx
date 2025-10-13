@@ -6,34 +6,52 @@ import Sidebar from "@/components/Sidebar";
 import { useSession } from "@/components/SessionContextProvider";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import CompradorHomeSummary from "@/components/CompradorHomeSummary";
+import LojistaHomeSummary from "@/components/LojistaHomeSummary";
+import AdminHomeSummary from "@/components/AdminHomeSummary";
 
 const Index = () => {
-  const { session, isLoading, userName, userRole } = useSession();
+  const { session, isLoading, userRole } = useSession();
   const navigate = useNavigate();
 
+  // Se não estiver carregando e não houver sessão, redireciona para o login.
+  // Isso é uma redundância com ProtectedRoute, mas garante que a lógica de renderização abaixo só ocorra com sessão.
   useEffect(() => {
-    if (!isLoading && session) {
-      if (userRole === 'administrador') {
-        // Redireciona administradores para o Painel do Administrador
-        navigate('/admin-dashboard');
-      } else if (userRole === 'lojista') {
-        // Redireciona lojistas para o Painel do Lojista
-        navigate('/lojista-dashboard');
-      } else if (userRole === 'comprador') {
-        // Para compradores, redirecionar para o Painel do Comprador
-        navigate('/comprador-dashboard');
-      }
+    if (!isLoading && !session) {
+      navigate('/login');
     }
-  }, [session, isLoading, userName, userRole, navigate]);
+  }, [isLoading, session, navigate]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
 
-  // Redirecionar para login se não houver sessão (já tratado pelo ProtectedRoute, mas bom ter aqui também)
   if (!session) {
-    return null; // Ou um spinner, mas ProtectedRoute já lida com isso
+    return null; // Já redirecionado pelo useEffect acima
   }
+
+  const renderHomeContent = () => {
+    switch (userRole) {
+      case 'comprador':
+        return <CompradorHomeSummary />;
+      case 'lojista':
+        return <LojistaHomeSummary />;
+      case 'administrador':
+        return <AdminHomeSummary />;
+      default:
+        return (
+          <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+            <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Bem-vindo(a)!</h1>
+            <p className="text-xl text-gray-600 mb-2">
+              Seu papel: <span className="font-semibold capitalize">{userRole || "Não Definido"}</span>
+            </p>
+            <p className="text-lg text-gray-500">
+              Use a barra lateral para navegar pelas funcionalidades disponíveis para você.
+            </p>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -41,15 +59,7 @@ const Index = () => {
       <div className="flex flex-col">
         <Header />
         <main className="flex-grow flex items-center justify-center p-4 bg-dyad-light-gray">
-          <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Bem-vindo(a), {userName || "Usuário"}!</h1>
-            <p className="text-xl text-gray-600 mb-2">
-              Seu papel: <span className="font-semibold capitalize">{userRole || "comprador"}</span>
-            </p>
-            <p className="text-lg text-gray-500">
-              Use a barra lateral para navegar pelas funcionalidades disponíveis para você.
-            </p>
-          </div>
+          {renderHomeContent()}
         </main>
         <MadeWithDyad />
       </div>
