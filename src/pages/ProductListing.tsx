@@ -8,7 +8,7 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { showError } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Loader2, ShoppingCart } from 'lucide-react';
 
 interface Product {
@@ -28,6 +28,7 @@ const ProductListing = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isBuying, setIsBuying] = useState<string | null>(null); // Para controlar o estado de compra de um produto específico
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
@@ -51,6 +52,41 @@ const ProductListing = () => {
       fetchProducts();
     }
   }, [session, isSessionLoading, userRole]);
+
+  const handleBuyNow = async (productId: string) => {
+    if (!session?.user?.id) {
+      showError('Você precisa estar logado para comprar produtos.');
+      return;
+    }
+
+    setIsBuying(productId);
+    const toastId = showLoading('Processando sua compra...');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('purchase-product', {
+        body: { productId },
+      });
+
+      dismissToast(toastId);
+
+      if (error) {
+        showError('Erro ao finalizar a compra: ' + error.message);
+        console.error('Erro ao finalizar a compra:', error.message);
+      } else if (data && data.error) {
+        showError('Erro ao finalizar a compra: ' + data.error);
+        console.error('Erro da Edge Function:', data.error);
+      } else {
+        showSuccess('Compra realizada com sucesso!');
+        fetchProducts(); // Recarrega a lista de produtos para refletir a nova quantidade
+      }
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Ocorreu um erro inesperado: ' + error.message);
+      console.error('Erro inesperado ao invocar Edge Function:', error);
+    } finally {
+      setIsBuying(null);
+    }
+  };
 
   if (isSessionLoading || isLoadingProducts) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
@@ -113,8 +149,17 @@ const ProductListing = () => {
                       </p>
                     </CardContent>
                     <CardFooter>
-                      <Button className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
-                        <ShoppingCart className="mr-2 h-4 w-4" /> Adicionar ao Carrinho
+                      <Button
+                        className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
+                        onClick={() => handleBuyNow(product.id)}
+                        disabled={isBuying === product.id || product.quantity <= 0}
+                      >
+                        {isBuying === product.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                        )}
+                        {product.quantity <= 0 ? 'Esgotado' : 'Comprar Agora'}
                       </Button>
                     </CardFooter>
                   </Card>
