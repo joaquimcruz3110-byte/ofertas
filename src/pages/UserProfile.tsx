@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, User as UserIcon, Camera } from 'lucide-react';
+import { Loader2, User as UserIcon, Camera, Trash2 } from 'lucide-react'; // Importar Trash2
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,6 +39,7 @@ const UserProfile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false); // Novo estado para remoção
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -130,6 +131,57 @@ const UserProfile = () => {
     return publicUrlData.publicUrl;
   };
 
+  const handleRemoveAvatar = async () => {
+    if (!profile?.avatar_url || !session?.user?.id) {
+      showError('Nenhum avatar para remover.');
+      return;
+    }
+
+    if (!window.confirm("Tem certeza que deseja remover seu avatar?")) {
+      return;
+    }
+
+    setIsRemovingAvatar(true);
+    const toastId = showLoading('Removendo avatar...');
+
+    try {
+      const urlParts = profile.avatar_url.split('avatars/');
+      const filePathInStorage = urlParts.length > 1 ? `avatars/${urlParts[1]}` : null;
+
+      if (filePathInStorage) {
+        const { error: deleteStorageError } = await supabase.storage
+          .from('avatars')
+          .remove([filePathInStorage]);
+
+        if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+          throw new Error('Erro ao remover avatar do storage: ' + deleteStorageError.message);
+        }
+      }
+
+      const { error: updateDbError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', session.user.id);
+
+      if (updateDbError) {
+        throw new Error('Erro ao atualizar perfil no banco de dados: ' + updateDbError.message);
+      }
+
+      dismissToast(toastId);
+      showSuccess('Avatar removido com sucesso!');
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
+      setAvatarPreview(null);
+      setSelectedAvatarFile(null);
+      fetchProfile(); // Recarrega o perfil para garantir consistência
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao remover avatar: ' + error.message);
+      console.error('Erro ao remover avatar:', error.message);
+    } finally {
+      setIsRemovingAvatar(false);
+    }
+  };
+
   const onSubmit = async (values: ProfileFormValues) => {
     setIsSubmitting(true);
     const toastId = showLoading('Atualizando perfil...');
@@ -219,6 +271,22 @@ const UserProfile = () => {
                     </Label>
                   </div>
                   <p className="text-sm text-gray-500">Clique na câmera para mudar seu avatar</p>
+                  {profile?.avatar_url && ( // Mostrar botão de remover apenas se houver um avatar
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleRemoveAvatar}
+                      disabled={isRemovingAvatar}
+                      className="mt-2"
+                    >
+                      {isRemovingAvatar ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Remover Avatar
+                    </Button>
+                  )}
                 </div>
 
                 <FormField
