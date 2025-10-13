@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu cadastro no Ponta de Estoque</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* dyad-light-gray */
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        td {
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff; /* dyad-white */
+            border-radius: 8px; /* dyad-rounded */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* dyad-soft */
+            overflow: hidden;
+        }
+        .header {
+            background-color: #1e3a8a; /* dyad-dark-blue */
+            padding: 30px 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .content {
+            padding: 30px 20px;
+            color: #1f2937; /* dyad-dark-gray */
+            line-height: 1.6;
+        }
+        .content p {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 25px 0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #f97316; /* dyad-vibrant-orange */
+            color: #ffffff;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #e06000; /* Laranja mais escuro para hover */
+        }
+        .footer {
+            background-color: #1e3a8a; /* dyad-dark-blue */
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #f97316; /* dyad-vibrant-orange */
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <center>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+                <td align="center" style="padding: 20px 0;">
+                    <table class="container" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                        <tr>
+                            <td class="header">
+                                <h1>Ponta de Estoque</h1>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="content">
+                                <p>Olá!</p>
+                                <p>Obrigado por se cadastrar no <strong>Ponta de Estoque</strong>. Para ativar sua conta e começar a explorar nossos produtos ou listar os seus, por favor, confirme seu endereço de e-mail clicando no botão abaixo:</p>
+                                <div class="button-container">
+                                    <a href="{{ .URL }}" class="button">Confirmar E-mail</a>
+                                </div>
+                                <p>Se você não solicitou este cadastro, pode ignorar este e-mail com segurança.</p>
+                                <p>Atenciosamente,<br>A Equipe Ponta de Estoque</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="footer">
+                                <p>&copy; {{ .Year }} Ponta de Estoque. Todos os direitos reservados.</p>
+                                <p>Visite nosso site: <a href="{{ .SiteURL }}" target="_blank">{{ .SiteURL }}</a></p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </center>
+</body>
+</html>
