@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import SalesByProductChart from '@/components/SalesByProductChart'; // Importar o novo componente de gráfico
 
 interface SaleDetail {
   id: string;
@@ -38,6 +39,7 @@ const LojistaDashboard = () => {
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]);
+  const [salesByProductData, setSalesByProductData] = useState<Array<{ name: string; totalQuantity: number }>>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +50,7 @@ const LojistaDashboard = () => {
       setTotalSalesCount(0);
       setTotalRevenue(0);
       setDetailedSales([]);
+      setSalesByProductData([]);
       setIsLoadingData(false);
       return;
     }
@@ -67,6 +70,7 @@ const LojistaDashboard = () => {
       setTotalSalesCount(0);
       setTotalRevenue(0);
       setDetailedSales([]);
+      setSalesByProductData([]);
       setIsLoadingData(false);
       return;
     }
@@ -80,6 +84,7 @@ const LojistaDashboard = () => {
       setTotalSalesCount(0);
       setTotalRevenue(0);
       setDetailedSales([]);
+      setSalesByProductData([]);
       setIsLoadingData(false);
       return;
     }
@@ -105,6 +110,7 @@ const LojistaDashboard = () => {
       setTotalSalesCount(0);
       setTotalRevenue(0);
       setDetailedSales([]);
+      setSalesByProductData([]);
     } else {
       const salesCount = salesData ? salesData.length : 0;
       const revenue = salesData ? salesData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
@@ -117,6 +123,18 @@ const LojistaDashboard = () => {
         product_price: productDetailsMap.get(sale.product_id)?.price || 0,
       }));
       setDetailedSales(formattedSales);
+
+      // Processar dados para o gráfico
+      const salesByProductMap = new Map<string, { name: string; totalQuantity: number }>();
+      formattedSales.forEach(sale => {
+        const productName = sale.product_name;
+        if (salesByProductMap.has(productName)) {
+          salesByProductMap.get(productName)!.totalQuantity += sale.quantity;
+        } else {
+          salesByProductMap.set(productName, { name: productName, totalQuantity: sale.quantity });
+        }
+      });
+      setSalesByProductData(Array.from(salesByProductMap.values()));
     }
 
     setIsLoadingData(false);
@@ -207,6 +225,11 @@ const LojistaDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
+              </div>
+
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Vendas por Produto</h2>
+              <div className="mb-8">
+                <SalesByProductChart data={salesByProductData} />
               </div>
 
               <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Detalhes das Vendas</h2>
