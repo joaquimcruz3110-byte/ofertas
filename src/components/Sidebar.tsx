@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] }, // Novo item para o perfil
   { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
+  { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] }, // Novo item para o Admin
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },

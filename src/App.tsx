@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
-import { CartProvider } from "./components/CartProvider"; // Importar CartProvider
+import { CartProvider } from "./components/CartProvider";
 import React from "react";
 
 // Importar as novas páginas
@@ -22,7 +22,8 @@ import ProductDetail from "./pages/ProductDetail";
 import LojistaDashboard from "./pages/LojistaDashboard";
 import CompradorDashboard from "./pages/CompradorDashboard";
 import UserProfile from "./pages/UserProfile";
-import CartPage from "./pages/CartPage"; // Importar CartPage
+import CartPage from "./pages/CartPage";
+import AdminDashboard from "./pages/AdminDashboard"; // Importar AdminDashboard
 
 const queryClient = new QueryClient();
 
@@ -48,7 +49,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          <CartProvider> {/* Envolver as rotas com CartProvider */}
+          <CartProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route
@@ -102,7 +103,7 @@ const App = () => (
                 }
               />
               <Route
-                path="/cart" // Nova rota para a página do carrinho
+                path="/cart"
                 element={
                   <ProtectedRoute>
                     <CartPage />
@@ -135,6 +136,14 @@ const App = () => (
                 }
               />
               {/* Rotas para Administrador */}
+              <Route
+                path="/admin-dashboard" // Nova rota para o Painel do Administrador
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/gerenciar-usuarios"
                 element={
