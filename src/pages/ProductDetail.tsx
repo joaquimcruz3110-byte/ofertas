@@ -8,8 +8,9 @@ import { useSession } from '@/components/SessionContextProvider';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { showError } from '@/utils/toast'; // Removido showSuccess, showLoading, dismissToast
+import { ShoppingCart, ArrowLeft } from 'lucide-react'; // Removido Loader2
+import { useCart } from '@/components/CartProvider'; // Importar useCart
 
 interface Product {
   id: string;
@@ -28,9 +29,10 @@ const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { addItem } = useCart(); // Usar o hook useCart
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-  const [isBuying, setIsBuying] = useState(false);
+  // Removido o estado isBuying, pois a adição ao carrinho é local
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -63,40 +65,17 @@ const ProductDetail = () => {
     }
   }, [id, session, isSessionLoading, userRole, navigate]);
 
-  const handleBuyNow = async () => {
-    if (!session?.user?.id || !product?.id) {
-      showError('Você precisa estar logado para comprar produtos ou o produto não está disponível.');
+  const handleAddToCart = () => {
+    if (!product) {
+      showError('Produto não disponível para adicionar ao carrinho.');
       return;
     }
-
-    setIsBuying(true);
-    const toastId = showLoading('Processando sua compra...');
-
-    try {
-      const { data, error } = await supabase.functions.invoke('purchase-product', {
-        body: { productId: product.id },
-      });
-
-      dismissToast(toastId);
-
-      if (error) {
-        showError('Erro ao finalizar a compra: ' + error.message);
-        console.error('Erro ao finalizar a compra:', error.message);
-      } else if (data && data.error) {
-        showError('Erro ao finalizar a compra: ' + data.error);
-        console.error('Erro da Edge Function:', data.error);
-      } else {
-        showSuccess('Compra realizada com sucesso!');
-        // Atualiza a quantidade do produto localmente
-        setProduct(prevProduct => prevProduct ? { ...prevProduct, quantity: prevProduct.quantity - 1 } : null);
-      }
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError('Ocorreu um erro inesperado: ' + error.message);
-      console.error('Erro inesperado ao invocar Edge Function:', error);
-    } finally {
-      setIsBuying(false);
-    }
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      photo_url: product.photo_url,
+    });
   };
 
   if (isSessionLoading || isLoadingProduct) {
@@ -186,15 +165,11 @@ const ProductDetail = () => {
 
                 <Button
                   className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg"
-                  onClick={handleBuyNow}
-                  disabled={isBuying || product.quantity <= 0}
+                  onClick={handleAddToCart}
+                  disabled={product.quantity <= 0}
                 >
-                  {isBuying ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                  )}
-                  {product.quantity <= 0 ? 'Esgotado' : 'Comprar Agora'}
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
                 </Button>
               </div>
             </div>
