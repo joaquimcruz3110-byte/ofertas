@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useSession } from '@/components/SessionContextProvider';
@@ -8,7 +8,9 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showError } from '@/utils/toast';
-import { Package, DollarSign, ShoppingBag } from 'lucide-react';
+import { Package, DollarSign, ShoppingBag, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { exportToPdf } from '@/utils/pdfGenerator'; // Importar a função de exportação de PDF
 
 const LojistaDashboard = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
@@ -16,6 +18,7 @@ const LojistaDashboard = () => {
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const reportRef = useRef<HTMLDivElement>(null); // Ref para o conteúdo do relatório
 
   const fetchDashboardData = async () => {
     setIsLoadingData(true);
@@ -73,6 +76,14 @@ const LojistaDashboard = () => {
     }
   }, [session, isSessionLoading, userRole]);
 
+  const handleExportPdf = () => {
+    if (reportRef.current) {
+      exportToPdf(reportRef.current, 'relatorio_lojista.pdf');
+    } else {
+      showError('Conteúdo do relatório não encontrado para exportação.');
+    }
+  };
+
   if (isSessionLoading || isLoadingData) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
@@ -95,48 +106,55 @@ const LojistaDashboard = () => {
         <Header />
         <main className="flex-grow p-4 bg-dyad-light-gray">
           <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-            <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Painel do Lojista</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-dyad-dark-blue">Painel do Lojista</h1>
+              <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
+                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+              </Button>
+            </div>
             <p className="text-lg text-gray-600 mb-8">
               Visão geral das suas atividades na plataforma.
             </p>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalProducts}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Produtos listados por você
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
-                  <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalSalesCount}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Vendas realizadas dos seus produtos
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Receita bruta dos seus produtos
-                  </p>
-                </CardContent>
-              </Card>
+            <div ref={reportRef} className="p-4"> {/* Conteúdo a ser exportado */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalProducts}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Produtos listados por você
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalSalesCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Vendas realizadas dos seus produtos
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Receita bruta dos seus produtos
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </main>
