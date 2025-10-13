@@ -64,7 +64,7 @@ const Login = () => {
                 link_text: 'Já tem uma conta? Entrar',
                 // A propriedade forgotten_password_text não é necessária aqui,
                 // pois o bloco 'forgotten_password' no nível superior já cuida disso.
-                confirmation_text: 'Verifique seu e-mail para o link de login',
+                // confirmation_text: 'Verifique seu e-mail para o link de login', // Removido
               },
               sign_up: {
                 email_label: 'Seu e-mail',
