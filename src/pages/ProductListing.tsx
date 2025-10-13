@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"; // Corrigido aqui
 import { showError } from '@/utils/toast';
 import { ShoppingCart, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -86,8 +86,8 @@ const ProductListing = () => {
 
   const handleAddToCart = (product: Product) => {
     const finalPrice = product.discount
-      ? product.price * (1 - product.discount / 100)
-      : product.price;
+      ? Number(product.price) * (1 - Number(product.discount) / 100)
+      : Number(product.price);
 
     addItem({
       id: product.id,
@@ -140,11 +140,12 @@ const ProductListing = () => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => {
+              const originalPrice = Number(product.price); // Garante que é um número
               const finalPrice = product.discount
-                ? product.price * (1 - product.discount / 100)
-                : product.price;
+                ? originalPrice * (1 - Number(product.discount) / 100)
+                : originalPrice;
 
-              console.log('Product:', product.name, 'Original Price:', product.price, 'Final Price:', finalPrice);
+              console.log('Product:', product.name, 'Original Price (raw):', product.price, 'Original Price (number):', originalPrice, 'Final Price:', finalPrice);
               
               return (
                 <Card key={product.id} className="flex flex-col justify-between">
@@ -167,7 +168,7 @@ const ProductListing = () => {
                         {formatCurrency(finalPrice)}
                         {product.discount && product.discount > 0 && (
                           <span className="ml-2 text-sm text-gray-500 line-through">
-                            {formatCurrency(product.price)}
+                            {formatCurrency(originalPrice)}
                           </span>
                         )}
                       </p>
