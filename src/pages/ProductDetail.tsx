@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +9,6 @@ import { showError } from '@/utils/toast';
 import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
-import useEmblaCarousel from 'embla-carousel-react';
-import { DotButton, PrevButton, NextButton } from '@/components/CarouselButtons';
-import { Dialog, DialogContent } from "@/components/ui/dialog"; // Importar Dialog e DialogContent
 
 interface Product {
   id: string;
@@ -37,38 +34,6 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
-  const [prevBtnDisabled, setPrevBtnDisabled] = useState(true);
-  const [nextBtnDisabled, setNextBtnDisabled] = useState(true);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
-
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false); // Estado para controlar o modal
-  const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Imagem a ser exibida no modal
-
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-  const scrollTo = useCallback((index: number) => emblaApi && emblaApi.scrollTo(index), [emblaApi]);
-
-  const onInit = useCallback((emblaApi: any) => {
-    setScrollSnaps(emblaApi.scrollSnapList());
-  }, []);
-
-  const onSelect = useCallback((emblaApi: any) => {
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-    setPrevBtnDisabled(!emblaApi.canScrollPrev());
-    setNextBtnDisabled(!emblaApi.canScrollNext());
-  }, []);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onInit(emblaApi);
-    onSelect(emblaApi);
-    emblaApi.on('reInit', onInit);
-    emblaApi.on('reInit', onSelect);
-    emblaApi.on('select', onSelect);
-  }, [emblaApi, onInit, onSelect]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -118,11 +83,6 @@ const ProductDetail = () => {
     });
   };
 
-  const openImageModal = (imageUrl: string) => {
-    setCurrentModalImage(imageUrl);
-    setIsImageModalOpen(true);
-  };
-
   if (isSessionLoading || isLoadingProduct) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
@@ -156,8 +116,6 @@ const ProductDetail = () => {
     ? product.price * (1 - product.discount / 100)
     : product.price;
 
-  const hasMultipleImages = product.photo_urls && product.photo_urls.length > 1;
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <Button
@@ -171,39 +129,11 @@ const ProductDetail = () => {
       <div className="grid md:grid-cols-2 gap-8">
         <div className="relative">
           {product.photo_urls && product.photo_urls.length > 0 ? (
-            <div className="embla">
-              <div className="embla__viewport" ref={emblaRef}>
-                <div className="embla__container flex">
-                  {product.photo_urls.map((url, index) => (
-                    <div className="embla__slide flex-[0_0_100%] min-w-0" key={index}>
-                      <img
-                        src={url}
-                        alt={`${product.name} - Imagem ${index + 1}`}
-                        className="w-full max-h-96 object-contain rounded-md shadow-sm cursor-pointer"
-                        onClick={() => openImageModal(url)} // Abre o modal ao clicar na imagem
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {hasMultipleImages && (
-                <div className="embla__buttons absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-2">
-                  <PrevButton onClick={scrollPrev} disabled={prevBtnDisabled} />
-                  <NextButton onClick={scrollNext} disabled={nextBtnDisabled} />
-                </div>
-              )}
-              {hasMultipleImages && (
-                <div className="embla__dots flex justify-center mt-4">
-                  {scrollSnaps.map((_, index) => (
-                    <DotButton
-                      key={index}
-                      onClick={() => scrollTo(index)}
-                      className={`embla__dot w-3 h-3 rounded-full mx-1 bg-gray-300 ${index === selectedIndex ? 'bg-dyad-vibrant-orange' : ''}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <img
+              src={product.photo_urls[0]} // Exibe apenas a primeira imagem
+              alt={`${product.name} - Imagem principal`}
+              className="w-full max-h-96 object-contain rounded-md shadow-sm"
+            />
           ) : (
             <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
               <ImageIcon className="h-12 w-12" /> Sem Imagem
@@ -248,19 +178,6 @@ const ProductDetail = () => {
           </Button>
         </div>
       </div>
-
-      {/* Modal de visualização de imagem */}
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-[calc(100vw-4rem)] max-h-[calc(100vh-4rem)] w-fit p-0 border-none bg-transparent shadow-none">
-          {currentModalImage && (
-            <img
-              src={currentModalImage}
-              alt="Visualização da Imagem"
-              className="max-w-full max-h-full object-contain rounded-md"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
