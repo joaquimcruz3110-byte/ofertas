@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search, Store as StoreIcon, XCircle } from 'lucide-react'; // Adicionado XCircle para limpar filtros
+import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
@@ -29,13 +29,13 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_url: string | null;
+  photo_urls: string[] | null; // Alterado para array de strings
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
-  shop_details: { // Adicionado para incluir os detalhes da loja
+  shop_details: {
     shop_name: string;
-    shop_logo_url: string | null; // Adicionado shop_logo_url
+    shop_logo_url: string | null;
   } | null;
 }
 
@@ -66,7 +66,7 @@ const ProductListing = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined); // Novo estado para categoria
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,7 +79,7 @@ const ProductListing = () => {
 
     let query = supabase
       .from('products')
-      .select('*, shop_details(shop_name, shop_logo_url)', { count: 'exact' }) // Inclui o nome e logo da loja
+      .select('*, shop_details(shop_name, shop_logo_url)', { count: 'exact' })
       .gt('quantity', 0);
 
     if (term) {
@@ -88,7 +88,7 @@ const ProductListing = () => {
     if (shopkeeperId) {
       query = query.eq('shopkeeper_id', shopkeeperId);
     }
-    if (category) { // Novo filtro por categoria
+    if (category) {
       query = query.eq('category', category);
     }
     if (minP && !isNaN(Number(minP))) {
@@ -152,7 +152,7 @@ const ProductListing = () => {
       id: product.id,
       name: product.name,
       price: finalPrice,
-      photo_url: product.photo_url,
+      photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
     });
   };
 
@@ -165,7 +165,7 @@ const ProductListing = () => {
     setCurrentPage(1);
   };
 
-  const handleCategoryChange = (value: string) => { // Novo handler para categoria
+  const handleCategoryChange = (value: string) => {
     setSelectedCategory(value === 'all' ? undefined : value);
     setCurrentPage(1);
   };
@@ -183,7 +183,7 @@ const ProductListing = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedShopkeeperId(undefined);
-    setSelectedCategory(undefined); // Limpa a categoria
+    setSelectedCategory(undefined);
     setMinPrice('');
     setMaxPrice('');
     setCurrentPage(1);
@@ -211,7 +211,7 @@ const ProductListing = () => {
         Confira os produtos disponíveis para compra na plataforma.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 items-end"> {/* Ajustado para 5 colunas */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 items-end">
         <div className="relative">
           <Label htmlFor="search-product">Pesquisar Produto</Label>
           <Search className="absolute left-3 top-[38px] -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -243,7 +243,7 @@ const ProductListing = () => {
         </div>
 
         <div>
-          <Label htmlFor="filter-category">Filtrar por Categoria</Label> {/* Novo filtro de categoria */}
+          <Label htmlFor="filter-category">Filtrar por Categoria</Label>
           <Select value={selectedCategory || 'all'} onValueChange={handleCategoryChange}>
             <SelectTrigger id="filter-category" className="w-full">
               <SelectValue placeholder="Todas as Categorias" />
@@ -304,12 +304,16 @@ const ProductListing = () => {
                 <Card key={product.id} className="flex flex-col justify-between">
                   <Link to={`/product/${product.id}`} className="block">
                     <CardHeader>
-                      {product.photo_url && (
+                      {product.photo_urls && product.photo_urls.length > 0 ? (
                         <img
-                          src={product.photo_url}
+                          src={product.photo_urls[0]} // Exibe a primeira imagem
                           alt={product.name}
                           className="w-full h-48 object-cover rounded-md mb-4"
                         />
+                      ) : (
+                        <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                          <ImageIcon className="h-12 w-12" />
+                        </div>
                       )}
                       <CardTitle className="text-lg">{product.name}</CardTitle>
                       <CardDescription className="text-sm text-gray-500 flex items-center gap-2 mt-1">

@@ -8,13 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters';
 
 interface Product {
   id: string;
   name: string;
   price: number;
-  photo_url: string | null;
+  photo_urls: string[] | null; // Alterado para array de strings
 }
 
 const AUTOPLAY_INTERVAL = 3000; // 3 segundos
@@ -29,7 +29,7 @@ const ProductCarousel = () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, price, photo_url')
+      .select('id, name, price, photo_urls') // Seleciona photo_urls
       .gt('quantity', 0) // Apenas produtos em estoque
       .limit(10); // Limitar a 10 produtos para o carrossel
 
@@ -91,8 +91,8 @@ const ProductCarousel = () => {
             <div key={product.id} className="embla__slide flex-[0_0_50%] min-w-0 md:flex-[0_0_33.33%] lg:flex-[0_0_25%] pl-4">
               <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300" onClick={handleProductClick}>
                 <CardContent className="p-0 flex-grow">
-                  {product.photo_url ? (
-                    <img src={product.photo_url} alt={product.name} className="w-full h-48 object-cover rounded-t-md" />
+                  {product.photo_urls && product.photo_urls.length > 0 ? (
+                    <img src={product.photo_urls[0]} alt={product.name} className="w-full h-48 object-cover rounded-t-md" />
                   ) : (
                     <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-t-md text-gray-500">
                       <ImageIcon className="h-12 w-12" />

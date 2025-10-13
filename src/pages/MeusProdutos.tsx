@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon, X } from 'lucide-react'; // Adicionado X para remover imagem individual
 import {
   Dialog,
   DialogContent,
@@ -28,10 +28,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import { MadeWithDyad } from '@/components/made-with-dyad';
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters';
 
 interface Product {
   id: string;
@@ -40,8 +37,8 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_url: string | null;
-  discount: number; // Alterado para ser obrigatório
+  photo_urls: string[] | null; // Alterado para array de strings
+  discount: number;
   shopkeeper_id: string;
   created_at: string;
 }
@@ -58,10 +55,9 @@ const productFormSchema = z.object({
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
   category: z.string().optional(),
-  photo_url: z.string().optional(),
-  discount: z.preprocess( // Desconto agora é obrigatório
+  discount: z.preprocess(
     (val) => Number(val),
-    z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
+    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -74,9 +70,8 @@ const MeusProdutos = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const [currentImages, setCurrentImages] = useState<{ url: string; file?: File }[]>([]); // Gerencia imagens existentes e novas
+  const MAX_IMAGES = 3;
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -86,8 +81,7 @@ const MeusProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      photo_url: "",
-      discount: 0.01, // Valor padrão para desconto, agora maior que zero
+      discount: 0,
     },
   });
 
@@ -128,11 +122,9 @@ const MeusProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      photo_url: "",
-      discount: 0.01, // Valor padrão para desconto, agora maior que zero
+      discount: 0,
     });
-    setSelectedFile(null);
-    setImagePreview(null);
+    setCurrentImages([]);
     setIsDialogOpen(true);
   };
 
@@ -144,50 +136,93 @@ const MeusProdutos = () => {
       price: product.price,
       quantity: product.quantity,
       category: product.category || "",
-      photo_url: product.photo_url || "",
-      discount: product.discount || 0.01, // Garante que o valor seja > 0
+      discount: product.discount || 0,
     });
-    setSelectedFile(null);
-    setImagePreview(product.photo_url);
+    setCurrentImages(product.photo_urls?.map(url => ({ url })) || []);
     setIsDialogOpen(true);
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir este produto?")) {
+    if (!window.confirm("Tem certeza que deseja excluir este produto? Isso removerá todas as suas imagens também.")) {
       return;
     }
 
     const toastId = showLoading('Excluindo produto...');
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId)
-      .eq('shopkeeper_id', session?.user?.id);
+    
+    try {
+      // Primeiro, buscar as URLs das imagens para deletar do storage
+      const { data: productToDelete, error: fetchError } = await supabase
+        .from('products')
+        .select('photo_urls')
+        .eq('id', productId)
+        .eq('shopkeeper_id', session?.user?.id)
+        .single();
 
-    dismissToast(toastId);
-    if (error) {
-      showError('Erro ao excluir produto: ' + error.message);
-      console.error('Erro ao excluir produto:', error.message);
-    } else {
+      if (fetchError) {
+        throw new Error('Erro ao buscar produto para exclusão: ' + fetchError.message);
+      }
+
+      // Deletar imagens do storage
+      if (productToDelete?.photo_urls && productToDelete.photo_urls.length > 0) {
+        const filePathsToDelete = productToDelete.photo_urls.map((url: string) => {
+          const urlParts = url.split('product_images/');
+          return urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
+        }).filter(Boolean) as string[];
+
+        if (filePathsToDelete.length > 0) {
+          const { error: deleteStorageError } = await supabase.storage
+            .from('product_images')
+            .remove(filePathsToDelete);
+
+          if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+            console.warn('Erro ao remover imagens do storage (algumas podem não existir):', deleteStorageError.message);
+          }
+        }
+      }
+
+      // Deletar o produto do banco de dados
+      const { error: deleteDbError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+        .eq('shopkeeper_id', session?.user?.id);
+
+      if (deleteDbError) {
+        throw new Error('Erro ao excluir produto do banco de dados: ' + deleteDbError.message);
+      }
+
+      dismissToast(toastId);
       showSuccess('Produto excluído com sucesso!');
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao excluir produto: ' + error.message);
+      console.error('Erro ao excluir produto:', error.message);
     }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      setSelectedFile(null);
-      setImagePreview(editingProduct?.photo_url || null);
+    const files = Array.from(event.target.files || []);
+    const newFiles = files.slice(0, MAX_IMAGES - currentImages.length); // Limita o número de novos arquivos
+
+    if (newFiles.length > 0) {
+      const newImagePreviews = newFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        file: file,
+      }));
+      setCurrentImages(prev => [...prev, ...newImagePreviews]);
     }
+    // Limpa o input para permitir o upload dos mesmos arquivos novamente se o usuário quiser
+    event.target.value = '';
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setCurrentImages(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const uploadImage = async (productId: string, file: File) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`; // Nome único
     const filePath = `product_images/${productId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -208,68 +243,15 @@ const MeusProdutos = () => {
     return publicUrlData.publicUrl;
   };
 
-  const handleRemoveImage = async () => {
-    if (!editingProduct || !editingProduct.photo_url || !session?.user?.id) {
-      showError('Nenhuma imagem para remover ou produto não selecionado.');
-      return;
-    }
-
-    if (!window.confirm("Tem certeza que deseja remover a imagem deste produto?")) {
-      return;
-    }
-
-    setIsRemovingImage(true);
-    const toastId = showLoading('Removendo imagem...');
-
-    try {
-      const urlParts = editingProduct.photo_url.split('product_images/');
-      const filePathInStorage = urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
-
-      if (filePathInStorage) {
-        const { error: deleteStorageError } = await supabase.storage
-          .from('product_images')
-          .remove([filePathInStorage]);
-
-        if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
-          throw new Error('Erro ao remover imagem do storage: ' + deleteStorageError.message);
-        }
-      }
-
-      const { error: updateDbError } = await supabase
-        .from('products')
-        .update({ photo_url: null })
-        .eq('id', editingProduct.id)
-        .eq('shopkeeper_id', session.user.id);
-
-      if (updateDbError) {
-        throw new Error('Erro ao atualizar produto no banco de dados: ' + updateDbError.message);
-      }
-
-      dismissToast(toastId);
-      showSuccess('Imagem removida com sucesso!');
-
-      setEditingProduct(prev => prev ? { ...prev, photo_url: null } : null);
-      setImagePreview(null);
-      setSelectedFile(null);
-      fetchProducts();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError('Erro ao remover imagem: ' + error.message);
-      console.error('Erro ao remover imagem:', error.message);
-    } finally {
-      setIsSubmitting(false); // Corrigido para setIsSubmitting
-      setIsRemovingImage(false);
-    }
-  };
-
   const onSubmit = async (values: ProductFormValues) => {
     setIsSubmitting(true);
     const toastId = showLoading(editingProduct ? 'Atualizando produto...' : 'Adicionando produto...');
 
-    let photoUrlToSave = editingProduct?.photo_url || null;
+    let productPhotoUrls: string[] = [];
     let currentProductId = editingProduct?.id;
 
     try {
+      // Se for um novo produto, insere primeiro para obter o ID
       if (!editingProduct) {
         const { data: newProductData, error: insertError } = await supabase
           .from('products')
@@ -291,12 +273,21 @@ const MeusProdutos = () => {
         currentProductId = newProductData.id;
       }
 
-      if (selectedFile && currentProductId) {
-        photoUrlToSave = await uploadImage(currentProductId, selectedFile);
-      } else if (!selectedFile && editingProduct && !editingProduct.photo_url) {
-        photoUrlToSave = null;
-      }
+      // Processar uploads de novas imagens
+      const uploadPromises = currentImages
+        .filter(img => img.file) // Apenas arquivos novos
+        .map(img => uploadImage(currentProductId!, img.file!));
+      
+      const newUploadedUrls = await Promise.all(uploadPromises);
 
+      // Combinar URLs existentes (que não foram removidas) com as novas URLs
+      const existingUrls = currentImages
+        .filter(img => !img.file) // Apenas URLs existentes
+        .map(img => img.url);
+      
+      productPhotoUrls = [...existingUrls, ...newUploadedUrls];
+
+      // Atualizar o produto no banco de dados
       if (currentProductId) {
         const { error: updateError } = await supabase
           .from('products')
@@ -306,7 +297,7 @@ const MeusProdutos = () => {
             price: values.price,
             quantity: values.quantity,
             category: values.category,
-            photo_url: photoUrlToSave,
+            photo_urls: productPhotoUrls, // Salva o array de URLs
             discount: values.discount,
           })
           .eq('id', currentProductId)
@@ -336,19 +327,10 @@ const MeusProdutos = () => {
 
   if (!session || userRole !== 'lojista') {
     return (
-      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <Sidebar />
-        <div className="flex flex-col">
-          <Header />
-          <main className="flex-grow p-4 bg-dyad-light-gray">
-            <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
-              <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-                <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-                <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
-              </div>
-            </div>
-          </main>
-          <MadeWithDyad />
+      <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
+        <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
+          <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
+          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
         </div>
       </div>
     );
@@ -387,9 +369,9 @@ const MeusProdutos = () => {
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
-                    {product.photo_url ? (
+                    {product.photo_urls && product.photo_urls.length > 0 ? (
                       <img
-                        src={product.photo_url}
+                        src={product.photo_urls[0]} // Exibe a primeira imagem
                         alt={product.name}
                         className="w-12 h-12 object-cover rounded-md"
                       />
@@ -398,7 +380,13 @@ const MeusProdutos = () => {
                         <ImageIcon className="h-6 w-6" />
                       </div>
                     )}
-                  </TableCell><TableCell className="font-medium">{product.name}</TableCell><TableCell>{formatCurrency(product.price)}</TableCell><TableCell>{product.quantity}</TableCell><TableCell>{product.category || 'N/A'}</TableCell><TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell><TableCell className="text-right">
+                  </TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>{formatCurrency(product.price)}</TableCell>
+                  <TableCell>{product.quantity}</TableCell>
+                  <TableCell>{product.category || 'N/A'}</TableCell>
+                  <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
+                  <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -495,72 +483,70 @@ const MeusProdutos = () => {
                       <FormLabel>Categoria</FormLabel>
                       <FormControl>
                         <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="discount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Desconto (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormItem>
-              <FormLabel>Foto do Produto</FormLabel>
-              <FormControl>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormDescription>
-                {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-            {imagePreview && (
-              <div className="mt-4 flex flex-col items-center">
-                <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
-                {editingProduct && editingProduct.photo_url && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleRemoveImage}
-                    disabled={isRemovingImage}
-                    className="mt-2"
-                  >
-                    {isRemovingImage ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Remover Imagem Atual
-                  </Button>
-                )}
+                <FormField
+                  control={form.control}
+                  name="discount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Desconto (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  </div>
-);
+              <FormItem>
+                <FormLabel>Fotos do Produto (até {MAX_IMAGES})</FormLabel>
+                <FormControl>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileChange}
+                    disabled={currentImages.length >= MAX_IMAGES}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Você pode enviar até {MAX_IMAGES} imagens para o produto.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+              {currentImages.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-4">
+                  {currentImages.map((img, index) => (
+                    <div key={index} className="relative w-full h-32 border rounded-md overflow-hidden">
+                      <img src={img.url} alt={`Pré-visualização ${index + 1}`} className="w-full h-full object-cover" />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
 
 export default MeusProdutos;

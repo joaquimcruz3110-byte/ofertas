@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft, Store as StoreIcon } from 'lucide-react'; // Adicionado StoreIcon
+import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
+import useEmblaCarousel from 'embla-carousel-react';
+import { DotButton, PrevButton, NextButton } from '@/components/CarouselButtons'; // Componentes de navegação do carrossel
 
 interface Product {
   id: string;
@@ -17,13 +19,13 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_url: string | null;
+  photo_urls: string[] | null; // Alterado para array de strings
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
-  shop_details: { // Adicionado para incluir os detalhes da loja
+  shop_details: {
     shop_name: string;
-    shop_logo_url: string | null; // Adicionado shop_logo_url
+    shop_logo_url: string | null;
   } | null;
 }
 
@@ -34,6 +36,35 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [prevBtnDisabled, setPrevBtnDisabled] = useState(true);
+  const [nextBtnDisabled, setNextBtnDisabled] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+  const scrollTo = useCallback((index: number) => emblaApi && emblaApi.scrollTo(index), [emblaApi]);
+
+  const onInit = useCallback((emblaApi: any) => {
+    setScrollSnaps(emblaApi.scrollSnapList());
+  }, []);
+
+  const onSelect = useCallback((emblaApi: any) => {
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+    setPrevBtnDisabled(!emblaApi.canScrollPrev());
+    setNextBtnDisabled(!emblaApi.canScrollNext());
+  }, []);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onInit(emblaApi);
+    onSelect(emblaApi);
+    emblaApi.on('reInit', onInit);
+    emblaApi.on('reInit', onSelect);
+    emblaApi.on('select', onSelect);
+  }, [emblaApi, onInit, onSelect]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -46,7 +77,7 @@ const ProductDetail = () => {
 
       const { data, error } = await supabase
         .from('products')
-        .select('*, shop_details(shop_name, shop_logo_url)') // Inclui o nome e logo da loja
+        .select('*, shop_details(shop_name, shop_logo_url)')
         .eq('id', id)
         .single();
 
@@ -79,7 +110,7 @@ const ProductDetail = () => {
       id: product.id,
       name: product.name,
       price: finalPrice,
-      photo_url: product.photo_url,
+      photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
     });
   };
 
@@ -116,6 +147,8 @@ const ProductDetail = () => {
     ? product.price * (1 - product.discount / 100)
     : product.price;
 
+  const hasMultipleImages = product.photo_urls && product.photo_urls.length > 1;
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <Button
@@ -127,16 +160,43 @@ const ProductDetail = () => {
       </Button>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="flex justify-center items-center">
-          {product.photo_url ? (
-            <img
-              src={product.photo_url}
-              alt={product.name}
-              className="w-full max-h-96 object-contain rounded-md shadow-sm"
-            />
+        <div className="relative">
+          {product.photo_urls && product.photo_urls.length > 0 ? (
+            <div className="embla">
+              <div className="embla__viewport" ref={emblaRef}>
+                <div className="embla__container flex">
+                  {product.photo_urls.map((url, index) => (
+                    <div className="embla__slide flex-[0_0_100%] min-w-0" key={index}>
+                      <img
+                        src={url}
+                        alt={`${product.name} - Imagem ${index + 1}`}
+                        className="w-full max-h-96 object-contain rounded-md shadow-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {hasMultipleImages && (
+                <div className="embla__buttons absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-2">
+                  <PrevButton onClick={scrollPrev} disabled={prevBtnDisabled} />
+                  <NextButton onClick={scrollNext} disabled={nextBtnDisabled} />
+                </div>
+              )}
+              {hasMultipleImages && (
+                <div className="embla__dots flex justify-center mt-4">
+                  {scrollSnaps.map((_, index) => (
+                    <DotButton
+                      key={index}
+                      onClick={() => scrollTo(index)}
+                      className={`embla__dot w-3 h-3 rounded-full mx-1 bg-gray-300 ${index === selectedIndex ? 'bg-dyad-vibrant-orange' : ''}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
-              Sem Imagem
+              <ImageIcon className="h-12 w-12" /> Sem Imagem
             </div>
           )}
         </div>
