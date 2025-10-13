@@ -11,12 +11,32 @@ import { showError } from '@/utils/toast';
 import { Package, DollarSign, ShoppingBag, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportToPdf } from '@/utils/pdfGenerator'; // Importar a função de exportação de PDF
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface SaleDetail {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  quantity: number;
+  total_price: number;
+  commission_rate: number;
+  sale_date: string;
+  products: Array<{ name: string; price: number }> | null; // Detalhes do produto aninhados
+}
 
 const LojistaDashboard = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]); // Novo estado para vendas detalhadas
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null); // Ref para o conteúdo do relatório
 
@@ -26,6 +46,7 @@ const LojistaDashboard = () => {
       setTotalProducts(0);
       setTotalSalesCount(0);
       setTotalRevenue(0);
+      setDetailedSales([]);
       setIsLoadingData(false);
       return;
     }
@@ -45,8 +66,8 @@ const LojistaDashboard = () => {
       setTotalProducts(productsCount || 0);
     }
 
-    // Fetch sales data
-    const { data: salesData, error: salesError } = await supabase
+    // Fetch sales data for summary
+    const { data: salesSummaryData, error: salesSummaryError } = await supabase
       .from('sales')
       .select(`
         quantity,
@@ -57,14 +78,38 @@ const LojistaDashboard = () => {
       `)
       .eq('products.shopkeeper_id', shopkeeperId);
 
-    if (salesError) {
-      showError('Erro ao carregar dados de vendas: ' + salesError.message);
-      console.error('Erro ao carregar dados de vendas:', salesError.message);
+    if (salesSummaryError) {
+      showError('Erro ao carregar dados de vendas para resumo: ' + salesSummaryError.message);
+      console.error('Erro ao carregar dados de vendas para resumo:', salesSummaryError.message);
     } else {
-      const salesCount = salesData ? salesData.length : 0;
-      const revenue = salesData ? salesData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
+      const salesCount = salesSummaryData ? salesSummaryData.length : 0;
+      const revenue = salesSummaryData ? salesSummaryData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
       setTotalSalesCount(salesCount);
       setTotalRevenue(revenue);
+    }
+
+    // Fetch detailed sales data for the table
+    const { data: salesDetailsData, error: salesDetailsError } = await supabase
+      .from('sales')
+      .select(`
+        id,
+        product_id,
+        buyer_id,
+        quantity,
+        total_price,
+        commission_rate,
+        products (name, price),
+        sale_date
+      `)
+      .eq('products.shopkeeper_id', shopkeeperId)
+      .order('sale_date', { ascending: false });
+
+    if (salesDetailsError) {
+      showError('Erro ao carregar detalhes das vendas: ' + salesDetailsError.message);
+      console.error('Erro ao carregar detalhes das vendas:', salesDetailsError.message);
+      setDetailedSales([]);
+    } else {
+      setDetailedSales(salesDetailsData as SaleDetail[]);
     }
 
     setIsLoadingData(false);
@@ -117,7 +162,8 @@ const LojistaDashboard = () => {
             </p>
 
             <div ref={reportRef} className="p-4"> {/* Conteúdo a ser exportado */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Resumo Geral</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
@@ -155,6 +201,49 @@ const LojistaDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Detalhes das Vendas</h2>
+              {detailedSales.length === 0 ? (
+                <p className="text-center text-gray-500">Nenhuma venda detalhada encontrada.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Quantidade</TableHead>
+                        <TableHead>Preço Unitário</TableHead>
+                        <TableHead>Preço Total</TableHead>
+                        <TableHead>Comissão (%)</TableHead>
+                        <TableHead>Comissão Paga</TableHead>
+                        <TableHead>Valor a Receber</TableHead>
+                        <TableHead>Data da Venda</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailedSales.map((sale) => {
+                        const productName = sale.products?.[0]?.name || 'Produto Desconhecido';
+                        const productPrice = sale.products?.[0]?.price || 0;
+                        const commissionAmount = sale.total_price * (sale.commission_rate / 100);
+                        const amountToReceive = sale.total_price - commissionAmount;
+
+                        return (
+                          <TableRow key={sale.id}>
+                            <TableCell className="font-medium">{productName}</TableCell>
+                            <TableCell>{sale.quantity}</TableCell>
+                            <TableCell>R$ {productPrice.toFixed(2)}</TableCell>
+                            <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                            <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
+                            <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
+                            <TableCell className="font-semibold text-green-600">R$ {amountToReceive.toFixed(2)}</TableCell>
+                            <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           </div>
         </main>

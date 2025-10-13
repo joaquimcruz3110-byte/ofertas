@@ -11,12 +11,33 @@ import { showError } from '@/utils/toast';
 import { DollarSign, ShoppingBag, Percent, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportToPdf } from '@/utils/pdfGenerator'; // Importar a função de exportação de PDF
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface SaleDetail {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  quantity: number;
+  total_price: number;
+  commission_rate: number;
+  sale_date: string;
+  products: Array<{ name: string; price: number }> | null;
+  buyer_name: string; // Adicionado para o nome do comprador
+}
 
 const AdminDashboard = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
+  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]); // Novo estado para vendas detalhadas
   const [isLoadingData, setIsLoadingData] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null); // Ref para o conteúdo do relatório
 
@@ -26,6 +47,7 @@ const AdminDashboard = () => {
       setTotalSalesCount(0);
       setTotalRevenue(0);
       setTotalCommission(0);
+      setDetailedSales([]);
       setIsLoadingData(false);
       return;
     }
@@ -42,19 +64,52 @@ const AdminDashboard = () => {
       setTotalSalesCount(salesCount || 0);
     }
 
-    // Fetch total revenue and total commission
+    // Fetch sales data for summary and details
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
-      .select('total_price, commission_rate');
+      .select(`
+        id,
+        product_id,
+        buyer_id,
+        quantity,
+        total_price,
+        commission_rate,
+        products (name, price),
+        sale_date
+      `)
+      .order('sale_date', { ascending: false });
 
     if (salesError) {
-      showError('Erro ao carregar dados de vendas para receita/comissão: ' + salesError.message);
-      console.error('Erro ao carregar dados de vendas para receita/comissão:', salesError.message);
+      showError('Erro ao carregar dados de vendas: ' + salesError.message);
+      console.error('Erro ao carregar dados de vendas:', salesError.message);
+      setTotalRevenue(0);
+      setTotalCommission(0);
+      setDetailedSales([]);
     } else {
-      const revenue = salesData ? salesData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
-      const commission = salesData ? salesData.reduce((sum, sale) => sum + (sale.total_price * (sale.commission_rate / 100)), 0) : 0;
+      const revenue = salesData ? salesData.reduce((sum, sale) => sum + (sale.total_price || 0), 0) : 0;
+      const commission = salesData ? salesData.reduce((sum, sale) => sum + ((sale.total_price || 0) * (sale.commission_rate / 100)), 0) : 0;
       setTotalRevenue(revenue);
       setTotalCommission(commission);
+
+      // Fetch buyer names for detailed sales
+      const buyerIds = [...new Set(salesData.map(sale => sale.buyer_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', buyerIds);
+
+      if (profilesError) {
+        console.error('Erro ao carregar perfis dos compradores:', profilesError.message);
+      }
+
+      const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Comprador Desconhecido']));
+
+      const formattedSales = salesData.map(sale => ({
+        ...sale,
+        products: sale.products,
+        buyer_name: profileMap.get(sale.buyer_id) || 'Comprador Desconhecido',
+      }));
+      setDetailedSales(formattedSales as SaleDetail[]);
     }
 
     setIsLoadingData(false);
@@ -107,7 +162,8 @@ const AdminDashboard = () => {
             </p>
 
             <div ref={reportRef} className="p-4"> {/* Conteúdo a ser exportado */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Resumo Geral</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
@@ -145,6 +201,48 @@ const AdminDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue mt-8">Detalhes das Vendas e Comissões</h2>
+              {detailedSales.length === 0 ? (
+                <p className="text-center text-gray-500">Nenhuma venda detalhada encontrada.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Comprador</TableHead>
+                        <TableHead>Quantidade</TableHead>
+                        <TableHead>Preço Unitário</TableHead>
+                        <TableHead>Preço Total</TableHead>
+                        <TableHead>Comissão (%)</TableHead>
+                        <TableHead>Comissão Paga</TableHead>
+                        <TableHead>Data da Venda</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailedSales.map((sale) => {
+                        const productName = sale.products?.[0]?.name || 'Produto Desconhecido';
+                        const productPrice = sale.products?.[0]?.price || 0;
+                        const commissionAmount = sale.total_price * (sale.commission_rate / 100);
+
+                        return (
+                          <TableRow key={sale.id}>
+                            <TableCell className="font-medium">{productName}</TableCell>
+                            <TableCell>{sale.buyer_name}</TableCell>
+                            <TableCell>{sale.quantity}</TableCell>
+                            <TableCell>R$ {productPrice.toFixed(2)}</TableCell>
+                            <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
+                            <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
+                            <TableCell>R$ {commissionAmount.toFixed(2)}</TableCell>
+                            <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           </div>
         </main>
