@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
-// import { Loader2 } from 'lucide-react'; // Removido pois não é usado
 
 interface Order {
   id: string;
@@ -24,10 +23,8 @@ interface Order {
   quantity: number;
   total_price: number;
   sale_date: string;
-  products: Array<{
-    name: string;
-    price: number;
-  }>;
+  product_name: string; // Adicionado para armazenar o nome do produto
+  product_price: number; // Adicionado para armazenar o preço unitário do produto
 }
 
 const MeusPedidos = () => {
@@ -43,33 +40,46 @@ const MeusPedidos = () => {
       return;
     }
 
-    const { data, error } = await supabase
+    // Primeiro, busca os dados das vendas do comprador
+    const { data: salesData, error: salesError } = await supabase
       .from('sales')
-      .select(`
-        id,
-        product_id,
-        buyer_id,
-        quantity,
-        total_price,
-        sale_date,
-        products (
-          name,
-          price
-        )
-      `)
-      .eq('buyer_id', session.user.id); // Filtrar por buyer_id do usuário logado
+      .select('id, product_id, buyer_id, quantity, total_price, sale_date')
+      .eq('buyer_id', session.user.id);
 
-    if (error) {
-      showError('Erro ao carregar pedidos: ' + error.message);
-      console.error('Erro ao carregar pedidos:', error.message);
+    if (salesError) {
+      showError('Erro ao carregar pedidos: ' + salesError.message);
+      console.error('Erro ao carregar pedidos:', salesError.message);
       setOrders([]);
-    } else {
-      const typedOrders: Order[] = data.map(order => ({
-        ...order,
-        products: order.products || [],
-      })) as Order[];
-      setOrders(typedOrders);
+      setIsLoadingOrders(false);
+      return;
     }
+
+    // Para cada venda, busca os detalhes do produto separadamente
+    const ordersWithProductDetails = await Promise.all(
+      salesData.map(async (sale) => {
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('name, price')
+          .eq('id', sale.product_id)
+          .single();
+
+        if (productError) {
+          console.error(`Erro ao buscar produto ${sale.product_id}:`, productError.message);
+          return {
+            ...sale,
+            product_name: 'Produto Desconhecido',
+            product_price: 0, // Valor padrão para preço se não encontrado
+          };
+        }
+        return {
+          ...sale,
+          product_name: productData.name,
+          product_price: productData.price,
+        };
+      })
+    );
+
+    setOrders(ordersWithProductDetails as Order[]);
     setIsLoadingOrders(false);
   };
 
@@ -121,20 +131,15 @@ const MeusPedidos = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => {
-                      const productName = order.products[0]?.name || 'Produto Desconhecido';
-                      const productPrice = order.products[0]?.price;
-
-                      return (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{productName}</TableCell>
-                          <TableCell>{order.quantity}</TableCell>
-                          <TableCell>R$ {productPrice ? productPrice.toFixed(2) : 'N/A'}</TableCell>
-                          <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
-                          <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.product_name}</TableCell>
+                        <TableCell>{order.quantity}</TableCell>
+                        <TableCell>R$ {order.product_price.toFixed(2)}</TableCell>
+                        <TableCell>R$ {order.total_price.toFixed(2)}</TableCell>
+                        <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
