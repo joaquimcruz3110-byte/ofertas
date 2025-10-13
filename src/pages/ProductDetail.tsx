@@ -6,7 +6,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store as StoreIcon } from 'lucide-react'; // Adicionado StoreIcon
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -21,6 +21,10 @@ interface Product {
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
+  shop_details: { // Adicionado para incluir os detalhes da loja
+    shop_name: string;
+    shop_logo_url: string | null; // Adicionado shop_logo_url
+  } | null;
 }
 
 const ProductDetail = () => {
@@ -42,7 +46,7 @@ const ProductDetail = () => {
 
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, shop_details(shop_name, shop_logo_url)') // Inclui o nome e logo da loja
         .eq('id', id)
         .single();
 
@@ -138,6 +142,18 @@ const ProductDetail = () => {
         </div>
         <div>
           <h1 className="text-4xl font-bold mb-2 text-dyad-dark-blue">{product.name}</h1>
+          <p className="text-lg text-gray-600 mb-2 flex items-center gap-2">
+            {product.shop_details?.shop_logo_url ? (
+              <img
+                src={product.shop_details.shop_logo_url}
+                alt={`${product.shop_details.shop_name} logo`}
+                className="w-6 h-6 object-contain rounded-full"
+              />
+            ) : (
+              <StoreIcon className="h-5 w-5 text-gray-500" />
+            )}
+            {product.shop_details?.shop_name || 'Loja Desconhecida'}
+          </p>
           <p className="text-lg text-gray-600 mb-4">{product.category || 'Geral'}</p>
           <p className="text-2xl font-bold text-dyad-vibrant-orange mb-4">
             {formatCurrency(finalPrice)}

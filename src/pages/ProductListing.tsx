@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search } from 'lucide-react';
+import { ShoppingCart, Search, Store as StoreIcon } from 'lucide-react'; // Adicionado StoreIcon
 import { Link } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ interface Product {
   created_at: string;
   shop_details: { // Adicionado para incluir os detalhes da loja
     shop_name: string;
+    shop_logo_url: string | null; // Adicionado shop_logo_url
   } | null;
 }
 
@@ -65,7 +66,7 @@ const ProductListing = () => {
 
     let query = supabase
       .from('products')
-      .select('*, shop_details(shop_name)', { count: 'exact' }) // Inclui o nome da loja
+      .select('*, shop_details(shop_name, shop_logo_url)', { count: 'exact' }) // Inclui o nome e logo da loja
       .gt('quantity', 0);
 
     if (term) {
@@ -126,9 +127,10 @@ const ProductListing = () => {
   }, [session, isSessionLoading, userRole, searchTerm, currentPage, selectedShopkeeperId, minPrice, maxPrice, fetchProducts]);
 
   const handleAddToCart = (product: Product) => {
+    const originalPrice = Number(product.price);
     const finalPrice = product.discount
-      ? Number(product.price) * (1 - Number(product.discount) / 100)
-      : Number(product.price);
+      ? originalPrice * (1 - Number(product.discount) / 100)
+      : originalPrice;
 
     addItem({
       id: product.id,
@@ -271,8 +273,17 @@ const ProductListing = () => {
                         />
                       )}
                       <CardTitle className="text-lg">{product.name}</CardTitle>
-                      <CardDescription className="text-sm text-gray-500">
-                        {product.shop_details?.shop_name || 'Loja Desconhecida'} {/* Exibe o nome da loja */}
+                      <CardDescription className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                        {product.shop_details?.shop_logo_url ? (
+                          <img
+                            src={product.shop_details.shop_logo_url}
+                            alt={`${product.shop_details.shop_name} logo`}
+                            className="w-6 h-6 object-contain rounded-full"
+                          />
+                        ) : (
+                          <StoreIcon className="h-4 w-4 text-gray-500" />
+                        )}
+                        {product.shop_details?.shop_name || 'Loja Desconhecida'}
                       </CardDescription>
                       <CardDescription className="text-sm text-gray-500">
                         {product.category || 'Geral'}
