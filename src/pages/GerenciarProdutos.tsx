@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -27,11 +27,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-// import { Label } from "@/components/ui/label"; // Removido pois não é usado
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 
 interface Product {
   id: string;
@@ -58,7 +57,7 @@ const productFormSchema = z.object({
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
   category: z.string().optional(),
-  photo_url: z.string().url("URL da foto inválida.").optional().or(z.literal('')),
+  photo_url: z.string().optional(), // photo_url agora é opcional no schema do formulário
   discount: z.preprocess(
     (val) => Number(val),
     z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.").optional()
@@ -74,6 +73,9 @@ const GerenciarProdutos = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isRemovingImage, setIsRemovingImage] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -121,6 +123,8 @@ const GerenciarProdutos = () => {
       photo_url: "",
       discount: 0,
     });
+    setSelectedFile(null);
+    setImagePreview(null);
     setIsDialogOpen(true);
   };
 
@@ -135,6 +139,8 @@ const GerenciarProdutos = () => {
       photo_url: product.photo_url || "",
       discount: product.discount || 0,
     });
+    setSelectedFile(null);
+    setImagePreview(product.photo_url);
     setIsDialogOpen(true);
   };
 
@@ -159,54 +165,157 @@ const GerenciarProdutos = () => {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setSelectedFile(null);
+      setImagePreview(editingProduct?.photo_url || null);
+    }
+  };
+
+  const uploadImage = async (productId: string, file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `product_images/${productId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product_images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error('Erro ao fazer upload da imagem: ' + uploadError.message);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('product_images')
+      .getPublicUrl(filePath);
+
+    return publicUrlData.publicUrl;
+  };
+
+  const handleRemoveImage = async () => {
+    if (!editingProduct || !editingProduct.photo_url) {
+      showError('Nenhuma imagem para remover ou produto não selecionado.');
+      return;
+    }
+
+    if (!window.confirm("Tem certeza que deseja remover a imagem deste produto?")) {
+      return;
+    }
+
+    setIsRemovingImage(true);
+    const toastId = showLoading('Removendo imagem...');
+
+    try {
+      const urlParts = editingProduct.photo_url.split('product_images/');
+      const filePathInStorage = urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
+
+      if (filePathInStorage) {
+        const { error: deleteStorageError } = await supabase.storage
+          .from('product_images')
+          .remove([filePathInStorage]);
+
+        if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+          throw new Error('Erro ao remover imagem do storage: ' + deleteStorageError.message);
+        }
+      }
+
+      const { error: updateDbError } = await supabase
+        .from('products')
+        .update({ photo_url: null })
+        .eq('id', editingProduct.id);
+
+      if (updateDbError) {
+        throw new Error('Erro ao atualizar produto no banco de dados: ' + updateDbError.message);
+      }
+
+      dismissToast(toastId);
+      showSuccess('Imagem removida com sucesso!');
+
+      setEditingProduct(prev => prev ? { ...prev, photo_url: null } : null);
+      setImagePreview(null);
+      setSelectedFile(null);
+      fetchProducts();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao remover imagem: ' + error.message);
+      console.error('Erro ao remover imagem:', error.message);
+    } finally {
+      setIsRemovingImage(false);
+    }
+  };
+
   const onSubmit = async (values: ProductFormValues) => {
     setIsSubmitting(true);
     const toastId = showLoading(editingProduct ? 'Atualizando produto...' : 'Adicionando produto...');
 
-    let error = null;
-    if (editingProduct) {
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({
-          name: values.name,
-          description: values.description,
-          price: values.price,
-          quantity: values.quantity,
-          category: values.category,
-          photo_url: values.photo_url,
-          discount: values.discount,
-        })
-        .eq('id', editingProduct.id);
-      error = updateError;
-    } else {
-      // When adding a new product, assign it to the current admin's ID as shopkeeper_id
-      // This might need adjustment if products are truly created by shopkeepers
-      // For now, assuming admin creates products and is the shopkeeper for them
-      const { error: insertError } = await supabase
-        .from('products')
-        .insert({
-          name: values.name,
-          description: values.description,
-          price: values.price,
-          quantity: values.quantity,
-          category: values.category,
-          photo_url: values.photo_url,
-          discount: values.discount,
-          shopkeeper_id: session?.user?.id, // Assign current admin as shopkeeper
-        });
-      error = insertError;
-    }
+    let photoUrlToSave = editingProduct?.photo_url || null;
+    let currentProductId = editingProduct?.id;
 
-    dismissToast(toastId);
-    if (error) {
-      showError('Erro ao salvar produto: ' + error.message);
-      console.error('Erro ao salvar produto:', error.message);
-    } else {
+    try {
+      if (!editingProduct) {
+        const { data: newProductData, error: insertError } = await supabase
+          .from('products')
+          .insert({
+            name: values.name,
+            description: values.description,
+            price: values.price,
+            quantity: values.quantity,
+            category: values.category,
+            discount: values.discount,
+            shopkeeper_id: session?.user?.id, // Admin cria o produto, mas precisa de um shopkeeper_id. Usaremos o ID do admin por enquanto.
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          throw new Error('Erro ao adicionar produto: ' + insertError.message);
+        }
+        currentProductId = newProductData.id;
+      }
+
+      if (selectedFile && currentProductId) {
+        photoUrlToSave = await uploadImage(currentProductId, selectedFile);
+      } else if (!selectedFile && editingProduct && !editingProduct.photo_url) {
+        photoUrlToSave = null;
+      }
+
+      if (currentProductId) {
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({
+            name: values.name,
+            description: values.description,
+            price: values.price,
+            quantity: values.quantity,
+            category: values.category,
+            photo_url: photoUrlToSave,
+            discount: values.discount,
+          })
+          .eq('id', currentProductId); // Admin pode atualizar qualquer produto, não apenas os seus
+
+        if (updateError) {
+          throw new Error('Erro ao salvar produto: ' + updateError.message);
+        }
+      }
+
+      dismissToast(toastId);
       showSuccess(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto adicionado com sucesso!');
       setIsDialogOpen(false);
-      fetchProducts(); // Recarrega a lista de produtos
+      fetchProducts();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao salvar produto: ' + error.message);
+      console.error('Erro ao salvar produto:', error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   if (isSessionLoading || isLoadingProducts) {
@@ -249,6 +358,7 @@ const GerenciarProdutos = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Imagem</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Preço</TableHead>
                       <TableHead>Quantidade</TableHead>
@@ -260,6 +370,19 @@ const GerenciarProdutos = () => {
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
+                        <TableCell>
+                          {product.photo_url ? (
+                            <img
+                              src={product.photo_url}
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                              <ImageIcon className="h-6 w-6" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>R$ {product.price.toFixed(2)}</TableCell>
                         <TableCell>{product.quantity}</TableCell>
@@ -384,19 +507,41 @@ const GerenciarProdutos = () => {
                   )}
                 />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="photo_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL da Foto</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://exemplo.com/foto.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormLabel>Foto do Produto</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+                {imagePreview && (
+                  <div className="mt-4 flex flex-col items-center">
+                    <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
+                    {editingProduct && editingProduct.photo_url && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemoveImage}
+                        disabled={isRemovingImage}
+                        className="mt-2"
+                      >
+                        {isRemovingImage ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Remover Imagem Atual
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <DialogFooter>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
