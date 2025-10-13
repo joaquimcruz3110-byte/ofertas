@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, Menu, LayoutGrid, LayoutDashboard, User } from 'lucide-react'; // Importar o ícone User
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
-  { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] }, // Novo item para comprador
+  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] }, // Novo item para o perfil
+  { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
@@ -37,7 +38,7 @@ const Sidebar = () => {
     <nav className="flex flex-col space-y-1 p-4">
       {userRole && navItems.filter(item => item.roles.includes(userRole)).map((item) => (
         <Link
-          key={item.name + item.href} // Adicionado item.href para garantir unicidade da chave
+          key={item.name + item.href}
           to={item.href}
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2 text-dyad-dark-blue transition-all hover:bg-dyad-vibrant-orange hover:text-dyad-white",

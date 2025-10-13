@@ -19,7 +19,8 @@ import GerenciarComissoes from "./pages/GerenciarComissoes";
 import ProductListing from "./pages/ProductListing";
 import ProductDetail from "./pages/ProductDetail";
 import LojistaDashboard from "./pages/LojistaDashboard";
-import CompradorDashboard from "./pages/CompradorDashboard"; // Importar a nova página do painel do comprador
+import CompradorDashboard from "./pages/CompradorDashboard";
+import UserProfile from "./pages/UserProfile"; // Importar a nova página de perfil
 
 const queryClient = new QueryClient();
 
@@ -55,9 +56,18 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Rota para o Perfil do Usuário (acessível por todos os papéis) */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              }
+            />
             {/* Rotas para Comprador */}
             <Route
-              path="/comprador-dashboard" // Nova rota para o painel do comprador
+              path="/comprador-dashboard"
               element={
                 <ProtectedRoute>
                   <CompradorDashboard />
