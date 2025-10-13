@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Product {
   id: string;
@@ -111,13 +112,6 @@ const ProductDetail = () => {
     ? product.price * (1 - product.discount / 100)
     : product.price;
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <Button
@@ -146,10 +140,10 @@ const ProductDetail = () => {
           <h1 className="text-4xl font-bold mb-2 text-dyad-dark-blue">{product.name}</h1>
           <p className="text-lg text-gray-600 mb-4">{product.category || 'Geral'}</p>
           <p className="text-2xl font-bold text-dyad-vibrant-orange mb-4">
-            {currencyFormatter.format(finalPrice)}
+            {formatCurrency(finalPrice)}
             {product.discount && product.discount > 0 && (
               <span className="ml-3 text-lg text-gray-500 line-through">
-                {currencyFormatter.format(product.price)}
+                {formatCurrency(product.price)}
               </span>
             )}
           </p>

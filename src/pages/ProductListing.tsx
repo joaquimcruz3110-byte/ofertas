@@ -18,6 +18,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Product {
   id: string;
@@ -115,13 +116,6 @@ const ProductListing = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Explorar Produtos</h1>
@@ -168,10 +162,10 @@ const ProductListing = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
-                        {currencyFormatter.format(finalPrice)}
+                        {formatCurrency(finalPrice)}
                         {product.discount && product.discount > 0 && (
                           <span className="ml-2 text-sm text-gray-500 line-through">
-                            {currencyFormatter.format(product.price)}
+                            {formatCurrency(product.price)}
                           </span>
                         )}
                       </p>

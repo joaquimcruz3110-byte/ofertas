@@ -28,6 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+// import { formatCurrency } from '@/utils/formatters'; // Importar a nova função - Removido
 
 interface CommissionRate {
   id: string;

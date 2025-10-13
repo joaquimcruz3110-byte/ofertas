@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showError } from '@/utils/toast';
 import { ShoppingBag, DollarSign, Package } from 'lucide-react';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 const CompradorDashboard = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
@@ -69,13 +70,6 @@ const CompradorDashboard = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Painel do Comprador</h1>
@@ -114,7 +108,7 @@ const CompradorDashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{currencyFormatter.format(totalSpent)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
             <p className="text-xs text-muted-foreground">
               Valor total em suas compras
             </p>

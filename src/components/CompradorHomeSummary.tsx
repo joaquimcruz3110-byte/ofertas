@@ -8,6 +8,7 @@ import { showError } from '@/utils/toast';
 import { ShoppingBag, DollarSign, Package, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Profile {
   first_name: string | null;
@@ -81,13 +82,6 @@ const CompradorHomeSummary = () => {
     return <div className="text-center text-gray-500">Carregando resumo do comprador...</div>;
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Bem-vindo(a), {profile?.first_name || userName || "Comprador"}!</h1>
@@ -126,7 +120,7 @@ const CompradorHomeSummary = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{currencyFormatter.format(totalSpent)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
             <p className="text-xs text-muted-foreground">
               Valor total em suas compras
             </p>

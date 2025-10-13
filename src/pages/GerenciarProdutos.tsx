@@ -31,6 +31,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Product {
   id: string;
@@ -393,7 +394,7 @@ const GerenciarProdutos = () => {
                           )}
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}</TableCell>
+                        <TableCell>{formatCurrency(product.price)}</TableCell>
                         <TableCell>{product.quantity}</TableCell>
                         <TableCell>{product.category || 'N/A'}</TableCell>
                         <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Product {
   id: string;
@@ -82,13 +83,6 @@ const ProductCarousel = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="embla overflow-hidden w-full max-w-5xl mx-auto mt-12">
       <div className="embla__viewport" ref={emblaRef}>
@@ -108,7 +102,7 @@ const ProductCarousel = () => {
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg font-semibold text-dyad-dark-blue truncate">{product.name}</CardTitle>
                   <CardDescription className="text-sm text-gray-600">
-                    {currencyFormatter.format(product.price)}
+                    {formatCurrency(product.price)}
                   </CardDescription>
                 </CardHeader>
                 <div className="p-4 pt-0">

@@ -20,6 +20,7 @@ import SalesByProductChart from '@/components/SalesByProductChart';
 import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface SaleDetail {
   id: string;
@@ -183,13 +184,6 @@ const LojistaDashboard = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <div className="flex justify-between items-center mb-6">
@@ -238,7 +232,7 @@ const LojistaDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{currencyFormatter.format(totalRevenue)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta dos seus produtos
               </p>
@@ -280,11 +274,11 @@ const LojistaDashboard = () => {
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>{currencyFormatter.format(productPrice)}</TableCell>
-                      <TableCell>{currencyFormatter.format(sale.total_price)}</TableCell>
+                      <TableCell>{formatCurrency(productPrice)}</TableCell>
+                      <TableCell>{formatCurrency(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>{currencyFormatter.format(commissionAmount)}</TableCell>
-                      <TableCell className="font-semibold text-green-600">{currencyFormatter.format(amountToReceive)}</TableCell>
+                      <TableCell>{formatCurrency(commissionAmount)}</TableCell>
+                      <TableCell className="font-semibold text-green-600">{formatCurrency(amountToReceive)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );

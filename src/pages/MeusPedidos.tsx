@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { showError } from '@/utils/toast';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Order {
   id: string;
@@ -101,13 +102,6 @@ const MeusPedidos = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meus Pedidos</h1>
@@ -134,8 +128,8 @@ const MeusPedidos = () => {
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.product_name}</TableCell>
                   <TableCell>{order.quantity}</TableCell>
-                  <TableCell>{currencyFormatter.format(order.product_price)}</TableCell>
-                  <TableCell>{currencyFormatter.format(order.total_price)}</TableCell>
+                  <TableCell>{formatCurrency(order.product_price)}</TableCell>
+                  <TableCell>{formatCurrency(order.total_price)}</TableCell>
                   <TableCell>{new Date(order.sale_date).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

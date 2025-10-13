@@ -20,6 +20,7 @@ import RevenueOverTimeChart from '@/components/RevenueOverTimeChart';
 import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface SaleDetail {
   id: string;
@@ -175,13 +176,6 @@ const AdminDashboard = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <div className="flex justify-between items-center mb-6">
@@ -218,7 +212,7 @@ const AdminDashboard = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{currencyFormatter.format(totalRevenue)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 Receita bruta de todas as vendas
               </p>
@@ -230,7 +224,7 @@ const AdminDashboard = () => {
               <Percent className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{currencyFormatter.format(totalCommission)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalCommission)}</div>
               <p className="text-xs text-muted-foreground">
                 Comissão total gerada para a plataforma
               </p>
@@ -272,10 +266,10 @@ const AdminDashboard = () => {
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.buyer_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>{currencyFormatter.format(productPrice)}</TableCell>
-                      <TableCell>{currencyFormatter.format(sale.total_price)}</TableCell>
+                      <TableCell>{formatCurrency(productPrice)}</TableCell>
+                      <TableCell>{formatCurrency(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
-                      <TableCell>{currencyFormatter.format(commissionAmount)}</TableCell>
+                      <TableCell>{formatCurrency(commissionAmount)}</TableCell>
                       <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );

@@ -31,6 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { MadeWithDyad } from '@/components/made-with-dyad';
+import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Product {
   id: string;
@@ -256,6 +257,7 @@ const MeusProdutos = () => {
       showError('Erro ao remover imagem: ' + error.message);
       console.error('Erro ao remover imagem:', error.message);
     } finally {
+      setIsSubmitting(false); // Corrigido para setIsSubmitting
       setIsRemovingImage(false);
     }
   };
@@ -352,13 +354,6 @@ const MeusProdutos = () => {
     );
   }
 
-  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Meus Produtos</h1>
@@ -403,7 +398,7 @@ const MeusProdutos = () => {
                         <ImageIcon className="h-6 w-6" />
                       </div>
                     )}
-                  </TableCell><TableCell className="font-medium">{product.name}</TableCell><TableCell>{currencyFormatter.format(product.price)}</TableCell><TableCell>{product.quantity}</TableCell><TableCell>{product.category || 'N/A'}</TableCell><TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell><TableCell className="text-right">
+                  </TableCell><TableCell className="font-medium">{product.name}</TableCell><TableCell>{formatCurrency(product.price)}</TableCell><TableCell>{product.quantity}</TableCell><TableCell>{product.category || 'N/A'}</TableCell><TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell><TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="sm"
