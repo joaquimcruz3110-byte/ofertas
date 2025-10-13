@@ -9,10 +9,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search } from 'lucide-react'; // Importar o ícone Search
+import { ShoppingCart, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
-import { Input } from '@/components/ui/input'; // Importar o componente Input
+import { Input } from '@/components/ui/input';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Product {
   id: string;
@@ -27,48 +35,56 @@ interface Product {
   created_at: string;
 }
 
+const PRODUCTS_PER_PAGE = 8; // Definir quantos produtos por página
+
 const ProductListing = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(''); // Novo estado para o termo de pesquisa
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page: number, term: string) => {
     setIsLoadingProducts(true);
+    const from = (page - 1) * PRODUCTS_PER_PAGE;
+    const to = from + PRODUCTS_PER_PAGE - 1;
+
     let query = supabase
       .from('products')
-      .select('*')
-      .gt('quantity', 0); // Apenas produtos com quantidade maior que 0
+      .select('*', { count: 'exact' }) // Contar o total de itens
+      .gt('quantity', 0);
 
-    if (searchTerm) {
-      // Adiciona filtro por nome ou descrição se houver um termo de pesquisa
-      query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+    if (term) {
+      query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query.range(from, to);
 
     if (error) {
       showError('Erro ao carregar produtos: ' + error.message);
       console.error('Erro ao carregar produtos:', error.message);
       setProducts([]);
+      setTotalPages(1);
     } else {
       setProducts(data as Product[]);
+      setTotalPages(Math.ceil((count || 0) / PRODUCTS_PER_PAGE));
     }
     setIsLoadingProducts(false);
   };
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'comprador') {
-      const handler = setTimeout(() => { // Adiciona um debounce para a pesquisa
-        fetchProducts();
-      }, 300); // Atraso de 300ms para evitar muitas requisições
+      const handler = setTimeout(() => {
+        fetchProducts(currentPage, searchTerm);
+      }, 300);
 
       return () => {
         clearTimeout(handler);
       };
     }
-  }, [session, isSessionLoading, userRole, searchTerm]); // Depende do searchTerm
+  }, [session, isSessionLoading, userRole, searchTerm, currentPage]);
 
   const handleAddToCart = (product: Product) => {
     addItem({
@@ -77,6 +93,10 @@ const ProductListing = () => {
       price: product.price,
       photo_url: product.photo_url,
     });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   if (isSessionLoading || isLoadingProducts) {
@@ -106,7 +126,6 @@ const ProductListing = () => {
               Confira os produtos disponíveis para compra na plataforma.
             </p>
 
-            {/* Barra de Pesquisa */}
             <div className="relative mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
@@ -121,51 +140,82 @@ const ProductListing = () => {
             {products.length === 0 ? (
               <p className="text-center text-gray-500">Nenhum produto encontrado no momento.</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <Card key={product.id} className="flex flex-col justify-between">
-                    <Link to={`/product/${product.id}`} className="block">
-                      <CardHeader>
-                        {product.photo_url && (
-                          <img
-                            src={product.photo_url}
-                            alt={product.name}
-                            className="w-full h-48 object-cover rounded-md mb-4"
-                          />
-                        )}
-                        <CardTitle className="text-lg">{product.name}</CardTitle>
-                        <CardDescription className="text-sm text-gray-500">
-                          {product.category || 'Geral'}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
-                          R$ {product.price.toFixed(2)}
-                          {product.discount && product.discount > 0 && (
-                            <span className="ml-2 text-sm text-gray-500 line-through">
-                              R$ {(product.price / (1 - product.discount / 100)).toFixed(2)}
-                            </span>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {products.map((product) => (
+                    <Card key={product.id} className="flex flex-col justify-between">
+                      <Link to={`/product/${product.id}`} className="block">
+                        <CardHeader>
+                          {product.photo_url && (
+                            <img
+                              src={product.photo_url}
+                              alt={product.name}
+                              className="w-full h-48 object-cover rounded-md mb-4"
+                            />
                           )}
-                        </p>
-                        <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Disponível: {product.quantity} unidades
-                        </p>
-                      </CardContent>
-                    </Link>
-                    <CardFooter>
-                      <Button
-                        className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-                        onClick={() => handleAddToCart(product)}
-                        disabled={product.quantity <= 0}
-                      >
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+                          <CardTitle className="text-lg">{product.name}</CardTitle>
+                          <CardDescription className="text-sm text-gray-500">
+                            {product.category || 'Geral'}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-xl font-bold text-dyad-vibrant-orange mb-2">
+                            R$ {product.price.toFixed(2)}
+                            {product.discount && product.discount > 0 && (
+                              <span className="ml-2 text-sm text-gray-500 line-through">
+                                R$ {(product.price / (1 - product.discount / 100)).toFixed(2)}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Disponível: {product.quantity} unidades
+                          </p>
+                        </CardContent>
+                      </Link>
+                      <CardFooter>
+                        <Button
+                          className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
+                          onClick={() => handleAddToCart(product)}
+                          disabled={product.quantity <= 0}
+                        >
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <Pagination className="mt-8">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={currentPage === 1 ? undefined : () => handlePageChange(currentPage - 1)}
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      {[...Array(totalPages)].map((_, index) => (
+                        <PaginationItem key={index}>
+                          <PaginationLink
+                            onClick={() => handlePageChange(index + 1)}
+                            isActive={currentPage === index + 1}
+                          >
+                            {index + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={currentPage === totalPages ? undefined : () => handlePageChange(currentPage + 1)}
+                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </>
             )}
           </div>
         </main>
