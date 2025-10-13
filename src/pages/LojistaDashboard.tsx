@@ -28,7 +28,8 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  products: Array<{ name: string; price: number }> | null; // Corrigido para Array
+  product_name: string; // Adicionado para armazenar o nome do produto
+  product_price: number; // Adicionado para armazenar o preço unitário do produto
 }
 
 const LojistaDashboard = () => {
@@ -36,9 +37,9 @@ const LojistaDashboard = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]); // Novo estado para vendas detalhadas
+  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const reportRef = useRef<HTMLDivElement>(null); // Ref para o conteúdo do relatório
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const fetchDashboardData = async () => {
     setIsLoadingData(true);
@@ -53,43 +54,38 @@ const LojistaDashboard = () => {
 
     const shopkeeperId = session.user.id;
 
-    // Fetch total products
-    const { count: productsCount, error: productsError } = await supabase
+    // Passo 1: Obter os IDs dos produtos que pertencem ao lojista atual, e seus nomes/preços
+    const { data: shopkeeperProducts, error: productsIdError } = await supabase
       .from('products')
-      .select('id', { count: 'exact' })
+      .select('id, name, price')
       .eq('shopkeeper_id', shopkeeperId);
 
-    if (productsError) {
-      showError('Erro ao carregar total de produtos: ' + productsError.message);
-      console.error('Erro ao carregar total de produtos:', productsError.message);
-    } else {
-      setTotalProducts(productsCount || 0);
+    if (productsIdError) {
+      showError('Erro ao carregar produtos do lojista: ' + productsIdError.message);
+      console.error('Erro ao carregar produtos do lojista:', productsIdError.message);
+      setTotalProducts(0);
+      setTotalSalesCount(0);
+      setTotalRevenue(0);
+      setDetailedSales([]);
+      setIsLoadingData(false);
+      return;
     }
 
-    // Fetch sales data for summary
-    const { data: salesSummaryData, error: salesSummaryError } = await supabase
-      .from('sales')
-      .select(`
-        quantity,
-        total_price,
-        products!inner (
-          shopkeeper_id
-        )
-      `)
-      .eq('products.shopkeeper_id', shopkeeperId);
+    const productIds = shopkeeperProducts.map(p => p.id);
+    const productDetailsMap = new Map(shopkeeperProducts.map(p => [p.id, { name: p.name, price: p.price }]));
 
-    if (salesSummaryError) {
-      showError('Erro ao carregar dados de vendas para resumo: ' + salesSummaryError.message);
-      console.error('Erro ao carregar dados de vendas para resumo:', salesSummaryError.message);
-    } else {
-      const salesCount = salesSummaryData ? salesSummaryData.length : 0;
-      const revenue = salesSummaryData ? salesSummaryData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
-      setTotalSalesCount(salesCount);
-      setTotalRevenue(revenue);
+    setTotalProducts(shopkeeperProducts.length);
+
+    if (productIds.length === 0) {
+      setTotalSalesCount(0);
+      setTotalRevenue(0);
+      setDetailedSales([]);
+      setIsLoadingData(false);
+      return;
     }
 
-    // Fetch detailed sales data for the table
-    const { data: salesDetailsData, error: salesDetailsError } = await supabase
+    // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos
+    const { data: salesData, error: salesError } = await supabase
       .from('sales')
       .select(`
         id,
@@ -98,18 +94,29 @@ const LojistaDashboard = () => {
         quantity,
         total_price,
         commission_rate,
-        sale_date,
-        products (name, price)
+        sale_date
       `)
-      .eq('products.shopkeeper_id', shopkeeperId)
+      .in('product_id', productIds)
       .order('sale_date', { ascending: false });
 
-    if (salesDetailsError) {
-      showError('Erro ao carregar detalhes das vendas: ' + salesDetailsError.message);
-      console.error('Erro ao carregar detalhes das vendas:', salesDetailsError.message);
+    if (salesError) {
+      showError('Erro ao carregar vendas: ' + salesError.message);
+      console.error('Erro ao carregar vendas:', salesError.message);
+      setTotalSalesCount(0);
+      setTotalRevenue(0);
       setDetailedSales([]);
     } else {
-      setDetailedSales(salesDetailsData as SaleDetail[]);
+      const salesCount = salesData ? salesData.length : 0;
+      const revenue = salesData ? salesData.reduce((sum, sale) => sum + sale.total_price, 0) : 0;
+      setTotalSalesCount(salesCount);
+      setTotalRevenue(revenue);
+
+      const formattedSales: SaleDetail[] = salesData.map(sale => ({
+        ...sale,
+        product_name: productDetailsMap.get(sale.product_id)?.name || 'Produto Desconhecido',
+        product_price: productDetailsMap.get(sale.product_id)?.price || 0,
+      }));
+      setDetailedSales(formattedSales);
     }
 
     setIsLoadingData(false);
@@ -222,8 +229,8 @@ const LojistaDashboard = () => {
                     </TableHeader>
                     <TableBody>
                       {detailedSales.map((sale) => {
-                        const productName = sale.products?.[0]?.name || 'Produto Desconhecido';
-                        const productPrice = sale.products?.[0]?.price || 0;
+                        const productName = sale.product_name;
+                        const productPrice = sale.product_price;
                         const commissionAmount = sale.total_price * (sale.commission_rate / 100);
                         const amountToReceive = sale.total_price - commissionAmount;
 

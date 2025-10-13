@@ -50,30 +50,37 @@ const LojistaHomeSummary = () => {
         setProfile(profileData);
       }
 
-      // Fetch total products
-      const { count: productsCount, error: productsError } = await supabase
+      // Passo 1: Obter os IDs dos produtos que pertencem ao lojista atual
+      const { data: shopkeeperProducts, error: productsIdError } = await supabase
         .from('products')
-        .select('id', { count: 'exact' })
+        .select('id')
         .eq('shopkeeper_id', shopkeeperId);
 
-      if (productsError) {
-        showError('Erro ao carregar total de produtos: ' + productsError.message);
-        console.error('Erro ao carregar total de produtos:', productsError.message);
-      } else {
-        setTotalProducts(productsCount || 0);
+      if (productsIdError) {
+        showError('Erro ao carregar total de produtos: ' + productsIdError.message);
+        console.error('Erro ao carregar total de produtos:', productsIdError.message);
+        setTotalProducts(0);
+        setTotalSalesCount(0);
+        setTotalRevenue(0);
+        setIsLoadingData(false);
+        return;
       }
 
-      // Fetch sales data
+      const productIds = shopkeeperProducts.map(p => p.id);
+      setTotalProducts(productIds.length);
+
+      if (productIds.length === 0) {
+        setTotalSalesCount(0);
+        setTotalRevenue(0);
+        setIsLoadingData(false);
+        return;
+      }
+
+      // Passo 2: Buscar as vendas usando os IDs dos produtos obtidos
       const { data: salesData, error: salesError } = await supabase
         .from('sales')
-        .select(`
-          quantity,
-          total_price,
-          products!inner (
-            shopkeeper_id
-          )
-        `)
-        .eq('products.shopkeeper_id', shopkeeperId);
+        .select('quantity, total_price')
+        .in('product_id', productIds);
 
       if (salesError) {
         showError('Erro ao carregar dados de vendas: ' + salesError.message);

@@ -28,7 +28,8 @@ interface SaleDetail {
   total_price: number;
   commission_rate: number;
   sale_date: string;
-  products: Array<{ name: string; price: number }> | null; // Corrigido para Array
+  product_name: string; // Adicionado para o nome do produto
+  product_price: number; // Adicionado para o preço do produto
   buyer_name: string; // Adicionado para o nome do comprador
 }
 
@@ -37,9 +38,9 @@ const AdminDashboard = () => {
   const [totalSalesCount, setTotalSalesCount] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
-  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]); // Novo estado para vendas detalhadas
+  const [detailedSales, setDetailedSales] = useState<SaleDetail[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const reportRef = useRef<HTMLDivElement>(null); // Ref para o conteúdo do relatório
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const fetchDashboardData = async () => {
     setIsLoadingData(true);
@@ -64,8 +65,8 @@ const AdminDashboard = () => {
       setTotalSalesCount(salesCount || 0);
     }
 
-    // Fetch sales data for summary and details
-    const { data: salesData, error: salesError } = await supabase
+    // Passo 1: Fetch sales data without nested product details
+    const { data: salesRawData, error: salesError } = await supabase
       .from('sales')
       .select(`
         id,
@@ -74,8 +75,7 @@ const AdminDashboard = () => {
         quantity,
         total_price,
         commission_rate,
-        sale_date,
-        products (name, price)
+        sale_date
       `)
       .order('sale_date', { ascending: false });
 
@@ -85,32 +85,48 @@ const AdminDashboard = () => {
       setTotalRevenue(0);
       setTotalCommission(0);
       setDetailedSales([]);
-    } else {
-      const revenue = salesData ? salesData.reduce((sum, sale) => sum + (sale.total_price || 0), 0) : 0;
-      const commission = salesData ? salesData.reduce((sum, sale) => sum + ((sale.total_price || 0) * (sale.commission_rate / 100)), 0) : 0;
-      setTotalRevenue(revenue);
-      setTotalCommission(commission);
-
-      // Fetch buyer names for detailed sales
-      const buyerIds = [...new Set(salesData.map(sale => sale.buyer_id))];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', buyerIds);
-
-      if (profilesError) {
-        console.error('Erro ao carregar perfis dos compradores:', profilesError.message);
-      }
-
-      const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Comprador Desconhecido']));
-
-      const formattedSales = salesData.map(sale => ({
-        ...sale,
-        products: sale.products,
-        buyer_name: profileMap.get(sale.buyer_id) || 'Comprador Desconhecido',
-      }));
-      setDetailedSales(formattedSales as SaleDetail[]);
+      setIsLoadingData(false);
+      return;
     }
+
+    const revenue = salesRawData ? salesRawData.reduce((sum, sale) => sum + (sale.total_price || 0), 0) : 0;
+    const commission = salesRawData ? salesRawData.reduce((sum, sale) => sum + ((sale.total_price || 0) * (sale.commission_rate / 100)), 0) : 0;
+    setTotalRevenue(revenue);
+    setTotalCommission(commission);
+
+    // Passo 2: Fetch product details for all unique product_ids in salesRawData
+    const uniqueProductIds = [...new Set(salesRawData.map(sale => sale.product_id))];
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, price')
+      .in('id', uniqueProductIds);
+
+    if (productsError) {
+      console.error('Erro ao carregar detalhes dos produtos:', productsError.message);
+      // Continuar sem nomes/preços de produtos se houver um erro
+    }
+    const productDetailsMap = new Map(productsData?.map(p => [p.id, { name: p.name, price: p.price }]));
+
+    // Passo 3: Fetch buyer names for all unique buyer_ids in salesRawData
+    const buyerIds = [...new Set(salesRawData.map(sale => sale.buyer_id))];
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', buyerIds);
+
+    if (profilesError) {
+      console.error('Erro ao carregar perfis dos compradores:', profilesError.message);
+    }
+    const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Comprador Desconhecido']));
+
+    // Combinar os dados
+    const formattedSales: SaleDetail[] = salesRawData.map(sale => ({
+      ...sale,
+      product_name: productDetailsMap.get(sale.product_id)?.name || 'Produto Desconhecido',
+      product_price: productDetailsMap.get(sale.product_id)?.price || 0,
+      buyer_name: profileMap.get(sale.buyer_id) || 'Comprador Desconhecido',
+    }));
+    setDetailedSales(formattedSales);
 
     setIsLoadingData(false);
   };
@@ -222,8 +238,8 @@ const AdminDashboard = () => {
                     </TableHeader>
                     <TableBody>
                       {detailedSales.map((sale) => {
-                        const productName = sale.products?.[0]?.name || 'Produto Desconhecido';
-                        const productPrice = sale.products?.[0]?.price || 0;
+                        const productName = sale.product_name;
+                        const productPrice = sale.product_price;
                         const commissionAmount = sale.total_price * (sale.commission_rate / 100);
 
                         return (
