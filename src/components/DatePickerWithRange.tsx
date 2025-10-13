@@ -8,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import Calendar from "@/components/ui/calendar"; // Alterado para importação padrão
+import { Calendar } from "@/components/ui/calendar"; // Corrigido para importação nomeada
 import {
   Popover,
   PopoverContent,
