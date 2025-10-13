@@ -18,7 +18,8 @@ const Index = () => {
       } else if (userRole === 'lojista') {
         navigate('/lojista-dashboard');
       } else if (userRole === 'comprador') {
-        navigate('/comprador-dashboard');
+        // Para compradores, redirecionar para a página de explorar produtos
+        navigate('/explorar-produtos');
       }
     }
   }, [session, isLoading, userName, userRole, navigate]);
