@@ -15,7 +15,7 @@ interface Product {
   name: string;
   price: number;
   quantity: number;
-  photo_urls: string[] | null; // Alterado para photo_urls
+  photo_urls: string[] | null;
 }
 
 interface CartItem {
@@ -23,7 +23,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null; // Mantido como photo_url para compatibilidade com o frontend do carrinho
+  photo_url: string | null;
 }
 
 serve(async (req: Request) => {
@@ -33,20 +33,35 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const supabaseClient = createClient(
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Bearer token missing' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    // Criar um cliente Supabase com a service_role_key para operações de administrador
+    const supabaseAdminClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: { headers: { Authorization: authHeader! } },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    // Verificar o token do usuário usando o cliente admin
+    const { data: { user }, error: userError } = await supabaseAdminClient.auth.admin.getUserByAccessToken(token);
 
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    if (userError || !user) {
+      console.error('Error verifying user token:', userError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
@@ -72,11 +87,12 @@ serve(async (req: Request) => {
       typescript: true,
     });
 
-    // Fetch product details to ensure prices and quantities are correct
+    // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
+    // Usar o cliente admin aqui também para evitar problemas de RLS na função Edge
     const productIds = cartItems.map((item: CartItem) => item.id);
-    const { data: productsData, error: productsError } = await supabaseClient
+    const { data: productsData, error: productsError } = await supabaseAdminClient
       .from('products')
-      .select('id, name, price, quantity, photo_urls') // Alterado para photo_urls
+      .select('id, name, price, quantity, photo_urls')
       .in('id', productIds);
 
     if (productsError) {
@@ -99,9 +115,9 @@ serve(async (req: Request) => {
           currency: 'brl',
           product_data: {
             name: product.name,
-            images: (product.photo_urls && product.photo_urls.length > 0) ? [product.photo_urls[0]] : [], // Pega a primeira URL do array
+            images: (product.photo_urls && product.photo_urls.length > 0) ? [product.photo_urls[0]] : [],
           },
-          unit_amount: Math.round(product.price * 100), // Stripe expects amount in cents
+          unit_amount: Math.round(product.price * 100),
         },
         quantity: item.quantity,
       };
@@ -117,7 +133,7 @@ serve(async (req: Request) => {
       cancel_url: `${Deno.env.get('VITE_APP_URL')}/cart`,
       metadata: {
         buyer_id: user.id,
-        cart_items: JSON.stringify(cartItems), // Store cart items to process after success
+        cart_items: JSON.stringify(cartItems),
       },
     });
 
