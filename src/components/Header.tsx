@@ -3,18 +3,18 @@
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, ShoppingCart, Menu } from 'lucide-react'; // Adicionado Menu
+import { LogOut, ShoppingCart, Menu } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { useCart } from './CartProvider';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'; // Importar Sheet components
-import { cn } from '@/lib/utils'; // Importar cn
-import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
-import { navItems } from '@/lib/nav-items'; // Importar navItems
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
+import { useSession } from '@/components/SessionContextProvider';
+import { navItems } from '@/lib/nav-items';
 
 const Header = () => {
   const navigate = useNavigate();
   const { totalItems } = useCart();
-  const { userRole } = useSession(); // Obter userRole
+  const { userRole, session } = useSession(); // Obter userRole e session
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -70,7 +70,7 @@ const Header = () => {
         <h1 className="text-2xl font-bold">Ponta de Estoque</h1>
       </div>
       <div className="flex items-center space-x-4">
-        {userRole === 'comprador' && ( // Renderiza o carrinho apenas para compradores
+        {userRole === 'comprador' && (
           <Link to="/cart" className="relative">
             <Button variant="ghost" className="text-dyad-white hover:bg-dyad-vibrant-orange hover:text-dyad-white">
               <ShoppingCart className="h-5 w-5" />
@@ -86,6 +86,7 @@ const Header = () => {
           variant="ghost"
           onClick={handleLogout}
           className="text-dyad-white hover:bg-dyad-vibrant-orange hover:text-dyad-white"
+          disabled={!session} // Desabilita o botão se não houver sessão
         >
           <LogOut className="mr-2 h-4 w-4" /> Sair
         </Button>
