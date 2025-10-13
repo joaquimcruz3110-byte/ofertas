@@ -23,7 +23,7 @@ const LandingPage = () => {
             </Button>
           </Link>
           <Link to="/login"> {/* Supabase Auth UI lida com o cadastro na mesma tela de login */}
-            <Button variant="outline" className="w-full sm:w-auto border-2 border-dyad-white text-dyad-white hover:bg-dyad-white hover:text-dyad-dark-blue py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
+            <Button className="w-full sm:w-auto bg-dyad-dark-blue text-dyad-white hover:bg-dyad-vibrant-orange py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
               <UserPlus className="mr-2 h-5 w-5" /> Cadastrar
             </Button>
           </Link>
