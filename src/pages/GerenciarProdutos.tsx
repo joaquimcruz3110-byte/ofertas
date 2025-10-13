@@ -38,7 +38,7 @@ interface Product {
   quantity: number;
   category: string | null;
   photo_url: string | null;
-  discount: number | null;
+  discount: number; // Alterado para ser obrigatório
   shopkeeper_id: string; // Adicionado para consistência com o schema
   created_at: string;
 }
@@ -56,9 +56,9 @@ const productFormSchema = z.object({
   ),
   category: z.string().optional(),
   photo_url: z.string().optional(), // photo_url agora é opcional no schema do formulário
-  discount: z.preprocess(
+  discount: z.preprocess( // Desconto agora é obrigatório
     (val) => Number(val),
-    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.").optional()
+    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -84,7 +84,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0,
+      discount: 0, // Valor padrão para desconto
     },
   });
 
@@ -332,8 +332,6 @@ const GerenciarProdutos = () => {
   }
 
   return (
-    // Removido o grid e os componentes Sidebar, Header, MadeWithDyad
-    // O MainLayout já envolve esta página e fornece esses elementos.
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Gerenciar Produtos</h1>
       <p className="text-lg text-gray-600 mb-8">

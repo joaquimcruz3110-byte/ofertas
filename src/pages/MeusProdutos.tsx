@@ -41,7 +41,7 @@ interface Product {
   quantity: number;
   category: string | null;
   photo_url: string | null;
-  discount: number | null;
+  discount: number; // Alterado para ser obrigatório
   shopkeeper_id: string;
   created_at: string;
 }
@@ -59,9 +59,9 @@ const productFormSchema = z.object({
   ),
   category: z.string().optional(),
   photo_url: z.string().optional(),
-  discount: z.preprocess(
+  discount: z.preprocess( // Desconto agora é obrigatório
     (val) => Number(val),
-    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.").optional()
+    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -87,7 +87,7 @@ const MeusProdutos = () => {
       quantity: 0,
       category: "",
       photo_url: "",
-      discount: 0,
+      discount: 0, // Valor padrão para desconto
     },
   });
 
@@ -495,72 +495,72 @@ const MeusProdutos = () => {
                       <FormLabel>Categoria</FormLabel>
                       <FormControl>
                         <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="discount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Desconto (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="1" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormItem>
+              <FormLabel>Foto do Produto</FormLabel>
+              <FormControl>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
                 />
-                <FormField
-                  control={form.control}
-                  name="discount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Desconto (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="0" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              </FormControl>
+              <FormDescription>
+                {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+            {imagePreview && (
+              <div className="mt-4 flex flex-col items-center">
+                <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
+                {editingProduct && editingProduct.photo_url && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleRemoveImage}
+                    disabled={isRemovingImage}
+                    className="mt-2"
+                  >
+                    {isRemovingImage ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Remover Imagem Atual
+                  </Button>
+                )}
               </div>
-              <FormItem>
-                <FormLabel>Foto do Produto</FormLabel>
-                <FormControl>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-              {imagePreview && (
-                <div className="mt-4 flex flex-col items-center">
-                  <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
-                  {editingProduct && editingProduct.photo_url && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleRemoveImage}
-                      disabled={isRemovingImage}
-                      className="mt-2"
-                    >
-                      {isRemovingImage ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                      Remover Imagem Atual
-                    </Button>
-                  )}
-                </div>
-              )}
-              <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+            )}
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  </div>
+);
 };
 
 export default MeusProdutos;
