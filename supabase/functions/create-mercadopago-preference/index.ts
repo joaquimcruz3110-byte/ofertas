@@ -91,6 +91,7 @@ serve(async (req: Request) => {
     if (!mpAccessToken) {
       throw new Error('Mercado Pago access token is not configured.');
     }
+    console.log('Mercado Pago Access Token loaded.'); // Log para confirmar que o token foi carregado
 
     mercadopago.configure({
       access_token: mpAccessToken,
@@ -127,7 +128,7 @@ serve(async (req: Request) => {
       return {
         id: product.id,
         title: product.name,
-        unit_price: product.price,
+        unit_price: Number(product.price), // Garantir que é um número
         quantity: item.quantity,
         currency_id: 'BRL',
         picture_url: (product.photo_urls && product.photo_urls.length > 0) ? product.photo_urls[0] : undefined,
@@ -159,6 +160,8 @@ serve(async (req: Request) => {
       },
     };
 
+    console.log('Mercado Pago Preference object:', JSON.stringify(preference, null, 2)); // Log do objeto de preferência
+
     const mpResponse = await mercadopago.preferences.create(preference);
 
     return new Response(JSON.stringify({ url: mpResponse.body.init_point }), {
@@ -168,6 +171,7 @@ serve(async (req: Request) => {
 
   } catch (error: unknown) {
     console.error('Edge Function error:', (error as Error).message);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2)); // Log do objeto de erro completo
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
