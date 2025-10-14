@@ -81,16 +81,12 @@ serve(async (req: Request) => {
     }
 
     // @ts-ignore
-    const pagseguroEmail = Deno.env.get('PAGSEGURO_EMAIL');
+    const pagseguroBearerToken = Deno.env.get('PAGSEGURO_BEARER_TOKEN');
     // @ts-ignore
-    const pagseguroToken = Deno.env.get('PAGSEGURO_TOKEN');
-    // @ts-ignore
-    const pagseguroApiBase = Deno.env.get('PAGSEGURO_API_BASE') || 'https://ws.pagseguro.uol.com.br'; // Default para produção
-    // @ts-ignore
-    const pagseguroCheckoutBase = Deno.env.get('PAGSEGURO_CHECKOUT_BASE') || 'https://pagseguro.uol.com.br/v2/checkout/payment.html'; // Default para produção
+    const pagseguroApiBase = Deno.env.get('PAGSEGURO_API_BASE') || 'https://sandbox.api.pagseguro.com'; // Usar sandbox para desenvolvimento
 
-    if (!pagseguroEmail || !pagseguroToken) {
-      throw new Error('PagSeguro API credentials are not configured.');
+    if (!pagseguroBearerToken) {
+      throw new Error('PagSeguro Bearer Token is not configured.');
     }
 
     const supabaseServiceRoleClient = createClient(
@@ -117,12 +113,13 @@ serve(async (req: Request) => {
     const senderLastName = profileData?.last_name || 'Plataforma';
     const senderEmail = user.email || 'comprador@example.com';
     
-    // Usar dados reais do perfil ou fallbacks
-    const senderAreaCode = profileData?.phone_number?.substring(1, 3) || '11'; // Ex: (11) 99999-9999 -> 11
-    const senderPhone = profileData?.phone_number?.replace(/\D/g, '').substring(2) || '999999999'; // Ex: (11) 99999-9999 -> 999999999
-    const senderCPF = profileData?.cpf?.replace(/\D/g, '') || '11111111111'; // Remover caracteres não numéricos
+    // Limpar e validar CPF, telefone e CEP
+    const cleanCpf = profileData?.cpf?.replace(/\D/g, '') || '11111111111'; // Fallback para CPF
+    const cleanPhone = profileData?.phone_number?.replace(/\D/g, '') || '11999999999'; // Fallback para telefone
+    const cleanPostalCode = profileData?.address_postal_code?.replace(/\D/g, '') || '00000000'; // Fallback para CEP
 
-    const senderName = `${senderFirstName} ${senderLastName}`.trim();
+    const senderPhoneDdd = cleanPhone.substring(0, 2);
+    const senderPhoneNumber = cleanPhone.substring(2);
 
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
     const productIds = cartItems.map((item: CartItem) => item.id);
@@ -138,7 +135,6 @@ serve(async (req: Request) => {
     const productsMap = new Map<string, ProductData>(productsData.map((p: ProductData) => [p.id, p]));
 
     let totalAmount = 0;
-    let itemCounter = 1;
     const pagseguroItems = cartItems.map((item: CartItem) => {
       const product = productsMap.get(item.id);
       if (!product) {
@@ -148,69 +144,88 @@ serve(async (req: Request) => {
         throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`);
       }
       totalAmount += product.price * item.quantity;
-      return `itemId${itemCounter}=${item.id}&itemDescription${itemCounter}=${product.name}&itemAmount${itemCounter}=${product.price.toFixed(2)}&itemQuantity${itemCounter++}=${item.quantity}`;
-    }).join('&');
+      return {
+        name: product.name,
+        quantity: item.quantity,
+        unit_amount: Math.round(product.price * 100), // Preço em centavos
+      };
+    });
 
     const referenceId = `order_${Date.now()}_${user.id.substring(0, 8)}`; // ID de referência único
     
-    const pagseguroPaymentBody = new URLSearchParams({
-      email: pagseguroEmail,
-      token: pagseguroToken,
-      currency: 'BRL',
-      reference: referenceId,
+    const pagseguroPaymentBody = {
+      reference_id: referenceId,
+      customer: {
+        name: `${senderFirstName} ${senderLastName}`.trim(),
+        email: senderEmail,
+        tax_id: cleanCpf,
+        phones: [
+          {
+            country: '55',
+            area: senderPhoneDdd,
+            number: senderPhoneNumber,
+            type: 'MOBILE',
+          },
+        ],
+      },
+      items: pagseguroItems,
+      shipping: {
+        address: {
+          street: profileData?.address_street || 'Rua Exemplo',
+          number: profileData?.address_number || '123',
+          complement: profileData?.address_complement || '',
+          locality: profileData?.address_district || 'Bairro Exemplo',
+          city: profileData?.address_city || 'Cidade Exemplo',
+          state: profileData?.address_state || 'SP',
+          zip_code: cleanPostalCode,
+          country: 'BRA',
+        },
+      },
+      notification_urls: [
+        // @ts-ignore
+        `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
+      ],
+      payment_methods: [
+        {
+          type: 'PIX',
+          amount: {
+            value: Math.round(totalAmount * 100), // Valor total em centavos
+          },
+        },
+      ],
       // @ts-ignore
-      redirectURL: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}`,
-      // @ts-ignore
-      notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
-      senderName: senderName,
-      senderAreaCode: senderAreaCode,
-      senderPhone: senderPhone,
-      senderEmail: senderEmail,
-      shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
-      // Usando dados reais do perfil ou fallbacks
-      shippingAddressStreet: profileData?.address_street || 'Rua Exemplo', 
-      shippingAddressNumber: profileData?.address_number || '123', 
-      shippingAddressComplement: profileData?.address_complement || '', 
-      shippingAddressDistrict: profileData?.address_district || 'Bairro Exemplo', 
-      shippingAddressPostalCode: profileData?.address_postal_code?.replace(/\D/g, '') || '00000000', // Remover caracteres não numéricos
-      shippingAddressCity: profileData?.address_city || 'Cidade Exemplo', 
-      shippingAddressState: profileData?.address_state || 'SP', 
-      shippingAddressCountry: 'BRA',
-    });
+      redirect_url: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}`,
+    };
 
-    pagseguroPaymentBody.append('senderCPF', senderCPF); 
+    console.log('PagSeguro Request Body:', JSON.stringify(pagseguroPaymentBody, null, 2));
 
-    // Adicionar itens ao corpo da requisição
-    pagseguroItems.split('&').forEach(param => {
-      const [key, value] = param.split('=');
-      pagseguroPaymentBody.append(key, value);
-    });
-
-    console.log('PagSeguro Request Body:', pagseguroPaymentBody.toString());
-
-    const pagseguroResponse = await fetch(`${pagseguroApiBase}/v2/checkout`, {
+    const pagseguroResponse = await fetch(`${pagseguroApiBase}/checkouts`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${pagseguroBearerToken}`,
+        'accept': 'application/json',
       },
-      body: pagseguroPaymentBody.toString(),
+      body: JSON.stringify(pagseguroPaymentBody),
     });
 
-    const responseText = await pagseguroResponse.text();
+    const responseData = await pagseguroResponse.json();
     console.log('PagSeguro Response Status:', pagseguroResponse.status);
-    console.log('PagSeguro Response Text:', responseText);
+    console.log('PagSeguro Response Data:', JSON.stringify(responseData, null, 2));
 
     if (!pagseguroResponse.ok) {
-      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${responseText}`);
+      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${JSON.stringify(responseData)}`);
     }
     
-    const codeMatch = responseText.match(/<code>(.*?)<\/code>/);
-    const checkoutCode = codeMatch && codeMatch[1] ? codeMatch[1] : null;
+    const pixPayment = responseData.payment_methods?.find((pm: any) => pm.type === 'PIX');
 
-    if (!checkoutCode) {
-      throw new Error('Failed to get PagSeguro checkout code from response. Response: ' + responseText);
+    if (!pixPayment || !pixPayment.qr_codes || pixPayment.qr_codes.length === 0) {
+      throw new Error('Pix payment details not found in PagSeguro response.');
     }
 
+    const qrCode = pixPayment.qr_codes[0];
+
+    // Registrar a intenção de venda no banco de dados com status inicial
     const { error: insertError } = await supabaseServiceRoleClient
       .from('sales')
       .insert(cartItems.map((item: CartItem) => ({
@@ -218,9 +233,9 @@ serve(async (req: Request) => {
         buyer_id: user.id,
         quantity: item.quantity,
         total_price: item.price * item.quantity,
-        commission_rate: 0,
-        payment_gateway_id: referenceId,
-        payment_gateway_status: 'pending',
+        commission_rate: 0, // Será atualizado pelo webhook ou na captura final
+        payment_gateway_id: referenceId, // Usar o referenceId
+        payment_gateway_status: 'pending', // Status inicial
       })));
 
     if (insertError) {
@@ -229,8 +244,11 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({
-      checkoutUrl: `${pagseguroCheckoutBase}?code=${checkoutCode}`,
+      qrCodeBase64: qrCode.image, // Base64 da imagem do QR Code
+      qrCodeText: qrCode.text,    // Código Pix "copia e cola"
       referenceId: referenceId,
+      // Se houver outras opções de pagamento ou redirecionamento, o PagSeguro pode retornar um link de checkout
+      // checkoutUrl: responseData.links?.find((link: any) => link.rel === 'PAY')?.href,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

@@ -22,65 +22,17 @@ serve(async (req: Request) => {
   }
 
   try {
-    // PagSeguro envia notificações via POST com application/x-www-form-urlencoded
-    const body = await req.text();
-    const params = new URLSearchParams(body);
-    const notificationCode = params.get('notificationCode');
-    const notificationType = params.get('notificationType');
+    // A nova API do PagSeguro envia webhooks em JSON
+    const pagseguroNotification = await req.json();
+    console.log('Received PagSeguro Webhook (New API):', pagseguroNotification);
 
-    console.log('Received PagSeguro Webhook:', { notificationCode, notificationType });
+    const { reference_id, status } = pagseguroNotification; // Extrair do payload JSON
 
-    if (notificationType !== 'transaction') {
-      return new Response(JSON.stringify({ message: 'Ignoring non-transaction notification.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
-    if (!notificationCode) {
-      return new Response(JSON.stringify({ error: 'Missing notificationCode in webhook payload.' }), {
+    if (!reference_id || !status) {
+      return new Response(JSON.stringify({ error: 'Missing reference_id or status in webhook payload.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
-    }
-
-    // @ts-ignore
-    const pagseguroEmail = Deno.env.get('PAGSEGURO_EMAIL');
-    // @ts-ignore
-    const pagseguroToken = Deno.env.get('PAGSEGURO_TOKEN');
-    // @ts-ignore
-    const pagseguroApiBase = Deno.env.get('PAGSEGURO_API_BASE') || 'https://ws.sandbox.pagseguro.uol.com.br';
-
-    if (!pagseguroEmail || !pagseguroToken) {
-      throw new Error('PagSeguro API credentials are not configured for webhook.');
-    }
-
-    // Consultar a transação no PagSeguro para obter detalhes
-    const transactionResponse = await fetch(`${pagseguroApiBase}/v2/transactions/notifications/${notificationCode}?email=${pagseguroEmail}&token=${pagseguroToken}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/xml; charset=ISO-8859-1',
-      },
-    });
-
-    if (!transactionResponse.ok) {
-      const errorText = await transactionResponse.text();
-      console.error('PagSeguro transaction query error:', errorText);
-      throw new Error(`Failed to query PagSeguro transaction: ${transactionResponse.status} - ${errorText}`);
-    }
-
-    const transactionXml = await transactionResponse.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(transactionXml, "text/xml");
-
-    const transactionStatusElement = xmlDoc.getElementsByTagName("status")[0];
-    const transactionReferenceElement = xmlDoc.getElementsByTagName("reference")[0];
-
-    const pagseguroStatus = transactionStatusElement ? transactionStatusElement.textContent : null;
-    const referenceId = transactionReferenceElement ? transactionReferenceElement.textContent : null;
-
-    if (!pagseguroStatus || !referenceId) {
-      throw new Error('Could not extract status or reference from PagSeguro transaction XML.');
     }
 
     const supabaseServiceRoleClient = createClient(
@@ -90,46 +42,37 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Mapear status do PagSeguro para um status interno
+    // Mapear status do PagSeguro (nova API) para um status interno
     let internalStatus = 'pending';
-    switch (pagseguroStatus) {
-      case '1': // Aguardando pagamento
-        internalStatus = 'pending';
-        break;
-      case '2': // Em análise
-        internalStatus = 'pending';
-        break;
-      case '3': // Paga
+    switch (status) {
+      case 'PAID':
         internalStatus = 'completed';
         break;
-      case '4': // Disponível (PagSeguro liberou o valor)
+      case 'APPROVED': // Pode ser usado para Pix aprovado
         internalStatus = 'completed';
         break;
-      case '5': // Em disputa
-        internalStatus = 'disputed';
+      case 'DECLINED':
+        internalStatus = 'failed';
         break;
-      case '6': // Devolvida
-        internalStatus = 'refunded';
-        break;
-      case '7': // Cancelada
+      case 'CANCELLED':
         internalStatus = 'cancelled';
         break;
-      case '8': // Debitado
-        internalStatus = 'completed'; // Ou um status mais específico se necessário
+      case 'REFUNDED':
+        internalStatus = 'refunded';
         break;
-      case '9': // Retenção temporária
+      case 'IN_REVIEW': // Em análise
         internalStatus = 'pending';
         break;
       default:
         internalStatus = 'unknown';
     }
 
-    // Buscar vendas associadas a este referenceId que ainda estão pendentes
+    // Buscar vendas associadas a este reference_id que ainda estão pendentes
     const { data: salesToUpdate, error: fetchSalesError } = await supabaseServiceRoleClient
       .from('sales')
       .select('id, product_id, buyer_id, quantity, total_price')
-      .eq('payment_gateway_id', referenceId)
-      .eq('payment_gateway_status', 'pending');
+      .eq('payment_gateway_id', reference_id)
+      .eq('payment_gateway_status', 'pending'); // Apenas atualiza vendas pendentes
 
     if (fetchSalesError) {
       console.error('Error fetching sales for webhook:', fetchSalesError.message);
@@ -151,14 +94,14 @@ serve(async (req: Request) => {
           if (commissionError || !commissionRateData) {
             console.warn('No active commission rate found, using default 10%.', commissionError?.message);
           }
-          const commissionRate = commissionRateData?.rate || 10;
+          const commissionRate = commissionRateData?.rate || 10; // Default to 10% if not found
 
-          // Decrementar a quantidade do produto
+          // Decrementar a quantidade do produto (se ainda não foi feito)
           const { error: updateProductError } = await supabaseServiceRoleClient
             .from('products')
             .update({ quantity: (prevQuantity: number) => prevQuantity - sale.quantity })
             .eq('id', sale.product_id)
-            .gte('quantity', sale.quantity);
+            .gte('quantity', sale.quantity); // Garante que não vai para negativo
 
           if (updateProductError) {
             console.error(`Error updating product quantity for sale ${sale.id}:`, updateProductError.message);
@@ -192,7 +135,7 @@ serve(async (req: Request) => {
         }
       }
     } else {
-      console.warn(`No pending sales found for referenceId: ${referenceId} or already processed.`);
+      console.warn(`No pending sales found for reference_id: ${reference_id} or already processed.`);
     }
 
     return new Response(JSON.stringify({ message: 'Webhook processed successfully.' }), {

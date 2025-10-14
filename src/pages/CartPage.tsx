@@ -4,18 +4,30 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, CreditCard, Loader2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom'; // Importar useNavigate
-import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast'; // Importar showSuccess
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, CreditCard, Loader2, Copy } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { useState } from 'react';
-import { formatCurrency } from '@/utils/formatters'; 
-// As importações de Dialog foram removidas pois não estão sendo utilizadas nesta versão da página.
+import { formatCurrency } from '@/utils/formatters';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label"; // Importação adicionada
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  const navigate = useNavigate(); // Inicializar useNavigate
+  const [isPixDialogOpen, setIsPixDialogOpen] = useState(false);
+  const [pixQrCodeBase64, setPixQrCodeBase64] = useState<string | null>(null);
+  const [pixQrCodeText, setPixQrCodeText] = useState<string | null>(null);
+  // const [pixReferenceId, setPixReferenceId] = useState<string | null>(null); // Removido
+  const navigate = useNavigate();
 
   const handlePagSeguroCheckout = async () => {
     if (!session?.user?.id) {
@@ -28,7 +40,7 @@ const CartPage = () => {
     }
 
     setIsProcessingCheckout(true);
-    const toastId = showLoading('Preparando checkout com PagSeguro...');
+    const toastId = showLoading('Gerando pagamento Pix com PagSeguro...');
 
     try {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-pagseguro-payment`, {
@@ -43,25 +55,40 @@ const CartPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Falha ao criar pagamento no PagSeguro.');
+        throw new Error(data.error || 'Falha ao criar pagamento Pix no PagSeguro.');
       }
 
       dismissToast(toastId);
-      // Abrir a URL de checkout em uma nova aba
-      window.open(data.checkoutUrl, '_blank');
+      showSuccess('Pagamento Pix gerado com sucesso!');
       
-      // Limpar o carrinho e redirecionar para a página de pedidos
-      clearCart();
-      showSuccess('Redirecionando para o PagSeguro. Por favor, complete o pagamento na nova aba.');
-      navigate('/meus-pedidos'); 
-
+      setPixQrCodeBase64(data.qrCodeBase64);
+      setPixQrCodeText(data.qrCodeText);
+      // setPixReferenceId(data.referenceId); // Removido
+      setIsPixDialogOpen(true);
+      clearCart(); // Limpa o carrinho após gerar o Pix
+      
     } catch (error: any) {
       dismissToast(toastId);
-      showError('Erro ao iniciar checkout com PagSeguro: ' + error.message);
-      console.error('Erro ao iniciar checkout com PagSeguro:', error);
+      showError('Erro ao gerar pagamento Pix com PagSeguro: ' + error.message);
+      console.error('Erro ao gerar pagamento Pix com PagSeguro:', error);
     } finally {
       setIsProcessingCheckout(false);
     }
+  };
+
+  const handleCopyPixCode = () => {
+    if (pixQrCodeText) {
+      navigator.clipboard.writeText(pixQrCodeText);
+      showSuccess('Código Pix copiado para a área de transferência!');
+    }
+  };
+
+  const handleClosePixDialog = () => {
+    setIsPixDialogOpen(false);
+    setPixQrCodeBase64(null);
+    setPixQrCodeText(null);
+    // setPixReferenceId(null); // Removido
+    navigate('/meus-pedidos'); // Redireciona para meus pedidos após fechar o Pix
   };
 
   if (isSessionLoading) {
@@ -172,11 +199,47 @@ const CartPage = () => {
               ) : (
                 <CreditCard className="mr-2 h-4 w-4" />
               )}
-              Pagar com PagSeguro
+              Pagar com Pix (PagSeguro)
             </Button>
           </div>
         </div>
       )}
+
+      <Dialog open={isPixDialogOpen} onOpenChange={setIsPixDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Pagar com Pix</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code ou copie o código Pix para finalizar seu pagamento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 text-center">
+            {pixQrCodeBase64 && (
+              <img src={pixQrCodeBase64} alt="QR Code Pix" className="mx-auto w-48 h-48 object-contain border p-2 rounded-md" />
+            )}
+            {pixQrCodeText && (
+              <div className="flex flex-col items-center space-y-2">
+                <Label htmlFor="pix-code" className="text-sm font-medium">Código Pix (Copia e Cola)</Label>
+                <div className="flex w-full max-w-xs items-center space-x-2">
+                  <Input id="pix-code" value={pixQrCodeText} readOnly className="flex-grow" />
+                  <Button type="button" size="sm" onClick={handleCopyPixCode}>
+                    <Copy className="h-4 w-4" />
+                    <span className="sr-only">Copiar</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+            <p className="text-sm text-gray-500 mt-2">
+              Após o pagamento, o status do seu pedido será atualizado automaticamente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClosePixDialog}>
+              Entendi, Ver Meus Pedidos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
