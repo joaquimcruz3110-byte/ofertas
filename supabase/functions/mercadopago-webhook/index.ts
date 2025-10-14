@@ -3,17 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopago from 'https://esm.sh/mercadopago@2.0.10'; // Importação padrão
-
-// --- INÍCIO DO DIAGNÓSTICO ---
-console.log('--- DIAGNÓSTICO MERCADOPAGO mercadopago-webhook ---');
-console.log('Tipo de mercadopago (default import):', typeof mercadopago);
-console.log('Chaves do objeto mercadopago (default import):', Object.keys(mercadopago));
-console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
-console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
-console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
-console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
-console.log('--- FIM DO DIAGNÓSTICO ---');
+import { configure, payment, merchant_orders } from 'https://esm.sh/mercadopago@2.0.10'; // Importação de exports nomeados
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,13 +30,9 @@ serve(async (req: Request) => {
       throw new Error('Mercado Pago access token is not configured.');
     }
 
-    // Acessando 'configure' diretamente do objeto mercadopago
-    if (typeof mercadopago.configure === 'function') {
-      mercadopago.configure({ access_token: mpAccessToken });
-      console.log('Mercado Pago configured via mercadopago.configure');
-    } else {
-      throw new Error('Mercado Pago configure method not found or is not a function on the default import.');
-    }
+    configure({ // Acessando 'configure' diretamente
+      access_token: mpAccessToken,
+    });
 
     const url = new URL(req.url);
     const topic = url.searchParams.get('topic');
@@ -60,14 +46,14 @@ serve(async (req: Request) => {
       });
     }
 
-    let payment;
+    let paymentDetails;
     if (topic === 'payment') {
-      payment = await mercadopago.payment.findById(id); // Acessando 'payment.findById' diretamente
+      paymentDetails = await payment.findById(id); // Acessando 'payment.findById' diretamente
     } else if (topic === 'merchant_order') {
-      const merchantOrder = await mercadopago.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
+      const merchantOrder = await merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
       // Find the first approved payment in the merchant order
-      payment = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
-      if (!payment) {
+      paymentDetails = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
+      if (!paymentDetails) {
         console.log(`Merchant order ${id} has no approved payments yet.`);
         return new Response(JSON.stringify({ message: 'No approved payments in merchant order yet' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,17 +68,17 @@ serve(async (req: Request) => {
       });
     }
 
-    if (!payment || payment.body.status !== 'approved') {
-      console.log(`Payment ${id} not approved. Status: ${payment?.body?.status}`);
+    if (!paymentDetails || paymentDetails.body.status !== 'approved') {
+      console.log(`Payment ${id} not approved. Status: ${paymentDetails?.body?.status}`);
       return new Response(JSON.stringify({ message: 'Payment not approved' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    const externalReference = payment.body.external_reference;
-    const buyerId = payment.body.payer.id || payment.body.metadata?.buyer_id; // Try to get buyer_id from payer.id or metadata
-    const cartItemsString = payment.body.metadata?.cart_items;
+    const externalReference = paymentDetails.body.external_reference;
+    const buyerId = paymentDetails.body.payer.id || paymentDetails.body.metadata?.buyer_id; // Try to get buyer_id from payer.id or metadata
+    const cartItemsString = paymentDetails.body.metadata?.cart_items;
 
     if (!buyerId || !cartItemsString) {
       console.error('Missing buyer_id or cart_items in Mercado Pago payment metadata.');

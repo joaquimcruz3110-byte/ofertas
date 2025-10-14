@@ -3,17 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopago from 'https://esm.sh/mercadopago@2.0.10'; // Importação padrão
-
-// --- INÍCIO DO DIAGNÓSTICO ---
-console.log('--- DIAGNÓSTICO MERCADOPAGO create-mercadopago-preference ---');
-console.log('Tipo de mercadopago (default import):', typeof mercadopago);
-console.log('Chaves do objeto mercadopago (default import):', Object.keys(mercadopago));
-console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
-console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
-console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
-console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
-console.log('--- FIM DO DIAGNÓSTICO ---');
+import { configure, preferences } from 'https://esm.sh/mercadopago@2.0.10'; // Importação de exports nomeados
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -103,13 +93,9 @@ serve(async (req: Request) => {
     }
     console.log('Mercado Pago Access Token loaded.'); // Log para confirmar que o token foi carregado
 
-    // Acessando 'configure' diretamente do objeto mercadopago
-    if (typeof mercadopago.configure === 'function') {
-      mercadopago.configure({ access_token: mpAccessToken });
-      console.log('Mercado Pago configured via mercadopago.configure');
-    } else {
-      throw new Error('Mercado Pago configure method not found or is not a function on the default import.');
-    }
+    configure({ // Acessando 'configure' diretamente
+      access_token: mpAccessToken,
+    });
 
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
@@ -176,7 +162,7 @@ serve(async (req: Request) => {
 
     console.log('Mercado Pago Preference object:', JSON.stringify(preference, null, 2)); // Log do objeto de preferência
 
-    const mpResponse = await mercadopago.preferences.create(preference); // Acessando 'preferences.create' diretamente
+    const mpResponse = await preferences.create(preference); // Acessando 'preferences.create' diretamente
 
     return new Response(JSON.stringify({ url: mpResponse.body.init_point }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
