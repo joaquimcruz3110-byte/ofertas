@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopago from 'https://esm.sh/mercadopago@2.9.0?target=deno'; // Atualizado para v2.9.0
+import * as mercadopago from 'https://esm.sh/mercadopago@2.9.0?target=deno';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +41,10 @@ serve(async (req: Request) => {
     }
 
     // 1. Inicializar o cliente Mercado Pago v2.x
-    const client = new mercadopago.MercadoPagoConfig({ accessToken: mpAccessToken });
+    const client = new mercadopago.MercadoPagoConfig({ 
+      accessToken: mpAccessToken,
+      options: { headers: {} } // Adicionado para contornar o erro f.headers.raw
+    });
     const paymentClient = new mercadopago.Payment(client);
     const merchantOrderClient = new mercadopago.MerchantOrder(client);
 
@@ -172,7 +175,7 @@ serve(async (req: Request) => {
       }
 
       if (product.quantity < requestedQuantity) {
-        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}` });
+        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}` });
         overallSuccess = false;
         continue;
       }
