@@ -5,16 +5,17 @@ import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, CreditCard, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { showError, showLoading, dismissToast } from '@/utils/toast';
+import { Link, useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast'; // Importar showSuccess
 import { useState } from 'react';
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters'; 
 // As importações de Dialog foram removidas pois não estão sendo utilizadas nesta versão da página.
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const navigate = useNavigate(); // Inicializar useNavigate
 
   const handlePagSeguroCheckout = async () => {
     if (!session?.user?.id) {
@@ -46,8 +47,13 @@ const CartPage = () => {
       }
 
       dismissToast(toastId);
-      // Redirecionar para a URL de checkout do PagSeguro
-      window.location.href = data.checkoutUrl;
+      // Abrir a URL de checkout em uma nova aba
+      window.open(data.checkoutUrl, '_blank');
+      
+      // Limpar o carrinho e redirecionar para a página de pedidos
+      clearCart();
+      showSuccess('Redirecionando para o PagSeguro. Por favor, complete o pagamento na nova aba.');
+      navigate('/meus-pedidos'); 
 
     } catch (error: any) {
       dismissToast(toastId);
