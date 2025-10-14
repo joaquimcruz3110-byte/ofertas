@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno';
+import { default as mercadopago } from 'https://esm.sh/mercadopago@2.0.10?target=deno';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +23,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null;
+  photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
 }
 
 serve(async (req: Request) => {
@@ -48,6 +48,8 @@ serve(async (req: Request) => {
       });
     }
 
+    // 1. Criar um cliente Supabase com o token do usuário para verificar a sessão
+    // Passando o cabeçalho de autorização diretamente nas opções do cliente.
     const supabaseUserClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -55,7 +57,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         auth: {
-          persistSession: false,
+          persistSession: false, // Importante para ambientes sem estado como Edge Functions
         },
         global: {
           headers: {
