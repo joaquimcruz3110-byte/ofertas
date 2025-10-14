@@ -3,17 +3,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopago from 'https://esm.sh/mercadopago@2.0.10'; // Importação direta do default export
+import * as mercadopagoSdk from 'https://esm.sh/mercadopago@2.0.10'; // Importação como namespace
 
 // --- INÍCIO DO DIAGNÓSTICO ---
 console.log('--- DIAGNÓSTICO MERCADOPAGO mercadopago-webhook ---');
-console.log('Tipo de mercadopago:', typeof mercadopago);
-console.log('Chaves do objeto mercadopago:', Object.keys(mercadopago));
-console.log('Objeto mercadopago completo:', JSON.stringify(mercadopago, null, 2));
-if (mercadopago.default) {
-  console.log('Tipo de mercadopago.default:', typeof mercadopago.default);
-  console.log('Chaves de mercadopago.default:', Object.keys(mercadopago.default));
-  console.log('Objeto mercadopago.default completo:', JSON.stringify(mercadopago.default, null, 2));
+console.log('Tipo de mercadopagoSdk:', typeof mercadopagoSdk);
+console.log('Chaves do objeto mercadopagoSdk:', Object.keys(mercadopagoSdk));
+console.log('Objeto mercadopagoSdk completo:', JSON.stringify(mercadopagoSdk, null, 2));
+if (mercadopagoSdk.default) {
+  console.log('Tipo de mercadopagoSdk.default:', typeof mercadopagoSdk.default);
+  console.log('Chaves de mercadopagoSdk.default:', Object.keys(mercadopagoSdk.default));
+  console.log('Objeto mercadopagoSdk.default completo:', JSON.stringify(mercadopagoSdk.default, null, 2));
 }
 console.log('--- FIM DO DIAGNÓSTICO ---');
 // --- FIM DO DIAGNÓSTICO ---
@@ -43,9 +43,13 @@ serve(async (req: Request) => {
       throw new Error('Mercado Pago access token is not configured.');
     }
 
-    mercadopago.configure({ // Acessando 'configure' diretamente
-      access_token: mpAccessToken,
-    });
+    // Acessando 'configure' através de mercadopagoSdk.default
+    if (mercadopagoSdk.default && typeof mercadopagoSdk.default.configure === 'function') {
+      mercadopagoSdk.default.configure({ access_token: mpAccessToken });
+      console.log('Mercado Pago configured via mercadopagoSdk.default.configure');
+    } else {
+      throw new Error('Mercado Pago configure method not found on mercadopagoSdk.default.');
+    }
 
     const url = new URL(req.url);
     const topic = url.searchParams.get('topic');
@@ -61,9 +65,9 @@ serve(async (req: Request) => {
 
     let payment;
     if (topic === 'payment') {
-      payment = await mercadopago.payment.findById(id); // Acessando 'payment.findById' diretamente
+      payment = await mercadopagoSdk.default.payment.findById(id); // Acessando 'payment.findById' através de mercadopagoSdk.default
     } else if (topic === 'merchant_order') {
-      const merchantOrder = await mercadopago.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
+      const merchantOrder = await mercadopagoSdk.default.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' através de mercadopagoSdk.default
       // Find the first approved payment in the merchant order
       payment = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
       if (!payment) {
