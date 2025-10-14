@@ -29,7 +29,7 @@ const CartPage = () => {
     const toastId = showLoading('Redirecionando para o pagamento...');
 
     try {
-      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/create-checkout-session', {
+      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/create-mercadopago-preference', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,12 +41,12 @@ const CartPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        showError(data.error || 'Erro desconhecido ao criar a sessão de checkout.');
+        showError(data.error || 'Erro desconhecido ao criar a sessão de checkout do Mercado Pago.');
         return;
       }
 
       dismissToast(toastId);
-      window.location.href = data.url; // Redireciona para a página de checkout do Stripe
+      window.location.href = data.url; // Redireciona para a página de checkout do Mercado Pago
     } catch (error: any) {
       console.error('Erro ao iniciar checkout:', error);
       showError('Erro ao iniciar checkout: ' + error.message);

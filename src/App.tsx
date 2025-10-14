@@ -26,7 +26,7 @@ import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
-import StripeSuccessPage from "./pages/StripeSuccessPage"; // Importar a nova página de sucesso do Stripe
+import MercadoPagoReturnPage from "./pages/MercadoPagoReturnPage"; // Importar a nova página de retorno do Mercado Pago
 import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
 
 const queryClient = new QueryClient();
@@ -62,7 +62,7 @@ const App = () => (
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/checkout-success" element={<ProtectedRoute><StripeSuccessPage /></ProtectedRoute>} /> {/* Nova rota de sucesso do Stripe */}
+              <Route path="/mercadopago-return" element={<ProtectedRoute><MercadoPagoReturnPage /></ProtectedRoute>} /> {/* Nova rota de retorno do Mercado Pago */}
 
               {/* Todas as rotas protegidas agora usam o MainLayout */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
@@ -77,7 +77,6 @@ const App = () => (
                 <Route path="/meus-produtos" element={<MeusProdutos />} />
                 <Route path="/minhas-vendas" element={<MinhasVendas />} />
                 <Route path="/shop-setup" element={<ShopSetupPage />} /> {/* Nova rota para configuração da loja */}
-                {/* <Route path="/meus-pagamentos" element={<ShopkeeperPayouts />} /> Removido */}
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />

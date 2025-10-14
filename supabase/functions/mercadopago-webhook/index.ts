@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import Stripe from 'https://esm.sh/stripe@16.2.0?target=deno';
+import mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,39 +25,67 @@ serve(async (req: Request) => {
 
   try {
     // @ts-ignore
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeSecretKey) {
-      throw new Error('Stripe secret key is not configured.');
+    const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+    if (!mpAccessToken) {
+      throw new Error('Mercado Pago access token is not configured.');
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2024-06-20',
-      typescript: true,
+    mercadopago.configure({
+      access_token: mpAccessToken,
     });
 
-    const { sessionId } = await req.json();
+    const url = new URL(req.url);
+    const topic = url.searchParams.get('topic');
+    const id = url.searchParams.get('id'); // Payment ID or Merchant Order ID
 
-    if (!sessionId) {
-      return new Response(JSON.stringify({ error: 'Session ID is required' }), {
+    if (!topic || !id) {
+      console.warn('Mercado Pago webhook received without topic or ID.');
+      return new Response(JSON.stringify({ message: 'Missing topic or ID' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
 
-    const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
-
-    if (checkoutSession.payment_status !== 'paid') {
-      return new Response(JSON.stringify({ error: 'Payment not successful' }), {
+    let payment;
+    if (topic === 'payment') {
+      payment = await mercadopago.payment.findById(id);
+    } else if (topic === 'merchant_order') {
+      const merchantOrder = await mercadopago.merchant_orders.findById(id);
+      // Find the first approved payment in the merchant order
+      payment = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
+      if (!payment) {
+        console.log(`Merchant order ${id} has no approved payments yet.`);
+        return new Response(JSON.stringify({ message: 'No approved payments in merchant order yet' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+    } else {
+      console.log(`Unhandled Mercado Pago topic: ${topic}`);
+      return new Response(JSON.stringify({ message: `Unhandled topic: ${topic}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       });
     }
 
-    const buyerId = checkoutSession.metadata?.buyer_id;
-    const cartItemsString = checkoutSession.metadata?.cart_items;
+    if (!payment || payment.body.status !== 'approved') {
+      console.log(`Payment ${id} not approved. Status: ${payment?.body?.status}`);
+      return new Response(JSON.stringify({ message: 'Payment not approved' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    const externalReference = payment.body.external_reference;
+    const buyerId = payment.body.payer.id || payment.body.metadata?.buyer_id; // Try to get buyer_id from payer.id or metadata
+    const cartItemsString = payment.body.metadata?.cart_items;
 
     if (!buyerId || !cartItemsString) {
-      throw new Error('Missing metadata in Stripe session.');
+      console.error('Missing buyer_id or cart_items in Mercado Pago payment metadata.');
+      return new Response(JSON.stringify({ error: 'Missing metadata for order fulfillment' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
     }
 
     const cartItems: CartItem[] = JSON.parse(cartItemsString);
@@ -68,6 +96,26 @@ serve(async (req: Request) => {
       // @ts-ignore
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Check if this order has already been fulfilled to prevent double processing
+    const { data: existingSales, error: salesCheckError } = await supabaseServiceRoleClient
+      .from('sales')
+      .select('id')
+      .eq('external_reference', externalReference) // Assuming you add an external_reference column to sales table
+      .limit(1);
+
+    if (salesCheckError) {
+      console.error('Error checking for existing sales:', salesCheckError.message);
+      throw new Error('Failed to check for existing sales');
+    }
+
+    if (existingSales && existingSales.length > 0) {
+      console.log(`Order with external_reference ${externalReference} already fulfilled.`);
+      return new Response(JSON.stringify({ message: 'Order already fulfilled' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     // Fetch active commission rate using service role client
     const { data: commissionRateData, error: commissionError } = await supabaseServiceRoleClient
@@ -90,7 +138,6 @@ serve(async (req: Request) => {
     for (const item of cartItems) {
       const { id: productId, quantity: requestedQuantity } = item;
 
-      // Fetch real product details to validate price and stock (using service role for direct access)
       const { data: product, error: productError } = await supabaseServiceRoleClient
         .from('products')
         .select('id, name, price, quantity, shopkeeper_id')
@@ -112,13 +159,13 @@ serve(async (req: Request) => {
 
       const totalPriceForItem = product.price * requestedQuantity;
 
-      // Perform the purchase using the RPC function
       const { error: purchaseError } = await supabaseServiceRoleClient.rpc('perform_purchase', {
         p_product_id: productId,
         p_buyer_id: buyerId,
         p_quantity: requestedQuantity,
         p_total_price: totalPriceForItem,
         p_commission_rate: commissionRate,
+        p_external_reference: externalReference, // Pass external_reference to RPC
       });
 
       if (purchaseError) {
