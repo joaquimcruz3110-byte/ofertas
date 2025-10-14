@@ -52,6 +52,9 @@ serve(async (req: Request) => {
       });
     }
 
+    // DEBUG: Log the start of the access token to confirm it's loaded
+    console.log('Mercado Pago Access Token (start):', mpAccessToken.substring(0, 10) + '...');
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
@@ -106,7 +109,7 @@ serve(async (req: Request) => {
     // 2. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ 
       accessToken: mpAccessToken,
-      options: { headers: {} } // Adicionado para contornar o erro f.headers.raw
+      // Removido: options: { headers: {} }
     });
     const preference = new mercadopago.Preference(client);
 
