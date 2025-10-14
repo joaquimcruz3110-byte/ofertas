@@ -156,17 +156,17 @@ serve(async (req: Request) => {
       // @ts-ignore
       notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
       senderName: senderName, // Usando o nome real do perfil
-      senderAreaCode: '11', // Placeholder, idealmente buscar do perfil do usuário
-      senderPhone: '999999999', // Placeholder, idealmente buscar do perfil do usuário
+      senderAreaCode: '11', // Código de área de São Paulo
+      senderPhone: '999999999', // Telefone de 9 dígitos
       senderEmail: user.email || 'comprador@example.com',
       shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
-      shippingAddressStreet: 'Rua Exemplo', // Placeholder
-      shippingAddressNumber: '123', // Placeholder
-      shippingAddressComplement: '', // Placeholder
-      shippingAddressDistrict: 'Bairro Exemplo', // Placeholder
-      shippingAddressPostalCode: '00000000', // Placeholder
-      shippingAddressCity: 'Cidade Exemplo', // Placeholder
-      shippingAddressState: 'SP', // Placeholder
+      shippingAddressStreet: 'Avenida Paulista', // Endereço de teste
+      shippingAddressNumber: '1578', // Número de teste
+      shippingAddressComplement: 'Conjunto 100', // Complemento de teste
+      shippingAddressDistrict: 'Bela Vista', // Bairro de teste
+      shippingAddressPostalCode: '01310200', // CEP válido para São Paulo
+      shippingAddressCity: 'Sao Paulo', // Cidade de teste
+      shippingAddressState: 'SP', // Estado de teste
       shippingAddressCountry: 'BRA',
     });
 
