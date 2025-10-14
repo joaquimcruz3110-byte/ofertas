@@ -4,55 +4,19 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Loader2 } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { showError, showLoading, dismissToast } from '@/utils/toast';
-import { useState } from 'react';
+import { showError } from '@/utils/toast';
 import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
-  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  // Removido isProcessingCheckout pois não é mais utilizado.
 
   const handleCheckout = async () => {
-    if (!session?.user?.id) {
-      showError('Você precisa estar logado para finalizar a compra.');
-      return;
-    }
-    if (cartItems.length === 0) {
-      showError('Seu carrinho está vazio.');
-      return;
-    }
-
-    setIsProcessingCheckout(true);
-    const toastId = showLoading('Redirecionando para o pagamento...');
-
-    try {
-      const response = await fetch('https://vnlwxosrkcpwypiqywnr.supabase.co/functions/v1/create-mercadopago-preference', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ cartItems }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        showError(data.error || 'Erro desconhecido ao criar a sessão de checkout do Mercado Pago.');
-        return;
-      }
-
-      dismissToast(toastId);
-      window.location.href = data.url; // Redireciona para a página de checkout do Mercado Pago
-    } catch (error: any) {
-      console.error('Erro ao iniciar checkout:', error);
-      showError('Erro ao iniciar checkout: ' + error.message);
-    } finally {
-      setIsProcessingCheckout(false);
-    }
+    showError('Nenhum gateway de pagamento configurado. Por favor, entre em contato com o suporte.');
+    // Aqui você pode adicionar lógica para um gateway de pagamento alternativo no futuro
   };
 
   if (isSessionLoading) {
@@ -146,17 +110,16 @@ const CartPage = () => {
             <Button
               variant="outline"
               onClick={clearCart}
-              disabled={cartItems.length === 0 || isProcessingCheckout}
+              disabled={cartItems.length === 0}
             >
               Limpar Carrinho
             </Button>
             <Button
               className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
               onClick={handleCheckout}
-              disabled={cartItems.length === 0 || isProcessingCheckout}
+              disabled={true} // Desabilitado porque não há gateway de pagamento
             >
-              {isProcessingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Finalizar Compra
+              Finalizar Compra (Indisponível)
             </Button>
           </div>
         </div>

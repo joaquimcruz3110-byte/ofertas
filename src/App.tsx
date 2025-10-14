@@ -26,7 +26,6 @@ import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
-import MercadoPagoReturnPage from "./pages/MercadoPagoReturnPage"; // Importar a nova página de retorno do Mercado Pago
 import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
 
 const queryClient = new QueryClient();
@@ -62,7 +61,6 @@ const App = () => (
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/mercadopago-return" element={<ProtectedRoute><MercadoPagoReturnPage /></ProtectedRoute>} /> {/* Nova rota de retorno do Mercado Pago */}
 
               {/* Todas as rotas protegidas agora usam o MainLayout */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
