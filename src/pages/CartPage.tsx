@@ -4,57 +4,19 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Wallet, Loader2 } from 'lucide-react'; // 'Paypal' substituído por 'Wallet', 'Loader2' adicionado
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { showError, showLoading, dismissToast } from '@/utils/toast';
-import { useState } from 'react';
+import { showError } from '@/utils/toast';
 import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
-  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  // Removido isProcessingCheckout pois não é mais utilizado.
 
-  const handlePayPalCheckout = async () => {
-    if (!session?.user?.id) {
-      showError('Você precisa estar logado para finalizar a compra.');
-      return;
-    }
-    if (cartItems.length === 0) {
-      showError('Seu carrinho está vazio.');
-      return;
-    }
-
-    setIsProcessingCheckout(true);
-    const toastId = showLoading('Preparando checkout com PayPal...');
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-paypal-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ cartItems }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Falha ao criar ordem de pagamento no PayPal.');
-      }
-
-      dismissToast(toastId);
-      // Redirecionar para a URL de aprovação do PayPal
-      window.location.href = data.approveUrl;
-
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError('Erro ao iniciar checkout com PayPal: ' + error.message);
-      console.error('Erro ao iniciar checkout com PayPal:', error);
-    } finally {
-      setIsProcessingCheckout(false);
-    }
+  const handleCheckout = async () => {
+    showError('Nenhum gateway de pagamento configurado. Por favor, entre em contato com o suporte.');
+    // Aqui você pode adicionar lógica para um gateway de pagamento alternativo no futuro
   };
 
   if (isSessionLoading) {
@@ -109,7 +71,7 @@ const CartPage = () => {
                   variant="outline"
                   size="icon"
                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1 || isProcessingCheckout}
+                  disabled={item.quantity <= 1}
                 >
                   <MinusCircle className="h-4 w-4" />
                 </Button>
@@ -119,13 +81,11 @@ const CartPage = () => {
                   onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
                   className="w-16 text-center"
                   min="1"
-                  disabled={isProcessingCheckout}
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                  disabled={isProcessingCheckout}
                 >
                   <PlusCircle className="h-4 w-4" />
                 </Button>
@@ -134,7 +94,6 @@ const CartPage = () => {
                   size="icon"
                   onClick={() => removeItem(item.id)}
                   className="ml-4"
-                  disabled={isProcessingCheckout}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -151,21 +110,17 @@ const CartPage = () => {
             <Button
               variant="outline"
               onClick={clearCart}
-              disabled={cartItems.length === 0 || isProcessingCheckout}
+              disabled={cartItems.length === 0}
             >
               Limpar Carrinho
             </Button>
             <Button
               className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-              onClick={handlePayPalCheckout}
-              disabled={cartItems.length === 0 || isProcessingCheckout}
+              onClick={handleCheckout}
+              // Desabilitado porque não há gateway de pagamento
+              disabled={true} 
             >
-              {isProcessingCheckout ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Wallet className="mr-2 h-4 w-4" />
-              )}
-              Pagar com PayPal
+              Finalizar Compra (Indisponível)
             </Button>
           </div>
         </div>
