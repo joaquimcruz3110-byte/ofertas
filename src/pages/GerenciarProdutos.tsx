@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon, Search, XCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Edit, Trash2, Image as ImageIcon, Search, XCircle, X } from 'lucide-react'; // Adicionado X para remover imagem individual
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_url: string | null;
+  photo_urls: string[] | null; // Alterado para array de strings
   discount: number;
   shopkeeper_id: string;
   created_at: string;
@@ -78,7 +78,7 @@ const productFormSchema = z.object({
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
   category: z.string().optional(),
-  photo_url: z.string().optional(),
+  // photo_url: z.string().optional(), // Removido
   discount: z.preprocess(
     (val) => Number(val),
     z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
@@ -94,9 +94,8 @@ const GerenciarProdutos = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const [currentImages, setCurrentImages] = useState<{ url: string; file?: File }[]>([]); // Gerencia imagens existentes e novas
+  const MAX_IMAGES = 3;
 
   // Estados para os filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +113,7 @@ const GerenciarProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      photo_url: "",
+      // photo_url: "", // Removido
       discount: 0.01,
     },
   });
@@ -191,11 +190,10 @@ const GerenciarProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      photo_url: "",
+      // photo_url: "", // Removido
       discount: 0.01,
     });
-    setSelectedFile(null);
-    setImagePreview(null);
+    setCurrentImages([]);
     setIsDialogOpen(true);
   };
 
@@ -207,11 +205,12 @@ const GerenciarProdutos = () => {
       price: product.price,
       quantity: product.quantity,
       category: product.category || "",
-      photo_url: product.photo_url || "",
+      // photo_url: product.photo_url || "", // Removido
       discount: product.discount || 0.01,
     });
-    setSelectedFile(null);
-    setImagePreview(product.photo_url);
+    setCurrentImages(product.photo_urls?.map(url => ({ url })) || []);
+    // setSelectedFile(null); // Removido
+    // setImagePreview(product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null); // Removido
     setIsDialogOpen(true);
   };
 
@@ -221,35 +220,79 @@ const GerenciarProdutos = () => {
     }
 
     const toastId = showLoading('Excluindo produto...');
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId);
+    
+    try {
+      // Primeiro, buscar as URLs das imagens para deletar do storage
+      const { data: productToDelete, error: fetchError } = await supabase
+        .from('products')
+        .select('photo_urls')
+        .eq('id', productId)
+        .single(); // Admin pode deletar qualquer produto
 
-    dismissToast(toastId);
-    if (error) {
+      if (fetchError) {
+        throw new Error('Erro ao buscar produto para exclusão: ' + fetchError.message);
+      }
+
+      // Deletar imagens do storage
+      if (productToDelete?.photo_urls && productToDelete.photo_urls.length > 0) {
+        const filePathsToDelete = productToDelete.photo_urls.map((url: string) => {
+          const urlParts = url.split('product_images/');
+          return urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
+        }).filter(Boolean) as string[];
+
+        if (filePathsToDelete.length > 0) {
+          const { error: deleteStorageError } = await supabase.storage
+            .from('product_images')
+            .remove(filePathsToDelete);
+
+          if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+            console.warn('Erro ao remover imagens do storage (algumas podem não existir):', deleteStorageError.message);
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      dismissToast(toastId);
+      if (error) {
+        showError('Erro ao excluir produto: ' + error.message);
+        console.error('Erro ao excluir produto:', error.message);
+      } else {
+        showSuccess('Produto excluído com sucesso!');
+        setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+      }
+    } catch (error: any) {
+      dismissToast(toastId);
       showError('Erro ao excluir produto: ' + error.message);
       console.error('Erro ao excluir produto:', error.message);
-    } else {
-      showSuccess('Produto excluído com sucesso!');
-      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
     }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      setSelectedFile(null);
-      setImagePreview(editingProduct?.photo_url || null);
+    const files = Array.from(event.target.files || []);
+    const newFiles = files.slice(0, MAX_IMAGES - currentImages.length); // Limita o número de novos arquivos
+
+    if (newFiles.length > 0) {
+      const newImagePreviews = newFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        file: file,
+      }));
+      setCurrentImages(prev => [...prev, ...newImagePreviews]);
     }
+    // Limpa o input para permitir o upload dos mesmos arquivos novamente se o usuário quiser
+    event.target.value = '';
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setCurrentImages(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const uploadImage = async (productId: string, file: File) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`; // Nome único
     const filePath = `product_images/${productId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -270,63 +313,11 @@ const GerenciarProdutos = () => {
     return publicUrlData.publicUrl;
   };
 
-  const handleRemoveImage = async () => {
-    if (!editingProduct || !editingProduct.photo_url) {
-      showError('Nenhuma imagem para remover ou produto não selecionado.');
-      return;
-    }
-
-    if (!window.confirm("Tem certeza que deseja remover a imagem deste produto?")) {
-      return;
-    }
-
-    setIsRemovingImage(true);
-    const toastId = showLoading('Removendo imagem...');
-
-    try {
-      const urlParts = editingProduct.photo_url.split('product_images/');
-      const filePathInStorage = urlParts.length > 1 ? `product_images/${urlParts[1]}` : null;
-
-      if (filePathInStorage) {
-        const { error: deleteStorageError } = await supabase.storage
-          .from('product_images')
-          .remove([filePathInStorage]);
-
-        if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
-          throw new Error('Erro ao remover imagem do storage: ' + deleteStorageError.message);
-        }
-      }
-
-      const { error: updateDbError } = await supabase
-        .from('products')
-        .update({ photo_url: null })
-        .eq('id', editingProduct.id);
-
-      if (updateDbError) {
-        throw new Error('Erro ao atualizar produto no banco de dados: ' + updateDbError.message);
-      }
-
-      dismissToast(toastId);
-      showSuccess('Imagem removida com sucesso!');
-
-      setEditingProduct(prev => prev ? { ...prev, photo_url: null } : null);
-      setImagePreview(null);
-      setSelectedFile(null);
-      fetchProducts(searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError('Erro ao remover imagem: ' + error.message);
-      console.error('Erro ao remover imagem:', error.message);
-    } finally {
-      setIsRemovingImage(false);
-    }
-  };
-
   const onSubmit = async (values: ProductFormValues) => {
     setIsSubmitting(true);
     const toastId = showLoading(editingProduct ? 'Atualizando produto...' : 'Adicionando produto...');
 
-    let photoUrlToSave = editingProduct?.photo_url || null;
+    let productPhotoUrls: string[] = [];
     let currentProductId = editingProduct?.id;
 
     try {
@@ -351,11 +342,19 @@ const GerenciarProdutos = () => {
         currentProductId = newProductData.id;
       }
 
-      if (selectedFile && currentProductId) {
-        photoUrlToSave = await uploadImage(currentProductId, selectedFile);
-      } else if (!selectedFile && editingProduct && !editingProduct.photo_url) {
-        photoUrlToSave = null;
-      }
+      // Processar uploads de novas imagens
+      const uploadPromises = currentImages
+        .filter(img => img.file) // Apenas arquivos novos
+        .map(img => uploadImage(currentProductId!, img.file!));
+      
+      const newUploadedUrls = await Promise.all(uploadPromises);
+
+      // Combinar URLs existentes (que não foram removidas) com as novas URLs
+      const existingUrls = currentImages
+        .filter(img => !img.file) // Apenas URLs existentes
+        .map(img => img.url);
+      
+      productPhotoUrls = [...existingUrls, ...newUploadedUrls];
 
       if (currentProductId) {
         const { error: updateError } = await supabase
@@ -366,7 +365,7 @@ const GerenciarProdutos = () => {
             price: values.price,
             quantity: values.quantity,
             category: values.category,
-            photo_url: photoUrlToSave,
+            photo_urls: productPhotoUrls, // Salva o array de URLs
             discount: values.discount,
           })
           .eq('id', currentProductId); // Admin pode atualizar qualquer produto, não apenas os seus
@@ -533,9 +532,9 @@ const GerenciarProdutos = () => {
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
-                    {product.photo_url ? (
+                    {product.photo_urls && product.photo_urls.length > 0 ? (
                       <img
-                        src={product.photo_url}
+                        src={product.photo_urls[0]} // Exibe a primeira imagem
                         alt={product.name}
                         className="w-12 h-12 object-cover rounded-md"
                       />
@@ -668,38 +667,36 @@ const GerenciarProdutos = () => {
                 />
               </div>
               <FormItem>
-                <FormLabel>Foto do Produto</FormLabel>
+                <FormLabel>Fotos do Produto (até {MAX_IMAGES})</FormLabel>
                 <FormControl>
                   <Input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleFileChange}
+                    disabled={currentImages.length >= MAX_IMAGES}
                   />
                 </FormControl>
                 <FormDescription>
-                  {editingProduct?.photo_url && !selectedFile ? "Uma imagem existente será mantida se nenhuma nova for enviada." : "Envie uma imagem para o produto."}
+                  Você pode enviar até {MAX_IMAGES} imagens para o produto.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
-              {imagePreview && (
-                <div className="mt-4 flex flex-col items-center">
-                  <img src={imagePreview} alt="Pré-visualização da imagem" className="max-w-full h-40 object-contain rounded-md" />
-                  {editingProduct && editingProduct.photo_url && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleRemoveImage}
-                      disabled={isRemovingImage}
-                      className="mt-2"
-                    >
-                      {isRemovingImage ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                      Remover Imagem Atual
-                    </Button>
-                  )}
+              {currentImages.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-4">
+                  {currentImages.map((img, index) => (
+                    <div key={index} className="relative w-full h-32 border rounded-md overflow-hidden">
+                      <img src={img.url} alt={`Pré-visualização ${index + 1}`} className="w-full h-full object-cover" />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
               <DialogFooter>

@@ -8,7 +8,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null;
+  photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
 }
 
 interface CartContextType {
