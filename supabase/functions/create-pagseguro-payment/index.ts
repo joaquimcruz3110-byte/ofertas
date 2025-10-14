@@ -100,6 +100,22 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Buscar detalhes do perfil do usuário para o senderName
+    const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError.message);
+      // Não lançar erro fatal, usar fallback
+    }
+
+    const senderFirstName = profileData?.first_name || 'Cliente';
+    const senderLastName = profileData?.last_name || 'Olímpia Ofertas';
+    const senderName = `${senderFirstName} ${senderLastName}`.trim();
+
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
     const productIds = cartItems.map((item: CartItem) => item.id);
     const { data: productsData, error: productsError } = await supabaseServiceRoleClient
@@ -134,11 +150,12 @@ serve(async (req: Request) => {
       token: pagseguroToken,
       currency: 'BRL',
       reference: referenceId,
+      // Simplificando a redirectURL para evitar o erro de comprimento
       // @ts-ignore
-      redirectURL: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}&cart_items=${encodeURIComponent(JSON.stringify(cartItems))}`,
+      redirectURL: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}`,
       // @ts-ignore
       notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
-      senderName: user.user_metadata?.first_name || 'Comprador',
+      senderName: senderName, // Usando o nome real do perfil
       senderAreaCode: '11', // Placeholder, idealmente buscar do perfil do usuário
       senderPhone: '999999999', // Placeholder, idealmente buscar do perfil do usuário
       senderEmail: user.email || 'comprador@example.com',
