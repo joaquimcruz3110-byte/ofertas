@@ -16,7 +16,7 @@ import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
 
 interface Sale {
   id: string;
-  product_id: string;
+  product_id: string | null; // Pode ser nulo
   buyer_id: string;
   quantity: number;
   total_price: number;
@@ -88,6 +88,11 @@ const MinhasVendas = () => {
     // Passo 3: Para cada venda, buscar os detalhes do produto separadamente
     const salesWithProductDetails = await Promise.all(
       salesData.map(async (sale) => {
+        if (!sale.product_id) {
+          // Se product_id for nulo, retorna um produto desconhecido
+          return { ...sale, products: [{ name: 'Produto Desconhecido (ID nulo)', price: 0 }] };
+        }
+
         const { data: productData, error: singleProductError } = await supabase
           .from('products')
           .select('name, price')
