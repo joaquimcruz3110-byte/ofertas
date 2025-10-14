@@ -112,17 +112,18 @@ serve(async (req: Request) => {
       // Não lançar erro fatal, usar fallback
     }
 
-    const senderFirstName = profileData?.first_name || 'Cliente';
-    const senderLastName = profileData?.last_name || 'Olímpia Ofertas';
-    const senderName = `${senderFirstName} ${senderLastName}`.trim();
-
-    // **Ajuste aqui: Garantir que senderEmail seja diferente do email do vendedor**
+    let senderFirstName = profileData?.first_name || 'Cliente';
+    let senderLastName = profileData?.last_name || 'Olímpia Ofertas';
     let senderEmail = user.email || 'comprador@example.com';
+
+    // Ajuste: Se o e-mail do comprador for o mesmo do vendedor, usar dados de teste
     if (senderEmail === pagseguroEmail) {
       senderEmail = 'comprador.teste@sandbox.pagseguro.com.br'; // E-mail de teste diferente
-      console.warn(`Sender email matched seller email. Changed senderEmail to: ${senderEmail}`);
+      senderFirstName = 'Comprador';
+      senderLastName = 'Teste';
+      console.warn(`Sender email matched seller email. Changed sender details to test values.`);
     }
-    // Fim do ajuste
+    const senderName = `${senderFirstName} ${senderLastName}`.trim();
 
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
     const productIds = cartItems.map((item: CartItem) => item.id);
@@ -158,12 +159,11 @@ serve(async (req: Request) => {
       token: pagseguroToken,
       currency: 'BRL',
       reference: referenceId,
-      // Simplificando a redirectURL para evitar o erro de comprimento
       // @ts-ignore
       redirectURL: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}`,
       // @ts-ignore
       notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
-      senderName: senderName, // Usando o nome real do perfil
+      senderName: senderName, // Usando o nome real do perfil ou de teste
       senderAreaCode: '11', // Código de área de São Paulo
       senderPhone: '999999999', // Telefone de 9 dígitos
       senderEmail: senderEmail, // Usando o e-mail ajustado
