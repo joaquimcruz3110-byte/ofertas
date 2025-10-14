@@ -5,6 +5,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
 import mercadopago from 'https://esm.sh/mercadopago@2.0.10'; // Importação direta do default export
 
+// --- INÍCIO DO DIAGNÓSTICO ---
+console.log('--- DIAGNÓSTICO MERCADOPAGO mercadopago-webhook ---');
+console.log('Tipo de mercadopago:', typeof mercadopago);
+console.log('Chaves do objeto mercadopago:', Object.keys(mercadopago));
+console.log('Objeto mercadopago completo:', JSON.stringify(mercadopago, null, 2));
+if (mercadopago.default) {
+  console.log('Tipo de mercadopago.default:', typeof mercadopago.default);
+  console.log('Chaves de mercadopago.default:', Object.keys(mercadopago.default));
+  console.log('Objeto mercadopago.default completo:', JSON.stringify(mercadopago.default, null, 2));
+}
+console.log('--- FIM DO DIAGNÓSTICO ---');
+// --- FIM DO DIAGNÓSTICO ---
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
