@@ -85,9 +85,9 @@ serve(async (req: Request) => {
     // @ts-ignore
     const pagseguroToken = Deno.env.get('PAGSEGURO_TOKEN');
     // @ts-ignore
-    const pagseguroApiBase = Deno.env.get('PAGSEGURO_API_BASE') || 'https://ws.sandbox.pagseguro.uol.com.br'; // Usar sandbox por padrão
+    const pagseguroApiBase = Deno.env.get('PAGSEGURO_API_BASE') || 'https://ws.pagseguro.uol.com.br'; // Default para produção
     // @ts-ignore
-    const pagseguroCheckoutBase = Deno.env.get('PAGSEGURO_CHECKOUT_BASE') || 'https://sandbox.pagseguro.uol.com.br/v2/checkout/payment.html'; // Usar sandbox por padrão
+    const pagseguroCheckoutBase = Deno.env.get('PAGSEGURO_CHECKOUT_BASE') || 'https://pagseguro.uol.com.br/v2/checkout/payment.html'; // Default para produção
 
     if (!pagseguroEmail || !pagseguroToken) {
       throw new Error('PagSeguro API credentials are not configured.');
@@ -103,7 +103,7 @@ serve(async (req: Request) => {
     // Buscar detalhes do perfil do usuário para o senderName
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .select('first_name, last_name')
+      .select('first_name, last_name') // Adicione outros campos como 'cpf', 'phone', 'address' aqui quando eles existirem
       .eq('id', user.id)
       .single();
 
@@ -112,23 +112,17 @@ serve(async (req: Request) => {
       // Não lançar erro fatal, usar fallback
     }
 
-    let senderFirstName = profileData?.first_name || 'Comprador';
-    let senderLastName = profileData?.last_name || 'Teste'; // Alterado para 'Teste'
+    // Usar dados reais do perfil do usuário, com fallbacks genéricos se não disponíveis
+    let senderFirstName = profileData?.first_name || 'Cliente';
+    let senderLastName = profileData?.last_name || 'Plataforma';
     let senderEmail = user.email || 'comprador@example.com';
-    let senderAreaCode = '11'; // Default
-    let senderPhone = '999999999'; // Default
-    let senderCPF = '11111111111'; // Default test CPF
+    
+    // ATENÇÃO: Estes valores são genéricos e DEVEM ser substituídos por dados reais do usuário em produção.
+    // Você precisará adicionar campos para CPF, telefone e endereço na tabela 'profiles' e na UI.
+    let senderAreaCode = '11'; 
+    let senderPhone = '999999999'; 
+    let senderCPF = '11111111111'; 
 
-    // Ajuste: Se o e-mail do comprador for o mesmo do vendedor, usar dados de teste
-    if (senderEmail === pagseguroEmail) {
-      senderEmail = 'comprador.teste@sandbox.pagseguro.com.br'; // E-mail de teste diferente
-      senderFirstName = 'Comprador';
-      senderLastName = 'Teste';
-      senderAreaCode = '11'; // Test area code
-      senderPhone = '999999999'; // Test phone
-      senderCPF = '11111111111'; // Test CPF
-      console.warn(`Sender email matched seller email. Changed sender details to test values.`);
-    }
     const senderName = `${senderFirstName} ${senderLastName}`.trim();
 
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
@@ -169,23 +163,23 @@ serve(async (req: Request) => {
       redirectURL: `${Deno.env.get('VITE_APP_URL')}/pagseguro-return?referenceId=${referenceId}&buyer_id=${user.id}`,
       // @ts-ignore
       notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
-      senderName: senderName, // Usando o nome real do perfil ou de teste
-      senderAreaCode: senderAreaCode, // Usando o código de área ajustado
-      senderPhone: senderPhone, // Usando o telefone ajustado
-      senderEmail: senderEmail, // Usando o e-mail ajustado
+      senderName: senderName,
+      senderAreaCode: senderAreaCode,
+      senderPhone: senderPhone,
+      senderEmail: senderEmail,
       shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
-      shippingAddressStreet: 'Avenida Paulista', // Endereço de teste
-      shippingAddressNumber: '1578', // Número de teste
-      shippingAddressComplement: 'Conjunto 100', // Complemento de teste
-      shippingAddressDistrict: 'Bela Vista', // Bairro de teste
-      shippingAddressPostalCode: '01310200', // CEP válido para São Paulo
-      shippingAddressCity: 'Sao Paulo', // Cidade de teste
-      shippingAddressState: 'SP', // Estado de teste
+      // ATENÇÃO: Estes valores de endereço são genéricos e DEVEM ser substituídos por dados reais do usuário em produção.
+      shippingAddressStreet: 'Avenida Paulista', 
+      shippingAddressNumber: '1578', 
+      shippingAddressComplement: 'Conjunto 100', 
+      shippingAddressDistrict: 'Bela Vista', 
+      shippingAddressPostalCode: '01310200', 
+      shippingAddressCity: 'Sao Paulo', 
+      shippingAddressState: 'SP', 
       shippingAddressCountry: 'BRA',
     });
 
-    // Usar um CPF válido para testes no sandbox
-    pagseguroPaymentBody.append('senderCPF', senderCPF); // CPF de teste válido para sandbox
+    pagseguroPaymentBody.append('senderCPF', senderCPF); 
 
     // Adicionar itens ao corpo da requisição
     pagseguroItems.split('&').forEach(param => {
