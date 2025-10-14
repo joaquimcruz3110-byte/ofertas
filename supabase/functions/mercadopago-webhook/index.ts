@@ -172,7 +172,7 @@ serve(async (req: Request) => {
       }
 
       if (product.quantity < requestedQuantity) {
-        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`);
+        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}` });
         overallSuccess = false;
         continue;
       }
