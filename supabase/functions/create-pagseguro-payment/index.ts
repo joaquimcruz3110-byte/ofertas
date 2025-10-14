@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-// @ts-ignore
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.43/deno-dom-wasm.ts"; // Corrigido para a versão estável
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -195,11 +193,10 @@ serve(async (req: Request) => {
     }
 
     const responseText = await pagseguroResponse.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(responseText, "text/xml");
-
-    const codeElement = xmlDoc.getElementsByTagName("code")[0];
-    const checkoutCode = codeElement ? codeElement.textContent : null;
+    
+    // Usar regex para extrair o código de checkout
+    const codeMatch = responseText.match(/<code>(.*?)<\/code>/);
+    const checkoutCode = codeMatch && codeMatch[1] ? codeMatch[1] : null;
 
     if (!checkoutCode) {
       throw new Error('Failed to get PagSeguro checkout code from response.');
