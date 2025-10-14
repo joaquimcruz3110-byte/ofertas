@@ -112,15 +112,21 @@ serve(async (req: Request) => {
       // Não lançar erro fatal, usar fallback
     }
 
-    let senderFirstName = profileData?.first_name || 'Cliente';
-    let senderLastName = profileData?.last_name || 'Olímpia Ofertas';
+    let senderFirstName = profileData?.first_name || 'Comprador';
+    let senderLastName = profileData?.last_name || 'Teste'; // Alterado para 'Teste'
     let senderEmail = user.email || 'comprador@example.com';
+    let senderAreaCode = '11'; // Default
+    let senderPhone = '999999999'; // Default
+    let senderCPF = '11111111111'; // Default test CPF
 
     // Ajuste: Se o e-mail do comprador for o mesmo do vendedor, usar dados de teste
     if (senderEmail === pagseguroEmail) {
       senderEmail = 'comprador.teste@sandbox.pagseguro.com.br'; // E-mail de teste diferente
       senderFirstName = 'Comprador';
       senderLastName = 'Teste';
+      senderAreaCode = '11'; // Test area code
+      senderPhone = '999999999'; // Test phone
+      senderCPF = '11111111111'; // Test CPF
       console.warn(`Sender email matched seller email. Changed sender details to test values.`);
     }
     const senderName = `${senderFirstName} ${senderLastName}`.trim();
@@ -164,8 +170,8 @@ serve(async (req: Request) => {
       // @ts-ignore
       notificationURL: `${Deno.env.get('VITE_APP_URL')}/functions/v1/pagseguro-webhook`,
       senderName: senderName, // Usando o nome real do perfil ou de teste
-      senderAreaCode: '11', // Código de área de São Paulo
-      senderPhone: '999999999', // Telefone de 9 dígitos
+      senderAreaCode: senderAreaCode, // Usando o código de área ajustado
+      senderPhone: senderPhone, // Usando o telefone ajustado
       senderEmail: senderEmail, // Usando o e-mail ajustado
       shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
       shippingAddressStreet: 'Avenida Paulista', // Endereço de teste
@@ -179,7 +185,7 @@ serve(async (req: Request) => {
     });
 
     // Usar um CPF válido para testes no sandbox
-    pagseguroPaymentBody.append('senderCPF', '11111111111'); // CPF de teste válido para sandbox
+    pagseguroPaymentBody.append('senderCPF', senderCPF); // CPF de teste válido para sandbox
 
     // Adicionar itens ao corpo da requisição
     pagseguroItems.split('&').forEach(param => {
