@@ -31,8 +31,12 @@ serve(async (req: Request) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     // @ts-ignore
     const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+    // @ts-ignore
+    const mpClientId = Deno.env.get('MERCADOPAGO_CLIENT_ID'); // Novo
+    // @ts-ignore
+    const mpClientSecret = Deno.env.get('MERCADOPAGO_CLIENT_SECRET'); // Novo
 
-    if (!supabaseUrl || !supabaseServiceRoleKey || !mpAccessToken) {
+    if (!supabaseUrl || !supabaseServiceRoleKey || !mpAccessToken || !mpClientId || !mpClientSecret) {
       console.error('Missing environment variables for Edge Function.');
       return new Response(JSON.stringify({ error: 'Server configuration error: Missing environment variables.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -43,7 +47,9 @@ serve(async (req: Request) => {
     // 1. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ 
       accessToken: mpAccessToken,
-      // Adicionando uma opção de cabeçalhos explícita para tentar contornar o erro de compatibilidade
+      // Adicionando clientId e clientSecret explicitamente
+      clientId: mpClientId,
+      clientSecret: mpClientSecret,
       options: {
         headers: new Headers(), 
       }
