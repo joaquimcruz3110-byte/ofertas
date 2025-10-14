@@ -4,19 +4,69 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, QrCode, Loader2 } from 'lucide-react'; // QrCode adicionado
 import { Link } from 'react-router-dom';
-import { showError } from '@/utils/toast';
+import { showError, showLoading, dismissToast } from '@/utils/toast';
+import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
-  // Removido isProcessingCheckout pois não é mais utilizado.
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [isPicPayDialogOpen, setIsPicPayDialogOpen] = useState(false);
+  const [picPayPaymentUrl, setPicPayPaymentUrl] = useState<string | null>(null);
+  const [picPayQrCode, setPicPayQrCode] = useState<string | null>(null);
 
-  const handleCheckout = async () => {
-    showError('Nenhum gateway de pagamento configurado. Por favor, entre em contato com o suporte.');
-    // Aqui você pode adicionar lógica para um gateway de pagamento alternativo no futuro
+  const handlePicPayCheckout = async () => {
+    if (!session?.user?.id) {
+      showError('Você precisa estar logado para finalizar a compra.');
+      return;
+    }
+    if (cartItems.length === 0) {
+      showError('Seu carrinho está vazio.');
+      return;
+    }
+
+    setIsProcessingCheckout(true);
+    const toastId = showLoading('Preparando checkout com PicPay...');
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-picpay-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ cartItems }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao criar pagamento no PicPay.');
+      }
+
+      dismissToast(toastId);
+      setPicPayPaymentUrl(data.paymentUrl);
+      setPicPayQrCode(data.qrCode);
+      setIsPicPayDialogOpen(true); // Abre o diálogo com o QR Code/Link
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro ao iniciar checkout com PicPay: ' + error.message);
+      console.error('Erro ao iniciar checkout com PicPay:', error);
+    } finally {
+      setIsProcessingCheckout(false);
+    }
   };
 
   if (isSessionLoading) {
@@ -71,7 +121,7 @@ const CartPage = () => {
                   variant="outline"
                   size="icon"
                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1}
+                  disabled={item.quantity <= 1 || isProcessingCheckout}
                 >
                   <MinusCircle className="h-4 w-4" />
                 </Button>
@@ -81,11 +131,13 @@ const CartPage = () => {
                   onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
                   className="w-16 text-center"
                   min="1"
+                  disabled={isProcessingCheckout}
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                  disabled={isProcessingCheckout}
                 >
                   <PlusCircle className="h-4 w-4" />
                 </Button>
@@ -94,6 +146,7 @@ const CartPage = () => {
                   size="icon"
                   onClick={() => removeItem(item.id)}
                   className="ml-4"
+                  disabled={isProcessingCheckout}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -110,21 +163,52 @@ const CartPage = () => {
             <Button
               variant="outline"
               onClick={clearCart}
-              disabled={cartItems.length === 0}
+              disabled={cartItems.length === 0 || isProcessingCheckout}
             >
               Limpar Carrinho
             </Button>
             <Button
               className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-              onClick={handleCheckout}
-              // Desabilitado porque não há gateway de pagamento
-              disabled={true} 
+              onClick={handlePicPayCheckout}
+              disabled={cartItems.length === 0 || isProcessingCheckout}
             >
-              Finalizar Compra (Indisponível)
+              {isProcessingCheckout ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              Pagar com PicPay
             </Button>
           </div>
         </div>
       )}
+
+      <Dialog open={isPicPayDialogOpen} onOpenChange={setIsPicPayDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] text-center">
+          <DialogHeader>
+            <DialogTitle>Pagar com PicPay</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code ou clique no link para finalizar seu pagamento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+            {picPayQrCode && (
+              <img src={`data:image/png;base64,${picPayQrCode}`} alt="QR Code PicPay" className="w-48 h-48 mb-4 border rounded-md" />
+            )}
+            {picPayPaymentUrl && (
+              <a href={picPayPaymentUrl} target="_blank" rel="noopener noreferrer" className="text-dyad-dark-blue hover:text-dyad-vibrant-orange underline mb-4">
+                Abrir no aplicativo PicPay
+              </a>
+            )}
+            <p className="text-sm text-gray-500">
+              Após o pagamento, você será redirecionado(a) automaticamente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPicPayDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
