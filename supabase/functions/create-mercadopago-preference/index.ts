@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { MercadoPagoConfig, Preference } from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do SDK v2.x com target=deno
+import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do módulo completo com target=deno
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,8 +92,8 @@ serve(async (req: Request) => {
     }
 
     // 2. Inicializar o cliente Mercado Pago v2.x
-    const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
-    const preference = new Preference(client);
+    const client = new mercadopago.MercadoPagoConfig({ accessToken: mpAccessToken });
+    const preference = new mercadopago.Preference(client);
 
     // 3. Criar um cliente Supabase com a service_role_key para buscar detalhes do produto
     const supabaseServiceRoleClient = createClient(

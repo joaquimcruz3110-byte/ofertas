@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { MercadoPagoConfig, Payment, MerchantOrder } from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do SDK v2.x com target=deno
+import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do SDK v2.x com target=deno
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,9 +31,9 @@ serve(async (req: Request) => {
     }
 
     // 1. Inicializar o cliente Mercado Pago v2.x
-    const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
-    const paymentClient = new Payment(client);
-    const merchantOrderClient = new MerchantOrder(client);
+    const client = new mercadopago.MercadoPagoConfig({ accessToken: mpAccessToken });
+    const paymentClient = new mercadopago.Payment(client);
+    const merchantOrderClient = new mercadopago.MerchantOrder(client);
 
     const url = new URL(req.url);
     const topic = url.searchParams.get('topic');
