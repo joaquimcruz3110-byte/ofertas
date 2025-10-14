@@ -3,9 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopagoModule from 'https://esm.sh/mercadopago@2.0.10'; // Removido ?target=deno
-
-const mercadopago = mercadopagoModule.default || mercadopagoModule; // Tenta usar o default export ou o módulo completo
+import mercadopago from 'https://esm.sh/mercadopago@2.0.10'; // Importação direta do default export
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
