@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do módulo completo com target=deno
+import * as mercadopago from 'https://esm.sh/mercadopago@2.9.0?target=deno'; // Atualizado para v2.9.0
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +32,26 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Verificar variáveis de ambiente no início
+    // @ts-ignore
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    // @ts-ignore
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    // @ts-ignore
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // @ts-ignore
+    const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+    // @ts-ignore
+    const appUrl = Deno.env.get('VITE_APP_URL');
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey || !mpAccessToken || !appUrl) {
+      console.error('Missing environment variables for Edge Function.');
+      return new Response(JSON.stringify({ error: 'Server configuration error: Missing environment variables.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, // Internal Server Error
+      });
+    }
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
@@ -50,10 +70,8 @@ serve(async (req: Request) => {
 
     // 1. Criar um cliente Supabase com o token do usuário para verificar a sessão
     const supabaseUserClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseAnonKey,
       {
         auth: {
           persistSession: false,
@@ -85,22 +103,14 @@ serve(async (req: Request) => {
       });
     }
 
-    // @ts-ignore
-    const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
-    if (!mpAccessToken) {
-      throw new Error('Mercado Pago access token is not configured.');
-    }
-
     // 2. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ accessToken: mpAccessToken });
     const preference = new mercadopago.Preference(client);
 
     // 3. Criar um cliente Supabase com a service_role_key para buscar detalhes do produto
     const supabaseServiceRoleClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl,
+      supabaseServiceRoleKey
     );
 
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
@@ -143,15 +153,11 @@ serve(async (req: Request) => {
         email: user.email,
       },
       back_urls: {
-        // @ts-ignore
-        success: `${Deno.env.get('VITE_APP_URL')}/mercadopago-return?status=success&external_reference=${externalReference}`,
-        // @ts-ignore
-        pending: `${Deno.env.get('VITE_APP_URL')}/mercadopago-return?status=pending&external_reference=${externalReference}`,
-        // @ts-ignore
-        failure: `${Deno.env.get('VITE_APP_URL')}/mercadopago-return?status=failure&external_reference=${externalReference}`,
+        success: `${appUrl}/mercadopago-return?status=success&external_reference=${externalReference}`,
+        pending: `${appUrl}/mercadopago-return?status=pending&external_reference=${externalReference}`,
+        failure: `${appUrl}/mercadopago-return?status=failure&external_reference=${externalReference}`,
       },
-      // @ts-ignore
-      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`,
+      notification_url: `${supabaseUrl}/functions/v1/mercadopago-webhook`,
       auto_return: 'approved',
       external_reference: externalReference, // Usado para vincular a venda
       metadata: {

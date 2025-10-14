@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Importação do SDK v2.x com target=deno
+import * as mercadopago from 'https://esm.sh/mercadopago@2.9.0?target=deno'; // Atualizado para v2.9.0
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,10 +24,20 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Verificar variáveis de ambiente no início
+    // @ts-ignore
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    // @ts-ignore
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     // @ts-ignore
     const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
-    if (!mpAccessToken) {
-      throw new Error('Mercado Pago access token is not configured.');
+
+    if (!supabaseUrl || !supabaseServiceRoleKey || !mpAccessToken) {
+      console.error('Missing environment variables for Edge Function.');
+      return new Response(JSON.stringify({ error: 'Server configuration error: Missing environment variables.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, // Internal Server Error
+      });
     }
 
     // 1. Inicializar o cliente Mercado Pago v2.x
@@ -103,10 +113,8 @@ serve(async (req: Request) => {
     }
 
     const supabaseServiceRoleClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl,
+      supabaseServiceRoleKey
     );
 
     // Check if this order has already been fulfilled to prevent double processing
@@ -164,7 +172,7 @@ serve(async (req: Request) => {
       }
 
       if (product.quantity < requestedQuantity) {
-        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}` });
+        purchaseResults.push({ productId, success: false, message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`);
         overallSuccess = false;
         continue;
       }
