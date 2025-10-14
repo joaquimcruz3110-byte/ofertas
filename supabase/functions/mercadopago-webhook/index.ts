@@ -43,7 +43,10 @@ serve(async (req: Request) => {
     // 1. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ 
       accessToken: mpAccessToken,
-      options: { headers: {} } // Adicionado para contornar o erro f.headers.raw
+      // Adicionando uma opção de cabeçalhos explícita para tentar contornar o erro de compatibilidade
+      options: {
+        headers: new Headers(), 
+      }
     });
     const paymentClient = new mercadopago.Payment(client);
     const merchantOrderClient = new mercadopago.MerchantOrder(client);

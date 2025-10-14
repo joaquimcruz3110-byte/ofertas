@@ -109,7 +109,10 @@ serve(async (req: Request) => {
     // 2. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ 
       accessToken: mpAccessToken,
-      // Removido: options: { headers: {} }
+      // Adicionando uma opção de cabeçalhos explícita para tentar contornar o erro de compatibilidade
+      options: {
+        headers: new Headers(), 
+      }
     });
     const preference = new mercadopago.Preference(client);
 
