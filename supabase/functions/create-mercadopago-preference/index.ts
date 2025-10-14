@@ -109,7 +109,6 @@ serve(async (req: Request) => {
     // 2. Inicializar o cliente Mercado Pago v2.x
     const client = new mercadopago.MercadoPagoConfig({ 
       accessToken: mpAccessToken,
-      // Removendo clientId e clientSecret daqui
       options: {
         headers: new Headers(), 
       }
