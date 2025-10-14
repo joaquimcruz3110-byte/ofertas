@@ -116,6 +116,14 @@ serve(async (req: Request) => {
     const senderLastName = profileData?.last_name || 'Olímpia Ofertas';
     const senderName = `${senderFirstName} ${senderLastName}`.trim();
 
+    // **Ajuste aqui: Garantir que senderEmail seja diferente do email do vendedor**
+    let senderEmail = user.email || 'comprador@example.com';
+    if (senderEmail === pagseguroEmail) {
+      senderEmail = 'comprador.teste@sandbox.pagseguro.com.br'; // E-mail de teste diferente
+      console.warn(`Sender email matched seller email. Changed senderEmail to: ${senderEmail}`);
+    }
+    // Fim do ajuste
+
     // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
     const productIds = cartItems.map((item: CartItem) => item.id);
     const { data: productsData, error: productsError } = await supabaseServiceRoleClient
@@ -158,7 +166,7 @@ serve(async (req: Request) => {
       senderName: senderName, // Usando o nome real do perfil
       senderAreaCode: '11', // Código de área de São Paulo
       senderPhone: '999999999', // Telefone de 9 dígitos
-      senderEmail: user.email || 'comprador@example.com',
+      senderEmail: senderEmail, // Usando o e-mail ajustado
       shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
       shippingAddressStreet: 'Avenida Paulista', // Endereço de teste
       shippingAddressNumber: '1578', // Número de teste
