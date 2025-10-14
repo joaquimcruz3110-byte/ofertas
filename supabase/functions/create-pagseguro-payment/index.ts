@@ -170,13 +170,16 @@ serve(async (req: Request) => {
       shippingAddressCountry: 'BRA',
     });
 
-    pagseguroPaymentBody.append('senderCPF', '99999999999'); // Placeholder, PagSeguro exige CPF
+    // Usar um CPF válido para testes no sandbox
+    pagseguroPaymentBody.append('senderCPF', '11111111111'); // CPF de teste válido para sandbox
 
     // Adicionar itens ao corpo da requisição
     pagseguroItems.split('&').forEach(param => {
       const [key, value] = param.split('=');
       pagseguroPaymentBody.append(key, value);
     });
+
+    console.log('PagSeguro Request Body:', pagseguroPaymentBody.toString()); // Log do corpo da requisição
 
     const pagseguroResponse = await fetch(`${pagseguroApiBase}/v2/checkout`, {
       method: 'POST',
@@ -186,20 +189,20 @@ serve(async (req: Request) => {
       body: pagseguroPaymentBody.toString(),
     });
 
-    if (!pagseguroResponse.ok) {
-      const errorText = await pagseguroResponse.text();
-      console.error('PagSeguro payment creation error:', errorText);
-      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${errorText}`);
-    }
-
     const responseText = await pagseguroResponse.text();
+    console.log('PagSeguro Response Status:', pagseguroResponse.status); // Log do status da resposta
+    console.log('PagSeguro Response Text:', responseText); // Log do texto completo da resposta
+
+    if (!pagseguroResponse.ok) {
+      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${responseText}`);
+    }
     
     // Usar regex para extrair o código de checkout
     const codeMatch = responseText.match(/<code>(.*?)<\/code>/);
     const checkoutCode = codeMatch && codeMatch[1] ? codeMatch[1] : null;
 
     if (!checkoutCode) {
-      throw new Error('Failed to get PagSeguro checkout code from response.');
+      throw new Error('Failed to get PagSeguro checkout code from response. Response: ' + responseText);
     }
 
     // Registrar a intenção de venda no banco de dados com status inicial
