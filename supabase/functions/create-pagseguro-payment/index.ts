@@ -100,10 +100,10 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Buscar detalhes do perfil do usuário para o senderName
+    // Buscar detalhes completos do perfil do usuário
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .select('first_name, last_name') // Adicione outros campos como 'cpf', 'phone', 'address' aqui quando eles existirem
+      .select('first_name, last_name, cpf, phone_number, address_street, address_number, address_complement, address_district, address_postal_code, address_city, address_state')
       .eq('id', user.id)
       .single();
 
@@ -113,15 +113,14 @@ serve(async (req: Request) => {
     }
 
     // Usar dados reais do perfil do usuário, com fallbacks genéricos se não disponíveis
-    let senderFirstName = profileData?.first_name || 'Cliente';
-    let senderLastName = profileData?.last_name || 'Plataforma';
-    let senderEmail = user.email || 'comprador@example.com';
+    const senderFirstName = profileData?.first_name || 'Cliente';
+    const senderLastName = profileData?.last_name || 'Plataforma';
+    const senderEmail = user.email || 'comprador@example.com';
     
-    // ATENÇÃO: Estes valores são genéricos e DEVEM ser substituídos por dados reais do usuário em produção.
-    // Você precisará adicionar campos para CPF, telefone e endereço na tabela 'profiles' e na UI.
-    let senderAreaCode = '11'; 
-    let senderPhone = '999999999'; 
-    let senderCPF = '11111111111'; 
+    // Usar dados reais do perfil ou fallbacks
+    const senderAreaCode = profileData?.phone_number?.substring(1, 3) || '11'; // Ex: (11) 99999-9999 -> 11
+    const senderPhone = profileData?.phone_number?.replace(/\D/g, '').substring(2) || '999999999'; // Ex: (11) 99999-9999 -> 999999999
+    const senderCPF = profileData?.cpf?.replace(/\D/g, '') || '11111111111'; // Remover caracteres não numéricos
 
     const senderName = `${senderFirstName} ${senderLastName}`.trim();
 
@@ -168,14 +167,14 @@ serve(async (req: Request) => {
       senderPhone: senderPhone,
       senderEmail: senderEmail,
       shippingType: '1', // 1 = PAC, 2 = SEDEX, 3 = Não especificado
-      // ATENÇÃO: Estes valores de endereço são genéricos e DEVEM ser substituídos por dados reais do usuário em produção.
-      shippingAddressStreet: 'Avenida Paulista', 
-      shippingAddressNumber: '1578', 
-      shippingAddressComplement: 'Conjunto 100', 
-      shippingAddressDistrict: 'Bela Vista', 
-      shippingAddressPostalCode: '01310200', 
-      shippingAddressCity: 'Sao Paulo', 
-      shippingAddressState: 'SP', 
+      // Usando dados reais do perfil ou fallbacks
+      shippingAddressStreet: profileData?.address_street || 'Rua Exemplo', 
+      shippingAddressNumber: profileData?.address_number || '123', 
+      shippingAddressComplement: profileData?.address_complement || '', 
+      shippingAddressDistrict: profileData?.address_district || 'Bairro Exemplo', 
+      shippingAddressPostalCode: profileData?.address_postal_code?.replace(/\D/g, '') || '00000000', // Remover caracteres não numéricos
+      shippingAddressCity: profileData?.address_city || 'Cidade Exemplo', 
+      shippingAddressState: profileData?.address_state || 'SP', 
       shippingAddressCountry: 'BRA',
     });
 
@@ -187,7 +186,7 @@ serve(async (req: Request) => {
       pagseguroPaymentBody.append(key, value);
     });
 
-    console.log('PagSeguro Request Body:', pagseguroPaymentBody.toString()); // Log do corpo da requisição
+    console.log('PagSeguro Request Body:', pagseguroPaymentBody.toString());
 
     const pagseguroResponse = await fetch(`${pagseguroApiBase}/v2/checkout`, {
       method: 'POST',
@@ -198,14 +197,13 @@ serve(async (req: Request) => {
     });
 
     const responseText = await pagseguroResponse.text();
-    console.log('PagSeguro Response Status:', pagseguroResponse.status); // Log do status da resposta
-    console.log('PagSeguro Response Text:', responseText); // Log do texto completo da resposta
+    console.log('PagSeguro Response Status:', pagseguroResponse.status);
+    console.log('PagSeguro Response Text:', responseText);
 
     if (!pagseguroResponse.ok) {
       throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${responseText}`);
     }
     
-    // Usar regex para extrair o código de checkout
     const codeMatch = responseText.match(/<code>(.*?)<\/code>/);
     const checkoutCode = codeMatch && codeMatch[1] ? codeMatch[1] : null;
 
@@ -213,7 +211,6 @@ serve(async (req: Request) => {
       throw new Error('Failed to get PagSeguro checkout code from response. Response: ' + responseText);
     }
 
-    // Registrar a intenção de venda no banco de dados com status inicial
     const { error: insertError } = await supabaseServiceRoleClient
       .from('sales')
       .insert(cartItems.map((item: CartItem) => ({
@@ -221,9 +218,9 @@ serve(async (req: Request) => {
         buyer_id: user.id,
         quantity: item.quantity,
         total_price: item.price * item.quantity,
-        commission_rate: 0, // Será atualizado pelo webhook ou na captura final
-        payment_gateway_id: referenceId, // Usar o referenceId interno
-        payment_gateway_status: 'pending', // Status inicial
+        commission_rate: 0,
+        payment_gateway_id: referenceId,
+        payment_gateway_status: 'pending',
       })));
 
     if (insertError) {

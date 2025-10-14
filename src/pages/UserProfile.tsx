@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, User as UserIcon, Camera, Trash2 } from 'lucide-react'; // Importar Trash2
+import { Loader2, User as UserIcon, Camera, Trash2 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,11 +20,29 @@ interface Profile {
   last_name: string | null;
   avatar_url: string | null;
   role: 'comprador' | 'lojista' | 'administrador';
+  cpf: string | null;
+  phone_number: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_district: string | null;
+  address_postal_code: string | null;
+  address_city: string | null;
+  address_state: string | null;
 }
 
 const profileFormSchema = z.object({
   first_name: z.string().min(1, "O primeiro nome é obrigatório.").optional().or(z.literal('')),
   last_name: z.string().min(1, "O sobrenome é obrigatório.").optional().or(z.literal('')),
+  cpf: z.string().optional().nullable(),
+  phone_number: z.string().optional().nullable(),
+  address_street: z.string().optional().nullable(),
+  address_number: z.string().optional().nullable(),
+  address_complement: z.string().optional().nullable(),
+  address_district: z.string().optional().nullable(),
+  address_postal_code: z.string().optional().nullable(),
+  address_city: z.string().optional().nullable(),
+  address_state: z.string().optional().nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -36,13 +54,22 @@ const UserProfile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false); // Novo estado para remoção
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       first_name: "",
       last_name: "",
+      cpf: "",
+      phone_number: "",
+      address_street: "",
+      address_number: "",
+      address_complement: "",
+      address_district: "",
+      address_postal_code: "",
+      address_city: "",
+      address_state: "",
     },
   });
 
@@ -56,7 +83,7 @@ const UserProfile = () => {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, avatar_url, role')
+      .select('id, first_name, last_name, avatar_url, role, cpf, phone_number, address_street, address_number, address_complement, address_district, address_postal_code, address_city, address_state')
       .eq('id', session.user.id)
       .single();
 
@@ -69,6 +96,15 @@ const UserProfile = () => {
       form.reset({
         first_name: data.first_name || "",
         last_name: data.last_name || "",
+        cpf: data.cpf || "",
+        phone_number: data.phone_number || "",
+        address_street: data.address_street || "",
+        address_number: data.address_number || "",
+        address_complement: data.address_complement || "",
+        address_district: data.address_district || "",
+        address_postal_code: data.address_postal_code || "",
+        address_city: data.address_city || "",
+        address_state: data.address_state || "",
       });
       setAvatarPreview(data.avatar_url);
     }
@@ -94,12 +130,11 @@ const UserProfile = () => {
 
   const uploadAvatar = async (userId: string, file: File) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}.${fileExt}`; // Usar o ID do usuário como nome do arquivo para garantir unicidade
+    const fileName = `${userId}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
-    // Primeiro, tentar remover o avatar antigo se existir
     if (profile?.avatar_url) {
-      const oldFilePath = profile.avatar_url.split('avatars/')[1]; // Extrair o caminho do arquivo
+      const oldFilePath = profile.avatar_url.split('avatars/')[1];
       if (oldFilePath) {
         const { error: deleteError } = await supabase.storage
           .from('avatars')
@@ -114,7 +149,7 @@ const UserProfile = () => {
       .from('avatars')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true, // Sobrescrever se já existir
+        upsert: true,
       });
 
     if (uploadError) {
@@ -169,7 +204,7 @@ const UserProfile = () => {
       setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
       setAvatarPreview(null);
       setSelectedAvatarFile(null);
-      fetchProfile(); // Recarrega o perfil para garantir consistência
+      fetchProfile();
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao remover avatar: ' + error.message);
@@ -189,7 +224,6 @@ const UserProfile = () => {
       if (selectedAvatarFile && session?.user?.id) {
         avatarUrlToSave = await uploadAvatar(session.user.id, selectedAvatarFile);
       } else if (!selectedAvatarFile && profile && !profile.avatar_url) {
-        // Se não há novo arquivo e não havia avatar, garantir que avatar_url seja null
         avatarUrlToSave = null;
       }
 
@@ -199,6 +233,15 @@ const UserProfile = () => {
           first_name: values.first_name,
           last_name: values.last_name,
           avatar_url: avatarUrlToSave,
+          cpf: values.cpf,
+          phone_number: values.phone_number,
+          address_street: values.address_street,
+          address_number: values.address_number,
+          address_complement: values.address_complement,
+          address_district: values.address_district,
+          address_postal_code: values.address_postal_code,
+          address_city: values.address_city,
+          address_state: values.address_state,
           updated_at: new Date().toISOString(),
         })
         .eq('id', session?.user?.id);
@@ -209,7 +252,7 @@ const UserProfile = () => {
 
       dismissToast(toastId);
       showSuccess('Perfil atualizado com sucesso!');
-      fetchProfile(); // Recarrega o perfil para refletir as mudanças
+      fetchProfile();
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao salvar perfil: ' + error.message);
@@ -263,7 +306,7 @@ const UserProfile = () => {
               </Label>
             </div>
             <p className="text-sm text-gray-500">Clique na câmera para mudar seu avatar</p>
-            {profile?.avatar_url && ( // Mostrar botão de remover apenas se houver um avatar
+            {profile?.avatar_url && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -321,6 +364,129 @@ const UserProfile = () => {
             </FormControl>
             <FormMessage />
           </FormItem>
+
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Informações de Contato e Endereço</h2>
+          <FormField
+            control={form.control}
+            name="cpf"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CPF</FormLabel>
+                <FormControl>
+                  <Input placeholder="000.000.000-00" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="phone_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Telefone</FormLabel>
+                <FormControl>
+                  <Input placeholder="(DD) 99999-9999" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="address_postal_code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CEP</FormLabel>
+                <FormControl>
+                  <Input placeholder="00000-000" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="address_street"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Rua</FormLabel>
+                <FormControl>
+                  <Input placeholder="Nome da Rua" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="address_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número</FormLabel>
+                  <FormControl>
+                    <Input placeholder="123" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address_complement"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Complemento</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Apto 101" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="address_district"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bairro</FormLabel>
+                <FormControl>
+                  <Input placeholder="Nome do Bairro" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="address_city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cidade</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome da Cidade" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address_state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado (UF)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="SP" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <Button type="submit" className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
