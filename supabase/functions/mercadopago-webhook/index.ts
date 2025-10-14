@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Mantido como importação de namespace
+import mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Alterado para importação direta do default export
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +30,7 @@ serve(async (req: Request) => {
       throw new Error('Mercado Pago access token is not configured.');
     }
 
-    mercadopago.default.configure({ // Acessando 'configure' através de 'default'
+    mercadopago.configure({ // Acessando 'configure' diretamente
       access_token: mpAccessToken,
     });
 
@@ -48,9 +48,9 @@ serve(async (req: Request) => {
 
     let payment;
     if (topic === 'payment') {
-      payment = await mercadopago.default.payment.findById(id); // Acessando 'payment.findById' através de 'default'
+      payment = await mercadopago.payment.findById(id); // Acessando 'payment.findById' diretamente
     } else if (topic === 'merchant_order') {
-      const merchantOrder = await mercadopago.default.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' através de 'default'
+      const merchantOrder = await mercadopago.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
       // Find the first approved payment in the merchant order
       payment = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
       if (!payment) {

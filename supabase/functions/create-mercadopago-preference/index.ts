@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import * as mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Mantido como importação de namespace
+import mercadopago from 'https://esm.sh/mercadopago@2.0.10?target=deno'; // Alterado para importação direta do default export
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,7 +93,7 @@ serve(async (req: Request) => {
     }
     console.log('Mercado Pago Access Token loaded.'); // Log para confirmar que o token foi carregado
 
-    mercadopago.default.configure({ // Acessando 'configure' através de 'default'
+    mercadopago.configure({ // Acessando 'configure' diretamente
       access_token: mpAccessToken,
     });
 
@@ -162,7 +162,7 @@ serve(async (req: Request) => {
 
     console.log('Mercado Pago Preference object:', JSON.stringify(preference, null, 2)); // Log do objeto de preferência
 
-    const mpResponse = await mercadopago.default.preferences.create(preference); // Acessando 'preferences.create' através de 'default'
+    const mpResponse = await mercadopago.preferences.create(preference); // Acessando 'preferences.create' diretamente
 
     return new Response(JSON.stringify({ url: mpResponse.body.init_point }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
