@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { configure, preferences } from 'https://esm.sh/mercadopago@2.0.10?exports=configure,preferences,payment,merchant_orders'; // Importação de exports nomeados explícitos
+import mercadopagoModule from 'https://esm.sh/mercadopago@2.0.10'; // Importação do módulo completo
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +32,27 @@ serve(async (req: Request) => {
   }
 
   try {
+    // --- INÍCIO DO DIAGNÓSTICO ---
+    console.log('--- DIAGNÓSTICO MERCADOPAGO create-mercadopago-preference ---');
+    console.log('Tipo de mercadopagoModule:', typeof mercadopagoModule);
+    console.log('Chaves de mercadopagoModule:', Object.keys(mercadopagoModule));
+    console.log('Tipo de mercadopagoModule.default:', typeof mercadopagoModule.default);
+    if (mercadopagoModule.default) {
+      console.log('Chaves de mercadopagoModule.default:', Object.keys(mercadopagoModule.default));
+    }
+    // --- FIM DO DIAGNÓSTICO ---
+
+    const mercadopago = mercadopagoModule.default || mercadopagoModule; // Resolve o objeto principal
+
+    // --- INÍCIO DO DIAGNÓSTICO (após resolução) ---
+    console.log('Tipo de mercadopago (resolvido):', typeof mercadopago);
+    console.log('Chaves de mercadopago (resolvido):', Object.keys(mercadopago));
+    console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
+    console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
+    console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
+    console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
+    console.log('--- FIM DO DIAGNÓSTICO (após resolução) ---');
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
@@ -93,9 +114,12 @@ serve(async (req: Request) => {
     }
     console.log('Mercado Pago Access Token loaded.'); // Log para confirmar que o token foi carregado
 
-    configure({ // Acessando 'configure' diretamente
-      access_token: mpAccessToken,
-    });
+    if (typeof mercadopago.configure === 'function') {
+      mercadopago.configure({ access_token: mpAccessToken });
+      console.log('Mercado Pago configured via mercadopago.configure');
+    } else {
+      throw new Error('Mercado Pago configure method not found or is not a function on the resolved object.');
+    }
 
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
@@ -162,7 +186,7 @@ serve(async (req: Request) => {
 
     console.log('Mercado Pago Preference object:', JSON.stringify(preference, null, 2)); // Log do objeto de preferência
 
-    const mpResponse = await preferences.create(preference); // Acessando 'preferences.create' diretamente
+    const mpResponse = await mercadopago.preferences.create(preference); // Acessando 'preferences.create' diretamente
 
     return new Response(JSON.stringify({ url: mpResponse.body.init_point }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

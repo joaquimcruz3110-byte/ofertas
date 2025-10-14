@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import { configure, payment, merchant_orders } from 'https://esm.sh/mercadopago@2.0.10?exports=configure,preferences,payment,merchant_orders'; // Importação de exports nomeados explícitos
+import mercadopagoModule from 'https://esm.sh/mercadopago@2.0.10'; // Importação do módulo completo
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,15 +24,39 @@ serve(async (req: Request) => {
   }
 
   try {
+    // --- INÍCIO DO DIAGNÓSTICO ---
+    console.log('--- DIAGNÓSTICO MERCADOPAGO mercadopago-webhook ---');
+    console.log('Tipo de mercadopagoModule:', typeof mercadopagoModule);
+    console.log('Chaves de mercadopagoModule:', Object.keys(mercadopagoModule));
+    console.log('Tipo de mercadopagoModule.default:', typeof mercadopagoModule.default);
+    if (mercadopagoModule.default) {
+      console.log('Chaves de mercadopagoModule.default:', Object.keys(mercadopagoModule.default));
+    }
+    // --- FIM DO DIAGNÓSTICO ---
+
+    const mercadopago = mercadopagoModule.default || mercadopagoModule; // Resolve o objeto principal
+
+    // --- INÍCIO DO DIAGNÓSTICO (após resolução) ---
+    console.log('Tipo de mercadopago (resolvido):', typeof mercadopago);
+    console.log('Chaves de mercadopago (resolvido):', Object.keys(mercadopago));
+    console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
+    console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
+    console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
+    console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
+    console.log('--- FIM DO DIAGNÓSTICO (após resolução) ---');
+
     // @ts-ignore
     const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     if (!mpAccessToken) {
       throw new Error('Mercado Pago access token is not configured.');
     }
 
-    configure({ // Acessando 'configure' diretamente
-      access_token: mpAccessToken,
-    });
+    if (typeof mercadopago.configure === 'function') {
+      mercadopago.configure({ access_token: mpAccessToken });
+      console.log('Mercado Pago configured via mercadopago.configure');
+    } else {
+      throw new Error('Mercado Pago configure method not found or is not a function on the resolved object.');
+    }
 
     const url = new URL(req.url);
     const topic = url.searchParams.get('topic');
@@ -48,9 +72,9 @@ serve(async (req: Request) => {
 
     let paymentDetails;
     if (topic === 'payment') {
-      paymentDetails = await payment.findById(id); // Acessando 'payment.findById' diretamente
+      paymentDetails = await mercadopago.payment.findById(id); // Acessando 'payment.findById' diretamente
     } else if (topic === 'merchant_order') {
-      const merchantOrder = await merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
+      const merchantOrder = await mercadopago.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
       // Find the first approved payment in the merchant order
       paymentDetails = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
       if (!paymentDetails) {
