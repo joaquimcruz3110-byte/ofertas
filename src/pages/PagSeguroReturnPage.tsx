@@ -18,9 +18,9 @@ const PagSeguroReturnPage = () => {
       const transactionId = searchParams.get('transaction_id'); // ID da transação do PagSeguro
       const referenceId = searchParams.get('referenceId'); // Nosso ID de referência
       const buyerId = searchParams.get('buyer_id');
-      const cartItemsEncoded = searchParams.get('cart_items');
+      // cartItemsEncoded não é mais necessário na URL
 
-      if (!transactionId || !referenceId || !buyerId || !cartItemsEncoded) {
+      if (!transactionId || !referenceId || !buyerId) { // Removido cartItemsEncoded
         setStatus('failure');
         setMessage('Erro: Informações de pagamento incompletas.');
         showError('Erro: Informações de pagamento incompletas.');
