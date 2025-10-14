@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopagoModule from 'https://esm.sh/mercadopago@2.0.10'; // Importação do módulo completo
+import { MercadoPagoConfig, Preference } from 'https://esm.sh/mercadopago@2.0.10'; // Importação do SDK v2.x
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +23,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
+  photo_url: string | null;
 }
 
 serve(async (req: Request) => {
@@ -32,27 +32,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // --- INÍCIO DO DIAGNÓSTICO ---
-    console.log('--- DIAGNÓSTICO MERCADOPAGO create-mercadopago-preference ---');
-    console.log('Tipo de mercadopagoModule:', typeof mercadopagoModule);
-    console.log('Chaves de mercadopagoModule:', Object.keys(mercadopagoModule));
-    console.log('Tipo de mercadopagoModule.default:', typeof mercadopagoModule.default);
-    if (mercadopagoModule.default) {
-      console.log('Chaves de mercadopagoModule.default:', Object.keys(mercadopagoModule.default));
-    }
-    // --- FIM DO DIAGNÓSTICO ---
-
-    const mercadopago = mercadopagoModule.default || mercadopagoModule; // Resolve o objeto principal
-
-    // --- INÍCIO DO DIAGNÓSTICO (após resolução) ---
-    console.log('Tipo de mercadopago (resolvido):', typeof mercadopago);
-    console.log('Chaves de mercadopago (resolvido):', Object.keys(mercadopago));
-    console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
-    console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
-    console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
-    console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
-    console.log('--- FIM DO DIAGNÓSTICO (após resolução) ---');
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
@@ -70,7 +49,6 @@ serve(async (req: Request) => {
     }
 
     // 1. Criar um cliente Supabase com o token do usuário para verificar a sessão
-    // Passando o cabeçalho de autorização diretamente nas opções do cliente.
     const supabaseUserClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -78,7 +56,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         auth: {
-          persistSession: false, // Importante para ambientes sem estado como Edge Functions
+          persistSession: false,
         },
         global: {
           headers: {
@@ -112,15 +90,12 @@ serve(async (req: Request) => {
     if (!mpAccessToken) {
       throw new Error('Mercado Pago access token is not configured.');
     }
-    console.log('Mercado Pago Access Token loaded.'); // Log para confirmar que o token foi carregado
 
-    if (typeof mercadopago.configure === 'function') {
-      mercadopago.configure({ access_token: mpAccessToken });
-      console.log('Mercado Pago configured via mercadopago.configure');
-    } else {
-      throw new Error('Mercado Pago configure method not found or is not a function on the resolved object.');
-    }
+    // 2. Inicializar o cliente Mercado Pago v2.x
+    const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
+    const preference = new Preference(client);
 
+    // 3. Criar um cliente Supabase com a service_role_key para buscar detalhes do produto
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -128,6 +103,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Buscar detalhes do produto para garantir que preços e quantidades estejam corretos
     const productIds = cartItems.map((item: CartItem) => item.id);
     const { data: productsData, error: productsError } = await supabaseServiceRoleClient
       .from('products')
@@ -152,7 +128,7 @@ serve(async (req: Request) => {
       return {
         id: product.id,
         title: product.name,
-        unit_price: Number(product.price), // Garantir que é um número
+        unit_price: Number(product.price),
         quantity: item.quantity,
         currency_id: 'BRL',
         picture_url: (product.photo_urls && product.photo_urls.length > 0) ? product.photo_urls[0] : undefined,
@@ -161,7 +137,7 @@ serve(async (req: Request) => {
 
     const externalReference = `${user.id}-${Date.now()}`; // Unique reference for the order
 
-    const preference = {
+    const preferenceData = {
       items: preferenceItems,
       payer: {
         email: user.email,
@@ -177,25 +153,41 @@ serve(async (req: Request) => {
       // @ts-ignore
       notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`,
       auto_return: 'approved',
+      external_reference: externalReference, // Usado para vincular a venda
       metadata: {
         buyer_id: user.id,
-        cart_items: JSON.stringify(cartItems), // Store cart items for webhook processing
-        external_reference: externalReference,
+        cart_items: JSON.stringify(cartItems), // Armazena itens do carrinho para processamento do webhook
       },
     };
 
-    console.log('Mercado Pago Preference object:', JSON.stringify(preference, null, 2)); // Log do objeto de preferência
+    const mpResponse = await preference.create({ body: preferenceData });
+    const initPoint = mpResponse.init_point;
+    const preferenceId = mpResponse.id;
 
-    const mpResponse = await mercadopago.preferences.create(preference); // Acessando 'preferences.create' diretamente
+    // Salvar a preferência na tabela payment_preferences
+    const { error: insertPreferenceError } = await supabaseServiceRoleClient
+      .from('payment_preferences')
+      .insert({
+        preference_id: preferenceId,
+        buyer_id: user.id,
+        external_reference: externalReference,
+        cart_items_snapshot: cartItems,
+        status: 'created',
+      });
 
-    return new Response(JSON.stringify({ url: mpResponse.body.init_point }), {
+    if (insertPreferenceError) {
+      console.error('Error saving payment preference to DB:', insertPreferenceError.message);
+      // Decida se este erro deve impedir o checkout ou apenas ser logado
+      // Por enquanto, vamos apenas logar e continuar, pois o MP já criou a preferência.
+    }
+
+    return new Response(JSON.stringify({ success: true, preferenceId, url: initPoint }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error: unknown) {
     console.error('Edge Function error:', (error as Error).message);
-    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2)); // Log do objeto de erro completo
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

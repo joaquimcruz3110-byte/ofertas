@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
-import mercadopagoModule from 'https://esm.sh/mercadopago@2.0.10'; // Importação do módulo completo
+import { MercadoPagoConfig, Payment, MerchantOrder } from 'https://esm.sh/mercadopago@2.0.10'; // Importação do SDK v2.x
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,39 +24,16 @@ serve(async (req: Request) => {
   }
 
   try {
-    // --- INÍCIO DO DIAGNÓSTICO ---
-    console.log('--- DIAGNÓSTICO MERCADOPAGO mercadopago-webhook ---');
-    console.log('Tipo de mercadopagoModule:', typeof mercadopagoModule);
-    console.log('Chaves de mercadopagoModule:', Object.keys(mercadopagoModule));
-    console.log('Tipo de mercadopagoModule.default:', typeof mercadopagoModule.default);
-    if (mercadopagoModule.default) {
-      console.log('Chaves de mercadopagoModule.default:', Object.keys(mercadopagoModule.default));
-    }
-    // --- FIM DO DIAGNÓSTICO ---
-
-    const mercadopago = mercadopagoModule.default || mercadopagoModule; // Resolve o objeto principal
-
-    // --- INÍCIO DO DIAGNÓSTICO (após resolução) ---
-    console.log('Tipo de mercadopago (resolvido):', typeof mercadopago);
-    console.log('Chaves de mercadopago (resolvido):', Object.keys(mercadopago));
-    console.log('typeof mercadopago.configure:', typeof mercadopago.configure);
-    console.log('typeof mercadopago.preferences:', typeof mercadopago.preferences);
-    console.log('typeof mercadopago.payment:', typeof mercadopago.payment);
-    console.log('typeof mercadopago.merchant_orders:', typeof mercadopago.merchant_orders);
-    console.log('--- FIM DO DIAGNÓSTICO (após resolução) ---');
-
     // @ts-ignore
     const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     if (!mpAccessToken) {
       throw new Error('Mercado Pago access token is not configured.');
     }
 
-    if (typeof mercadopago.configure === 'function') {
-      mercadopago.configure({ access_token: mpAccessToken });
-      console.log('Mercado Pago configured via mercadopago.configure');
-    } else {
-      throw new Error('Mercado Pago configure method not found or is not a function on the resolved object.');
-    }
+    // 1. Inicializar o cliente Mercado Pago v2.x
+    const client = new MercadoPagoConfig({ accessToken: mpAccessToken });
+    const paymentClient = new Payment(client);
+    const merchantOrderClient = new MerchantOrder(client);
 
     const url = new URL(req.url);
     const topic = url.searchParams.get('topic');
@@ -71,19 +48,36 @@ serve(async (req: Request) => {
     }
 
     let paymentDetails;
+    let externalReference: string | undefined;
+    let buyerId: string | undefined;
+    let cartItems: CartItem[] | undefined;
+    let preferenceId: string | undefined;
+
     if (topic === 'payment') {
-      paymentDetails = await mercadopago.payment.findById(id); // Acessando 'payment.findById' diretamente
+      const paymentResponse = await paymentClient.get({ id: id });
+      paymentDetails = paymentResponse;
+      externalReference = paymentDetails.external_reference;
+      buyerId = paymentDetails.payer.id || paymentDetails.metadata?.buyer_id;
+      cartItems = paymentDetails.metadata?.cart_items ? JSON.parse(paymentDetails.metadata.cart_items) : undefined;
+      preferenceId = paymentDetails.preference_id;
+
     } else if (topic === 'merchant_order') {
-      const merchantOrder = await mercadopago.merchant_orders.findById(id); // Acessando 'merchant_orders.findById' diretamente
-      // Find the first approved payment in the merchant order
-      paymentDetails = merchantOrder.body.payments.find((p: any) => p.status === 'approved');
-      if (!paymentDetails) {
+      const merchantOrderResponse = await merchantOrderClient.get({ id: id });
+      const approvedPayment = merchantOrderResponse.payments.find((p: any) => p.status === 'approved');
+
+      if (!approvedPayment) {
         console.log(`Merchant order ${id} has no approved payments yet.`);
         return new Response(JSON.stringify({ message: 'No approved payments in merchant order yet' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         });
       }
+      paymentDetails = approvedPayment;
+      externalReference = merchantOrderResponse.external_reference;
+      buyerId = merchantOrderResponse.payer.id || merchantOrderResponse.metadata?.buyer_id;
+      cartItems = merchantOrderResponse.metadata?.cart_items ? JSON.parse(merchantOrderResponse.metadata.cart_items) : undefined;
+      preferenceId = merchantOrderResponse.preference_id;
+
     } else {
       console.log(`Unhandled Mercado Pago topic: ${topic}`);
       return new Response(JSON.stringify({ message: `Unhandled topic: ${topic}` }), {
@@ -92,27 +86,21 @@ serve(async (req: Request) => {
       });
     }
 
-    if (!paymentDetails || paymentDetails.body.status !== 'approved') {
-      console.log(`Payment ${id} not approved. Status: ${paymentDetails?.body?.status}`);
+    if (!paymentDetails || paymentDetails.status !== 'approved') {
+      console.log(`Payment ${id} not approved. Status: ${paymentDetails?.status}`);
       return new Response(JSON.stringify({ message: 'Payment not approved' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    const externalReference = paymentDetails.body.external_reference;
-    const buyerId = paymentDetails.body.payer.id || paymentDetails.body.metadata?.buyer_id; // Try to get buyer_id from payer.id or metadata
-    const cartItemsString = paymentDetails.body.metadata?.cart_items;
-
-    if (!buyerId || !cartItemsString) {
-      console.error('Missing buyer_id or cart_items in Mercado Pago payment metadata.');
+    if (!buyerId || !cartItems || !externalReference || !preferenceId) {
+      console.error('Missing buyer_id, cart_items, external_reference or preference_id in Mercado Pago payment details.');
       return new Response(JSON.stringify({ error: 'Missing metadata for order fulfillment' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
-
-    const cartItems: CartItem[] = JSON.parse(cartItemsString);
 
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
@@ -125,7 +113,7 @@ serve(async (req: Request) => {
     const { data: existingSales, error: salesCheckError } = await supabaseServiceRoleClient
       .from('sales')
       .select('id')
-      .eq('external_reference', externalReference) // Assuming you add an external_reference column to sales table
+      .eq('external_reference', externalReference)
       .limit(1);
 
     if (salesCheckError) {
@@ -189,7 +177,7 @@ serve(async (req: Request) => {
         p_quantity: requestedQuantity,
         p_total_price: totalPriceForItem,
         p_commission_rate: commissionRate,
-        p_external_reference: externalReference, // Pass external_reference to RPC
+        p_external_reference: externalReference,
       });
 
       if (purchaseError) {
@@ -199,6 +187,16 @@ serve(async (req: Request) => {
       } else {
         purchaseResults.push({ productId, success: true, message: `Successfully purchased ${product.name}` });
       }
+    }
+
+    // Atualizar o status da preferência de pagamento para 'fulfilled'
+    const { error: updatePreferenceStatusError } = await supabaseServiceRoleClient
+      .from('payment_preferences')
+      .update({ status: 'fulfilled', updated_at: new Date().toISOString() })
+      .eq('preference_id', preferenceId);
+
+    if (updatePreferenceStatusError) {
+      console.error('Error updating payment preference status:', updatePreferenceStatusError.message);
     }
 
     if (overallSuccess) {
