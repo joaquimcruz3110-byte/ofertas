@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { showSuccess, showError } from "@/utils/toast";
 import { format } from "date-fns";
+import { formatCurrency } from '@/utils/formatters'; // Importar a função de formatação de moeda
 
 interface Profile {
   id: string;
@@ -76,7 +77,7 @@ const AdminSales = () => {
 
     if (error) {
       console.error("Erro ao buscar lojistas:", error);
-      showError("Erro ao carregar lojistas.");
+      showError("Erro ao carregar lojistas: " + error.message);
       setError(error.message);
     } else {
       setShopkeepers(data || []);
@@ -124,13 +125,19 @@ const AdminSales = () => {
 
       if (productIdsError) {
         console.error("Erro ao buscar IDs de produtos para o lojista:", productIdsError);
-        showError("Erro ao carregar vendas: não foi possível filtrar por lojista.");
+        showError("Erro ao carregar vendas: não foi possível filtrar por lojista. Detalhes: " + productIdsError.message);
         setError(productIdsError.message);
         setLoading(false);
         return;
       }
 
       const productIds = productIdsData ? productIdsData.map(p => p.id) : [];
+      if (productIds.length === 0) {
+        // Se não há produtos para este lojista, não há vendas para mostrar.
+        setSales([]);
+        setLoading(false);
+        return;
+      }
       query = query.in("product_id", productIds);
     }
 
@@ -138,7 +145,7 @@ const AdminSales = () => {
 
     if (error) {
       console.error("Erro ao buscar vendas:", error);
-      showError("Erro ao carregar vendas.");
+      showError("Erro ao carregar vendas. Detalhes: " + error.message);
       setError(error.message);
     } else {
       const typedSales: Sale[] = (data || []).map((item: any) => ({
@@ -158,7 +165,7 @@ const AdminSales = () => {
         profiles: item.profiles,
       }));
       setSales(typedSales);
-      showSuccess("Vendas carregadas com sucesso!");
+      // showSuccess("Vendas carregadas com sucesso!"); // Removido para evitar spam de toasts
     }
     setLoading(false);
   };
@@ -185,7 +192,7 @@ const AdminSales = () => {
 
     if (error) {
       console.error("Erro ao marcar venda como repassada:", error);
-      showError("Erro ao marcar venda como repassada.");
+      showError("Erro ao marcar venda como repassada: " + error.message);
       setError(error.message);
     } else {
       showSuccess("Venda marcada como repassada com sucesso!");
@@ -204,9 +211,10 @@ const AdminSales = () => {
     sales.forEach(sale => {
       totalSalesCount++;
       totalRevenue += sale.total_price;
-      totalCommission += sale.total_price * sale.commission_rate;
+      // A taxa de comissão é um percentual (ex: 5 para 5%), então dividimos por 100
+      totalCommission += sale.total_price * (sale.commission_rate / 100);
 
-      const amountToShopkeeper = sale.total_price * (1 - sale.commission_rate);
+      const amountToShopkeeper = sale.total_price * (1 - (sale.commission_rate / 100));
 
       if (sale.is_paid_out) {
         totalPaidOut += amountToShopkeeper;
@@ -283,7 +291,7 @@ const AdminSales = () => {
                 <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -291,7 +299,7 @@ const AdminSales = () => {
                 <CardTitle className="text-sm font-medium">Comissão Total</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {totalCommission.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(totalCommission)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -299,7 +307,7 @@ const AdminSales = () => {
                 <CardTitle className="text-sm font-medium">Repassado Total</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {totalPaidOut.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(totalPaidOut)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -307,7 +315,7 @@ const AdminSales = () => {
                 <CardTitle className="text-sm font-medium">Pendente de Repasse</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {totalPendingPayout.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(totalPendingPayout)}</div>
               </CardContent>
             </Card>
           </div>
@@ -340,8 +348,8 @@ const AdminSales = () => {
                       </TableCell>
                       <TableCell>{sale.profiles?.[0]?.first_name} {sale.profiles?.[0]?.last_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
-                      <TableCell>{(sale.commission_rate * 100).toFixed(2)}%</TableCell>
+                      <TableCell>{formatCurrency(sale.total_price)}</TableCell>
+                      <TableCell>{(sale.commission_rate).toFixed(2)}%</TableCell> {/* Exibe a taxa como porcentagem */}
                       <TableCell>{format(new Date(sale.sale_date), "dd/MM/yyyy HH:mm")}</TableCell>
                       <TableCell>{sale.payment_gateway_status || "N/A"}</TableCell>
                       <TableCell>
