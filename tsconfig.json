@@ -25,9 +25,6 @@
     "paths": {
       "@/*": ["./*"]
     },
-    // Explicitamente informa ao TypeScript onde procurar por declarações de tipo
-    "typeRoots": ["./node_modules/@types"],
-    // Adicionado para compatibilidade com imports de módulos
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
