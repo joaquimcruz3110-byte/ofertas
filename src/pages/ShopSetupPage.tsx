@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Loader2, Store, Camera, Trash2 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod"; // Corrigido: de '*s z' para '* as z'
+import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useNavigate } from 'react-router-dom';
 
@@ -21,13 +21,13 @@ interface ShopDetails {
   shop_name: string;
   shop_description: string | null;
   shop_logo_url: string | null;
-  // mercadopago_account_id: string | null; // Removido
+  mercadopago_account_id: string | null; // Adicionado
 }
 
 const shopSetupFormSchema = z.object({
   shop_name: z.string().min(1, "O nome da loja é obrigatório."),
   shop_description: z.string().optional(),
-  // mercadopago_account_id: z.string().optional(), // Removido
+  mercadopago_account_id: z.string().optional(), // Adicionado
 });
 
 type ShopSetupFormValues = z.infer<typeof shopSetupFormSchema>;
@@ -47,7 +47,7 @@ const ShopSetupPage = () => {
     defaultValues: {
       shop_name: "",
       shop_description: "",
-      // mercadopago_account_id: "", // Removido
+      mercadopago_account_id: "", // Adicionado
     },
   });
 
@@ -76,7 +76,7 @@ const ShopSetupPage = () => {
       setShopDetails(shopData as ShopDetails);
       form.setValue('shop_name', shopData.shop_name || "");
       form.setValue('shop_description', shopData.shop_description || "");
-      // form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || ""); // Removido
+      form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || ""); // Adicionado
       setLogoPreview(shopData.shop_logo_url);
     }
 
@@ -211,7 +211,7 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            // mercadopago_account_id: values.mercadopago_account_id || null, // Removido
+            mercadopago_account_id: values.mercadopago_account_id || null, // Adicionado
           })
           .eq('id', session?.user?.id);
 
@@ -226,7 +226,7 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            // mercadopago_account_id: values.mercadopago_account_id || null, // Removido
+            mercadopago_account_id: values.mercadopago_account_id || null, // Adicionado
           });
 
         if (insertError) {
@@ -341,7 +341,7 @@ const ShopSetupPage = () => {
             )}
           />
 
-          {/* <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento (Mercado Pago)</h2>
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento (Mercado Pago)</h2>
           <FormField
             control={form.control}
             name="mercadopago_account_id"
@@ -357,7 +357,7 @@ const ShopSetupPage = () => {
                 <FormMessage />
               </FormItem>
             )}
-          /> */}
+          />
 
           <Button type="submit" className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
