@@ -24,7 +24,9 @@
     "baseUrl": "./src",
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    // Explicitamente informa ao TypeScript onde procurar por declarações de tipo
+    "typeRoots": ["./node_modules/@types", "./node_modules"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "supabase"],
