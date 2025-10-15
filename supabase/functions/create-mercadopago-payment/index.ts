@@ -1,7 +1,6 @@
-/// <reference types="./types.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2.45.0'; // Alterado para npm:
-import * as MercadoPago from 'npm:mercadopago@2.0.0'; // Importa como namespace usando npm:
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
+import { MercadoPagoConfig, Preference } from 'npm:mercadopago@2.0.0'; // Importação nomeada direta
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,12 +96,12 @@ serve(async (req: Request) => {
     });
 
     // Initialize Mercado Pago client with platform's access token
-    const client = new MercadoPago.MercadoPagoConfig({
+    const client = new MercadoPagoConfig({ // Uso direto da classe
       accessToken: Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') ?? '',
       options: { timeout: 5000, idempotencyKey: crypto.randomUUID() }
     });
 
-    const preference = new MercadoPago.Preference(client);
+    const preference = new Preference(client); // Uso direto da classe
 
     const preferenceBody = {
       items: mpItems,
