@@ -4,51 +4,18 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy, Check, Loader2 } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
-import { useState, useEffect } from 'react';
+import { showError } from '@/utils/toast';
+import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
-
-interface PixPaymentDetails {
-  qr_code: string;
-  qr_code_base64: string;
-  ticket_url: string;
-  payment_id: string;
-  payment_status: string;
-  external_reference: string;
-}
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading, userRole, userProfile } = useSession();
+  const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  const [isPixDialogOpen, setIsPixDialogOpen] = useState(false);
-  const [pixPaymentDetails, setPixPaymentDetails] = useState<PixPaymentDetails | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-  const [paymentCheckInterval, setPaymentCheckInterval] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (paymentCheckInterval) {
-      // Clear interval if dialog is closed or payment is approved/rejected
-      if (!isPixDialogOpen || pixPaymentDetails?.payment_status === 'approved' || pixPaymentDetails?.payment_status === 'rejected') {
-        clearInterval(paymentCheckInterval);
-        setPaymentCheckInterval(null);
-      }
-    }
-  }, [isPixDialogOpen, pixPaymentDetails?.payment_status, paymentCheckInterval]);
 
   const handleCheckout = async () => {
     if (!session?.user?.id) {
@@ -62,128 +29,9 @@ const CartPage = () => {
       return;
     }
 
-    // Basic validation for buyer profile details required by Mercado Pago
-    const requiredProfileFields = ['first_name', 'last_name', 'cpf', 'phone_number', 'address_street', 'address_number', 'address_postal_code', 'address_city', 'address_state'];
-    const missingFields = requiredProfileFields.filter(field => !userProfile?.[field]);
-
-    if (missingFields.length > 0) {
-      showError(`Por favor, complete seu perfil com as seguintes informações: ${missingFields.join(', ')}.`);
-      navigate('/profile');
-      return;
-    }
-
     setIsProcessingCheckout(true);
-    const toastId = showLoading('Iniciando checkout com Mercado Pago...');
-
-    try {
-      // Determine shopkeeperId
-      const shopkeeperIds = [...new Set(cartItems.map(item => item.shopkeeper_id))];
-      if (shopkeeperIds.length === 0) {
-        dismissToast(toastId);
-        showError('Não foi possível identificar o lojista para os itens no carrinho.');
-        setIsProcessingCheckout(false);
-        return;
-      }
-      if (shopkeeperIds.length > 1) {
-        dismissToast(toastId);
-        showError('Atualmente, só é possível comprar produtos de um único lojista por vez. Por favor, esvazie o carrinho e compre de um lojista por vez.');
-        setIsProcessingCheckout(false);
-        return;
-      }
-      const shopkeeperId = shopkeeperIds[0];
-
-      if (!shopkeeperId) {
-        dismissToast(toastId);
-        showError('Erro interno: ID do lojista não encontrado para os itens no carrinho.');
-        setIsProcessingCheckout(false);
-        return;
-      }
-
-      // Validate total amount
-      if (isNaN(totalPrice) || totalPrice <= 0) {
-        dismissToast(toastId);
-        showError('O valor total da compra é inválido. Por favor, verifique os itens do carrinho.');
-        setIsProcessingCheckout(false);
-        return;
-      }
-
-      const payload = {
-        cartItems: cartItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        })),
-        buyerId: session.user.id,
-        totalAmount: totalPrice,
-        shopkeeperId: shopkeeperId,
-      };
-
-      console.log('Sending payload to create-mercadopago-payment:', payload); // Debug log
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mercadopago-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha ao criar pagamento no Mercado Pago.');
-      }
-
-      const data: PixPaymentDetails = await response.json();
-      setPixPaymentDetails(data);
-      setIsPixDialogOpen(true);
-      showSuccess('Pagamento Pix gerado com sucesso!');
-
-      // Start polling for payment status
-      const interval = setInterval(async () => {
-        const { data: paymentStatusData, error } = await supabase
-          .from('sales')
-          .select('payment_gateway_status')
-          .eq('payment_gateway_id', data.payment_id)
-          .single();
-
-        if (error) {
-          console.error('Error polling payment status:', error.message);
-          return;
-        }
-
-        if (paymentStatusData?.payment_gateway_status === 'approved') {
-          showSuccess('Pagamento aprovado! Redirecionando...');
-          clearInterval(interval);
-          setPaymentCheckInterval(null);
-          clearCart();
-          navigate('/meus-pedidos');
-        } else if (paymentStatusData?.payment_gateway_status === 'rejected') {
-          showError('Pagamento rejeitado. Por favor, tente novamente.');
-          clearInterval(interval);
-          setPaymentCheckInterval(null);
-          setIsPixDialogOpen(false);
-        }
-      }, 5000); // Poll every 5 seconds
-      setPaymentCheckInterval(interval as unknown as number); // Store interval ID
-
-    } catch (error: any) {
-      showError('Erro ao finalizar compra: ' + error.message);
-      console.error('Erro ao finalizar compra:', error);
-    } finally {
-      dismissToast(toastId);
-      setIsProcessingCheckout(false);
-    }
-  };
-
-  const handleCopyPixCode = () => {
-    if (pixPaymentDetails?.qr_code) {
-      navigator.clipboard.writeText(pixPaymentDetails.qr_code);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-      showSuccess('Código Pix copiado!');
-    }
+    showError('A funcionalidade de checkout está temporariamente desabilitada. Por favor, tente novamente mais tarde.');
+    setIsProcessingCheckout(false);
   };
 
   if (isSessionLoading) {
@@ -289,63 +137,11 @@ const CartPage = () => {
               className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white"
               disabled={cartItems.length === 0 || isProcessingCheckout}
             >
-              {isProcessingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Finalizar Compra com Mercado Pago
+              Finalizar Compra
             </Button>
           </div>
         </div>
       )}
-
-      <Dialog open={isPixDialogOpen} onOpenChange={setIsPixDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Pagamento via Pix (Mercado Pago)</DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code ou copie o código Pix para finalizar seu pagamento.
-            </DialogDescription>
-          </DialogHeader>
-          {pixPaymentDetails ? (
-            <div className="grid gap-4 py-4 text-center">
-              <img
-                src={`data:image/png;base64,${pixPaymentDetails.qr_code_base64}`}
-                alt="QR Code Pix"
-                className="mx-auto w-48 h-48 object-contain border rounded-md p-2"
-              />
-              <div className="space-y-2">
-                <Label htmlFor="pix-code" className="text-left">Código Pix (Copia e Cola)</Label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    id="pix-code"
-                    value={pixPaymentDetails.qr_code}
-                    readOnly
-                    className="flex-grow"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCopyPixCode}
-                    className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
-                  >
-                    {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    <span className="sr-only">{isCopied ? 'Copiado' : 'Copiar'}</span>
-                  </Button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-500">
-                Aguardando a confirmação do pagamento. Esta janela fechará automaticamente após a aprovação.
-              </p>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Loader2 className="mx-auto h-12 w-12 animate-spin text-dyad-dark-blue" />
-              <p className="mt-4 text-gray-600">Gerando QR Code...</p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsPixDialogOpen(false)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
