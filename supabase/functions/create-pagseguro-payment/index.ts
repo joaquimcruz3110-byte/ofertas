@@ -209,14 +209,27 @@ serve(async (req: Request) => {
       body: JSON.stringify(pagseguroPaymentBody),
     });
 
-    const responseData = await pagseguroResponse.json();
+    // --- Adicionado para depuração ---
     console.log('PagSeguro Response Status:', pagseguroResponse.status);
-    console.log('PagSeguro Response Data:', JSON.stringify(responseData, null, 2));
+    console.log('PagSeguro Response Headers:', JSON.stringify(Object.fromEntries(pagseguroResponse.headers.entries()), null, 2));
+    const responseText = await pagseguroResponse.text();
+    console.log('PagSeguro Raw Response Text:', responseText);
+    // --- Fim da adição para depuração ---
 
     if (!pagseguroResponse.ok) {
-      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${JSON.stringify(responseData)}`);
+      // Tenta parsear como JSON se possível, caso contrário, usa o texto bruto
+      let errorDetails = responseText;
+      try {
+        errorDetails = JSON.parse(responseText);
+      } catch (e) {
+        // Não é JSON, usa o texto bruto
+      }
+      throw new Error(`Failed to create PagSeguro payment: ${pagseguroResponse.status} - ${JSON.stringify(errorDetails)}`);
     }
     
+    const responseData = JSON.parse(responseText); // Agora parseamos o texto que já lemos
+    console.log('PagSeguro Parsed Response Data:', JSON.stringify(responseData, null, 2));
+
     const pixPayment = responseData.payment_methods?.find((pm: any) => pm.type === 'PIX');
 
     if (!pixPayment || !pixPayment.qr_codes || pixPayment.qr_codes.length === 0) {
