@@ -9,6 +9,7 @@ interface CartItem {
   price: number;
   quantity: number;
   photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
+  shopkeeper_id: string; // Adicionado para identificar o lojista
 }
 
 interface CartContextType {
@@ -53,6 +54,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 name: product.name, // Atualiza o nome
                 price: product.price, // Atualiza o preço
                 photo_url: product.photo_url, // Atualiza a URL da foto
+                shopkeeper_id: product.shopkeeper_id, // Atualiza o shopkeeper_id
               }
             : item
         );

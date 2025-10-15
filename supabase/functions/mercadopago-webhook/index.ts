@@ -1,5 +1,6 @@
-/// <reference types="https://deno.land/std@0.190.0/http/server.d.ts" />
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -7,55 +8,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req: Request) => { // Adicionado tipo Request
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Use service role key for webhooks
-    { auth: { persistSession: false } }
-  );
-
   try {
-    const body = await req.json();
-    console.log('Mercado Pago Webhook received:', body);
+    const supabaseAdminClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    const { type, data } = body;
+    const payload = await req.json();
+    console.log('Mercado Pago Webhook received:', payload);
 
-    if (type === 'payment' && data?.id) {
-      const paymentId = data.id;
+    // Mercado Pago sends notifications about different resource types
+    // We are interested in 'payment' notifications
+    if (payload.type === 'payment' && payload.data && payload.data.id) {
+      const paymentId = payload.data.id;
 
-      // Fetch payment details from Mercado Pago API
-      const mercadopagoApiBase = Deno.env.get('MERCADOPAGO_API_BASE') || 'https://api.mercadopago.com';
-      // You need to fetch the shopkeeper's access_token to query Mercado Pago API
-      // This is a simplification. In a real scenario, you'd need to store and retrieve
-      // the shopkeeper's access_token associated with the payment.
-      // For now, we'll assume a single, global access token for testing or
-      // fetch it based on the external_reference if it contains shopkeeper_id.
-      // For this example, we'll use a placeholder.
-      const mercadopagoAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN_GLOBAL'); // Placeholder for global token
+      // Fetch payment details from Mercado Pago API using the paymentId
+      // This is important to get the full payment status and metadata
+      const { data: mpPrefs, error: mpPrefsError } = await supabaseAdminClient
+        .from('mercadopago_preferences')
+        .select('access_token')
+        .limit(1) // Assuming one admin or a way to get a valid token
+        .single();
 
-      if (!mercadopagoAccessToken) {
-        console.error('MERCADOPAGO_ACCESS_TOKEN_GLOBAL is not set.');
-        return new Response(JSON.stringify({ error: 'Mercado Pago access token not configured.' }), {
+      if (mpPrefsError || !mpPrefs) {
+        console.error('Error fetching Mercado Pago preferences for webhook:', mpPrefsError?.message);
+        return new Response(JSON.stringify({ error: 'Mercado Pago credentials not found for webhook processing.' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const mpPaymentResponse = await fetch(`${mercadopagoApiBase}/v1/payments/${paymentId}`, {
-        method: 'GET',
+      const MERCADOPAGO_ACCESS_TOKEN = mpPrefs.access_token;
+      const MERCADOPAGO_API_BASE = 'https://api.mercadopago.com';
+
+      const mpPaymentResponse = await fetch(`${MERCADOPAGO_API_BASE}/v1/payments/${paymentId}`, {
         headers: {
-          'Authorization': `Bearer ${mercadopagoAccessToken}`,
+          'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
         },
       });
 
       if (!mpPaymentResponse.ok) {
-        const errorBody = await mpPaymentResponse.json();
-        console.error('Failed to fetch payment details from Mercado Pago:', errorBody);
-        return new Response(JSON.stringify({ error: 'Failed to fetch payment details from Mercado Pago' }), {
+        const errorData = await mpPaymentResponse.json();
+        console.error('Failed to fetch Mercado Pago payment details:', errorData);
+        return new Response(JSON.stringify({ error: 'Failed to fetch Mercado Pago payment details', details: errorData }), {
           status: mpPaymentResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -63,69 +65,74 @@ serve(async (req: Request) => { // Adicionado tipo Request
 
       const mpPayment = await mpPaymentResponse.json();
       const paymentStatus = mpPayment.status; // e.g., 'approved', 'pending', 'rejected'
-      const externalReference = mpPayment.external_reference; // This should be our buyerId
+      const externalReference = mpPayment.external_reference;
+      const metadata = mpPayment.metadata;
 
       console.log(`Payment ${paymentId} status: ${paymentStatus}, External Reference: ${externalReference}`);
 
-      // Update sales records in Supabase
-      const { data: sales, error: salesFetchError } = await supabase
-        .from('sales')
-        .select('id, product_id, quantity')
-        .eq('payment_gateway_id', paymentId.toString());
-
-      if (salesFetchError) {
-        console.error('Error fetching sales for payment:', salesFetchError.message);
-        return new Response(JSON.stringify({ error: 'Failed to fetch sales for payment.' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const { error: updateError } = await supabase
-        .from('sales')
-        .update({ payment_gateway_status: paymentStatus })
-        .eq('payment_gateway_id', paymentId.toString());
-
-      if (updateError) {
-        console.error('Error updating sales status:', updateError.message);
-        return new Response(JSON.stringify({ error: 'Failed to update sales status.' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // If payment is approved, decrement product quantities
       if (paymentStatus === 'approved') {
-        for (const sale of sales) {
-          const { error: decrementError } = await supabase
-            .from('products')
-            .update({ quantity: (prevQuantity: number) => prevQuantity - sale.quantity })
-            .eq('id', sale.product_id);
+        const buyerId = metadata.buyer_id;
+        // const shopkeeperId = metadata.shopkeeper_id; // Removido: variável não utilizada
+        const cartItems = metadata.cart_items;
 
-          if (decrementError) {
-            console.error(`Error decrementing quantity for product ${sale.product_id}:`, decrementError.message);
-            // Log this, but don't fail the webhook, as sales status is already updated.
-            // Manual intervention might be needed for stock reconciliation.
+        // Fetch the current active commission rate
+        const { data: commissionRateData, error: commissionError } = await supabaseAdminClient
+          .from('commission_rates')
+          .select('rate')
+          .eq('active', true)
+          .order('set_date', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (commissionError || !commissionRateData) {
+          console.error('Error fetching active commission rate:', commissionError?.message);
+          return new Response(JSON.stringify({ error: 'Failed to fetch active commission rate.' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const commissionRate = commissionRateData.rate;
+
+        // Process each item in the cart
+        for (const item of cartItems) {
+          const { product_id, quantity, price } = item;
+          const totalPrice = price * quantity;
+
+          // Call the perform_purchase function
+          const { error: purchaseError } = await supabaseAdminClient.rpc('perform_purchase', {
+            p_product_id: product_id,
+            p_buyer_id: buyerId,
+            p_quantity: quantity,
+            p_total_price: totalPrice,
+            p_commission_rate: commissionRate,
+            p_payment_gateway_id: paymentId,
+            p_payment_gateway_status: paymentStatus,
+          });
+
+          if (purchaseError) {
+            console.error(`Error performing purchase for product ${product_id}:`, purchaseError.message);
+            // Depending on your error handling strategy, you might want to
+            // revert previous purchases or notify an admin.
+          } else {
+            console.log(`Purchase recorded for product ${product_id}.`);
           }
         }
+      } else {
+        console.log(`Payment ${paymentId} not approved. Status: ${paymentStatus}. No purchase recorded.`);
+        // You might want to log failed payments or update a pending order status
       }
-
-      return new Response(JSON.stringify({ message: 'Webhook processed successfully' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
-    return new Response(JSON.stringify({ message: 'Webhook received, but not a payment notification or missing data.' }), {
-      status: 200,
+    return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
 
-  } catch (error: unknown) { // Adicionado tipo unknown
-    console.error('Error in mercadopago-webhook:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error', details: (error as Error).message }), { // Type assertion
-      status: 500,
+  } catch (error: unknown) {
+    console.error('Error in mercadopago-webhook Edge Function:', (error as Error).message);
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
     });
   }
 });

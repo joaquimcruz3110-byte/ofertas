@@ -80,6 +80,7 @@ const ProductDetail = () => {
       name: product.name,
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
+      shopkeeper_id: product.shopkeeper_id, // Passa o shopkeeper_id
     });
   };
 

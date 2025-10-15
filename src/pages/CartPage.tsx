@@ -5,9 +5,9 @@ import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy, Check, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatCurrency } from '@/utils/formatters';
 import {
   Dialog,
@@ -17,110 +17,144 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label'; // Adicionado
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client'; // Adicionado
+
+interface PixPaymentDetails {
+  qr_code: string;
+  qr_code_base64: string;
+  ticket_url: string;
+  payment_id: string;
+  payment_status: string;
+  external_reference: string;
+}
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole, userProfile } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
+  const navigate = useNavigate();
+
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [isPixDialogOpen, setIsPixDialogOpen] = useState(false);
-  const [pixQrCodeBase64, setPixQrCodeBase64] = useState<string | null>(null);
-  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [pixPaymentDetails, setPixPaymentDetails] = useState<PixPaymentDetails | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [paymentCheckInterval, setPaymentCheckInterval] = useState<number | null>(null);
 
-  const handleCopyPixCode = () => {
-    if (pixQrCode) {
-      navigator.clipboard.writeText(pixQrCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      showSuccess('Código Pix copiado!');
+  useEffect(() => {
+    if (paymentCheckInterval) {
+      // Clear interval if dialog is closed or payment is approved/rejected
+      if (!isPixDialogOpen || pixPaymentDetails?.payment_status === 'approved' || pixPaymentDetails?.payment_status === 'rejected') {
+        clearInterval(paymentCheckInterval);
+        setPaymentCheckInterval(null);
+      }
+    }
+  }, [isPixDialogOpen, pixPaymentDetails?.payment_status, paymentCheckInterval]);
+
+  const handleCheckout = async () => {
+    if (!session?.user?.id) {
+      showError('Você precisa estar logado para finalizar a compra.');
+      navigate('/login');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      showError('Seu carrinho está vazio.');
+      return;
+    }
+
+    // Basic validation for buyer profile details required by Mercado Pago
+    if (!userProfile?.cpf || !userProfile?.phone_number || !userProfile?.address_street || !userProfile?.address_city || !userProfile?.address_state || !userProfile?.address_postal_code) {
+      showError('Por favor, complete suas informações de CPF, telefone e endereço no seu perfil para finalizar a compra.');
+      navigate('/profile');
+      return;
+    }
+
+    setIsProcessingCheckout(true);
+    const toastId = showLoading('Iniciando checkout com Mercado Pago...');
+
+    try {
+      // Group cart items by shopkeeper to create separate payments if needed
+      // For simplicity, let's assume one payment per shopkeeper for now.
+      // If multiple shopkeepers, this logic would need to be expanded.
+      const shopkeeperIds = [...new Set(cartItems.map(item => item.shopkeeper_id))];
+      if (shopkeeperIds.length > 1) {
+        showError('Atualmente, só é possível comprar produtos de um único lojista por vez. Por favor, esvazie o carrinho e compre de um lojista por vez.');
+        return;
+      }
+      const shopkeeperId = shopkeeperIds[0]; // Assuming one shopkeeper for now
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mercadopago-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          cartItems: cartItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+          buyerId: session.user.id,
+          totalAmount: totalPrice,
+          shopkeeperId: shopkeeperId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha ao criar pagamento no Mercado Pago.');
+      }
+
+      const data: PixPaymentDetails = await response.json();
+      setPixPaymentDetails(data);
+      setIsPixDialogOpen(true);
+      showSuccess('Pagamento Pix gerado com sucesso!');
+
+      // Start polling for payment status
+      const interval = setInterval(async () => {
+        const { data: paymentStatusData, error } = await supabase
+          .from('sales')
+          .select('payment_gateway_status')
+          .eq('payment_gateway_id', data.payment_id)
+          .single();
+
+        if (error) {
+          console.error('Error polling payment status:', error.message);
+          return;
+        }
+
+        if (paymentStatusData?.payment_gateway_status === 'approved') {
+          showSuccess('Pagamento aprovado! Redirecionando...');
+          clearInterval(interval);
+          setPaymentCheckInterval(null);
+          clearCart();
+          navigate('/meus-pedidos');
+        } else if (paymentStatusData?.payment_gateway_status === 'rejected') {
+          showError('Pagamento rejeitado. Por favor, tente novamente.');
+          clearInterval(interval);
+          setPaymentCheckInterval(null);
+          setIsPixDialogOpen(false);
+        }
+      }, 5000); // Poll every 5 seconds
+      setPaymentCheckInterval(interval as unknown as number); // Store interval ID
+
+    } catch (error: any) {
+      showError('Erro ao finalizar compra: ' + error.message);
+      console.error('Erro ao finalizar compra:', error);
+    } finally {
+      dismissToast(toastId);
+      setIsProcessingCheckout(false);
     }
   };
 
-  const handleCheckout = async () => {
-    setIsProcessingCheckout(true);
-    const toastId = showLoading('Processando pagamento com Mercado Pago...');
-
-    if (!session?.user?.id) {
-      dismissToast(toastId);
-      showError('Usuário não autenticado.');
-      setIsProcessingCheckout(false);
-      return;
-    }
-
-    // Validate buyer profile for Mercado Pago
-    const requiredProfileFields = ['first_name', 'last_name', 'cpf', 'phone_number', 'address_street', 'address_number', 'address_postal_code', 'address_city', 'address_state'];
-    const missingFields = requiredProfileFields.filter(field => !userProfile?.[field]);
-
-    if (missingFields.length > 0) {
-      dismissToast(toastId);
-      showError(`Por favor, complete seu perfil com as seguintes informações: ${missingFields.join(', ')}.`);
-      setIsProcessingCheckout(false);
-      return;
-    }
-
-    // Group cart items by shopkeeper_id
-    const itemsByShopkeeper: { [key: string]: typeof cartItems } = {};
-    for (const item of cartItems) {
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('shopkeeper_id')
-        .eq('id', item.id)
-        .single();
-
-      if (productError || !productData?.shopkeeper_id) {
-        dismissToast(toastId);
-        showError(`Erro ao obter informações do lojista para o produto ${item.name}.`);
-        setIsProcessingCheckout(false);
-        return;
-      }
-
-      if (!itemsByShopkeeper[productData.shopkeeper_id]) {
-        itemsByShopkeeper[productData.shopkeeper_id] = [];
-      }
-      itemsByShopkeeper[productData.shopkeeper_id].push(item);
-    }
-
-    // For simplicity, we'll only process the first shopkeeper's items.
-    // A real-world scenario might involve multiple payments or a marketplace payment solution.
-    const firstShopkeeperId = Object.keys(itemsByShopkeeper)[0];
-    if (!firstShopkeeperId) {
-      dismissToast(toastId);
-      showError('Nenhum produto no carrinho associado a um lojista.');
-      setIsProcessingCheckout(false);
-      return;
-    }
-    const itemsForPayment = itemsByShopkeeper[firstShopkeeperId];
-
-    try {
-      const response = await supabase.functions.invoke('create-mercadopago-payment', {
-        body: {
-          cartItems: itemsForPayment,
-          buyerId: session.user.id,
-          returnUrl: window.location.origin + '/meus-pedidos', // URL de retorno após o pagamento
-        },
-      });
-
-      dismissToast(toastId);
-
-      if (response.error) {
-        showError('Erro ao gerar pagamento Pix com Mercado Pago: ' + response.error.message);
-        console.error('Erro ao gerar pagamento Pix com Mercado Pago:', response.error);
-      } else if (response.data) {
-        const { qr_code_base64, qr_code } = response.data;
-        setPixQrCodeBase64(qr_code_base64);
-        setPixQrCode(qr_code);
-        setIsPixDialogOpen(true);
-        clearCart(); // Limpa o carrinho após iniciar o pagamento
-      }
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError('Erro inesperado ao processar pagamento: ' + error.message);
-      console.error('Erro inesperado ao processar pagamento:', error);
-    } finally {
-      setIsProcessingCheckout(false);
+  const handleCopyPixCode = () => {
+    if (pixPaymentDetails?.qr_code) {
+      navigator.clipboard.writeText(pixPaymentDetails.qr_code);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      showSuccess('Código Pix copiado!');
     }
   };
 
@@ -235,36 +269,52 @@ const CartPage = () => {
       )}
 
       <Dialog open={isPixDialogOpen} onOpenChange={setIsPixDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] text-center">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Pagamento Pix via Mercado Pago</DialogTitle>
+            <DialogTitle>Pagamento via Pix (Mercado Pago)</DialogTitle>
             <DialogDescription>
               Escaneie o QR Code ou copie o código Pix para finalizar seu pagamento.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-4">
-            {pixQrCodeBase64 ? (
-              <img src={`data:image/png;base64,${pixQrCodeBase64}`} alt="QR Code Pix" className="w-48 h-48 mb-4 border rounded-md" />
-            ) : (
-              <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-md mb-4">
-                <Loader2 className="h-12 w-12 animate-spin text-gray-400" />
+          {pixPaymentDetails ? (
+            <div className="grid gap-4 py-4 text-center">
+              <img
+                src={`data:image/png;base64,${pixPaymentDetails.qr_code_base64}`}
+                alt="QR Code Pix"
+                className="mx-auto w-48 h-48 object-contain border rounded-md p-2"
+              />
+              <div className="space-y-2">
+                <Label htmlFor="pix-code" className="text-left">Código Pix (Copia e Cola)</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="pix-code"
+                    value={pixPaymentDetails.qr_code}
+                    readOnly
+                    className="flex-grow"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCopyPixCode}
+                    className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
+                  >
+                    {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    <span className="sr-only">{isCopied ? 'Copiado' : 'Copiar'}</span>
+                  </Button>
+                </div>
               </div>
-            )}
-            <p className="text-sm text-gray-600 mb-2">Valor: <span className="font-bold text-dyad-vibrant-orange">{formatCurrency(totalPrice)}</span></p>
-            <Separator className="my-4" />
-            <Label htmlFor="pix-code" className="text-left w-full mb-2">Código Pix (Copia e Cola)</Label>
-            <div className="flex w-full max-w-sm items-center space-x-2">
-              <Input id="pix-code" value={pixQrCode || ''} readOnly className="flex-grow" />
-              <Button onClick={handleCopyPixCode} disabled={copied}>
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                <span className="sr-only">{copied ? 'Copiado!' : 'Copiar'}</span>
-              </Button>
+              <p className="text-sm text-gray-500">
+                Aguardando a confirmação do pagamento. Esta janela fechará automaticamente após a aprovação.
+              </p>
             </div>
-          </div>
-          <DialogFooter className="flex sm:justify-center">
-            <Button onClick={() => setIsPixDialogOpen(false)} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
-              Fechar
-            </Button>
+          ) : (
+            <div className="text-center py-8">
+              <Loader2 className="mx-auto h-12 w-12 animate-spin text-dyad-dark-blue" />
+              <p className="mt-4 text-gray-600">Gerando QR Code...</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPixDialogOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

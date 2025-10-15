@@ -11,7 +11,7 @@ interface SessionContextType {
   userName: string | null;
   userRole: string | null;
   hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
-  userProfile: any; // Adicionado para armazenar o perfil completo do usuário
+  userProfile: any; // Adicionado para armazenar o perfil completo
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -41,7 +41,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
     } else if (profileData) {
       setUserName(profileData.first_name || profileData.last_name || "Usuário");
       setUserRole(profileData.role || "comprador"); // Fallback
-      setUserProfile(profileData); // Armazena o perfil completo
+      setUserProfile(profileData);
 
       // Check for shop details if the user is a shopkeeper
       if (profileData.role === 'lojista') {
