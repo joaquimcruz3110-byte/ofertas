@@ -44,8 +44,15 @@ const CartPage = () => {
         return;
       }
 
-      // Get unique shopkeeper IDs from cart items
-      const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id)));
+      // Get unique shopkeeper IDs from cart items, filtering out null/undefined values
+      const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id))).filter(id => id !== null && id !== undefined) as string[];
+
+      // If there are no valid shopkeeper IDs after filtering, it means all items are problematic
+      if (uniqueShopkeeperIds.length === 0 && cartItems.length > 0) {
+        showError('Não foi possível identificar os lojistas para os produtos no seu carrinho. Por favor, remova os itens e tente novamente.');
+        setIsProcessingCheckout(false);
+        return;
+      }
 
       // Fetch Mercado Pago account IDs for all involved shopkeepers
       const { data: shopDetails, error: shopError } = await supabase
