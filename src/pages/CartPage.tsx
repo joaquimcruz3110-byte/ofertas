@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client'; // Adicionado
+import { supabase } from '@/integrations/supabase/client';
 
 interface PixPaymentDetails {
   qr_code: string;
@@ -63,8 +63,11 @@ const CartPage = () => {
     }
 
     // Basic validation for buyer profile details required by Mercado Pago
-    if (!userProfile?.cpf || !userProfile?.phone_number || !userProfile?.address_street || !userProfile?.address_city || !userProfile?.address_state || !userProfile?.address_postal_code) {
-      showError('Por favor, complete suas informações de CPF, telefone e endereço no seu perfil para finalizar a compra.');
+    const requiredProfileFields = ['first_name', 'last_name', 'cpf', 'phone_number', 'address_street', 'address_number', 'address_postal_code', 'address_city', 'address_state'];
+    const missingFields = requiredProfileFields.filter(field => !userProfile?.[field]);
+
+    if (missingFields.length > 0) {
+      showError(`Por favor, complete seu perfil com as seguintes informações: ${missingFields.join(', ')}.`);
       navigate('/profile');
       return;
     }
@@ -73,15 +76,50 @@ const CartPage = () => {
     const toastId = showLoading('Iniciando checkout com Mercado Pago...');
 
     try {
-      // Group cart items by shopkeeper to create separate payments if needed
-      // For simplicity, let's assume one payment per shopkeeper for now.
-      // If multiple shopkeepers, this logic would need to be expanded.
+      // Determine shopkeeperId
       const shopkeeperIds = [...new Set(cartItems.map(item => item.shopkeeper_id))];
-      if (shopkeeperIds.length > 1) {
-        showError('Atualmente, só é possível comprar produtos de um único lojista por vez. Por favor, esvazie o carrinho e compre de um lojista por vez.');
+      if (shopkeeperIds.length === 0) {
+        dismissToast(toastId);
+        showError('Não foi possível identificar o lojista para os itens no carrinho.');
+        setIsProcessingCheckout(false);
         return;
       }
-      const shopkeeperId = shopkeeperIds[0]; // Assuming one shopkeeper for now
+      if (shopkeeperIds.length > 1) {
+        dismissToast(toastId);
+        showError('Atualmente, só é possível comprar produtos de um único lojista por vez. Por favor, esvazie o carrinho e compre de um lojista por vez.');
+        setIsProcessingCheckout(false);
+        return;
+      }
+      const shopkeeperId = shopkeeperIds[0];
+
+      if (!shopkeeperId) {
+        dismissToast(toastId);
+        showError('Erro interno: ID do lojista não encontrado para os itens no carrinho.');
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      // Validate total amount
+      if (isNaN(totalPrice) || totalPrice <= 0) {
+        dismissToast(toastId);
+        showError('O valor total da compra é inválido. Por favor, verifique os itens do carrinho.');
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      const payload = {
+        cartItems: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        buyerId: session.user.id,
+        totalAmount: totalPrice,
+        shopkeeperId: shopkeeperId,
+      };
+
+      console.log('Sending payload to create-mercadopago-payment:', payload); // Debug log
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mercadopago-payment`, {
         method: 'POST',
@@ -89,17 +127,7 @@ const CartPage = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          cartItems: cartItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-          })),
-          buyerId: session.user.id,
-          totalAmount: totalPrice,
-          shopkeeperId: shopkeeperId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
