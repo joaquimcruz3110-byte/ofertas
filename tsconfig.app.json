@@ -5,7 +5,8 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "lib": ["DOM", "DOM.Iterable", "ES2020"]
   },
+  // Inclui apenas arquivos .ts e .tsx dentro de src para o frontend.
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  // Exclui explicitamente os diretórios das funções Supabase para evitar erros de compilação no frontend.
-  "exclude": ["node_modules", "dist", "supabase", "functions", "supabase/functions"]
+  // Exclui explicitamente o diretório 'supabase' para evitar erros de compilação no frontend.
+  "exclude": ["node_modules", "dist", "supabase"]
 }

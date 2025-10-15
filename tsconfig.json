@@ -26,12 +26,13 @@
       "@/*": ["./*"]
     },
     // Explicitamente informa ao TypeScript onde procurar por declarações de tipo
-    "typeRoots": ["./node_modules/@types", "./node_modules"],
+    "typeRoots": ["./node_modules/@types"],
     // Adicionado para compatibilidade com imports de módulos
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "supabase", "functions", "supabase/functions"],
+  // Exclui explicitamente o diretório 'supabase' para evitar erros de compilação no frontend.
+  "exclude": ["node_modules", "dist", "supabase"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
