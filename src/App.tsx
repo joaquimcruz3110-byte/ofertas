@@ -28,6 +28,7 @@ import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
 import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
 import MercadoPagoReturnPage from "./pages/MercadoPagoReturnPage"; // Importar a página de retorno do Mercado Pago
+import AdminSales from "./pages/AdminSales"; // Importar a página AdminSales
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const App = () => (
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
                 <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
+                <Route path="/admin-sales" element={<AdminSales />} /> {/* Nova rota para AdminSales */}
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

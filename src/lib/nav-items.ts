@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart, ReceiptText } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -22,4 +22,5 @@ export const navItems: NavItem[] = [
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
   { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Store, roles: ['administrador'] },
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
+  { name: 'Gerenciar Vendas', href: '/admin-sales', icon: ReceiptText, roles: ['administrador'] }, // Novo item para AdminSales
 ];
