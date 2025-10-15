@@ -23,28 +23,27 @@ serve(async (req: Request) => {
       });
     }
 
-    const emailServiceApiKey = Deno.env.get('EMAIL_SERVICE_API_KEY');
-    const emailServiceApiUrl = Deno.env.get('EMAIL_SERVICE_API_URL');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-    if (!emailServiceApiKey || !emailServiceApiUrl) {
-      console.error('EMAIL_SERVICE_API_KEY or EMAIL_SERVICE_API_URL not set in environment variables.');
-      return new Response(JSON.stringify({ error: 'Email service not configured. Please set EMAIL_SERVICE_API_KEY and EMAIL_SERVICE_API_URL.' }), {
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY not set in environment variables.');
+      return new Response(JSON.stringify({ error: 'Resend API key not configured. Please set RESEND_API_KEY.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Este é um exemplo genérico de como você pode chamar uma API de serviço de e-mail.
-    // Você precisará adaptar o 'body' e os 'headers' para o serviço de e-mail que você usa (ex: Mailgun, SendGrid).
-    const emailResponse = await fetch(emailServiceApiUrl, {
+    const resendApiUrl = 'https://api.resend.com/emails'; // URL da API do Resend
+
+    const emailResponse = await fetch(resendApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${emailServiceApiKey}`, // Exemplo para APIs que usam Bearer Token
+        'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
+        from: 'Olímpia Ofertas <onboarding@resend.dev>', // Altere para um e-mail de remetente verificado no Resend
         to: to,
-        from: 'Olímpia Ofertas <no-reply@olimpiaofertas.com>', // Altere para o seu e-mail de remetente
         subject: subject,
         html: htmlContent,
       }),
@@ -52,14 +51,14 @@ serve(async (req: Request) => {
 
     if (!emailResponse.ok) {
       const errorBody = await emailResponse.text();
-      console.error(`Failed to send email: ${emailResponse.status} - ${errorBody}`);
-      return new Response(JSON.stringify({ error: `Failed to send email: ${errorBody}` }), {
+      console.error(`Failed to send email via Resend: ${emailResponse.status} - ${errorBody}`);
+      return new Response(JSON.stringify({ error: `Failed to send email via Resend: ${errorBody}` }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ message: 'Email sent successfully.' }), {
+    return new Response(JSON.stringify({ message: 'Email sent successfully via Resend.' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
