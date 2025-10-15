@@ -21,7 +21,6 @@ import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
 import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
-import ShopkeeperNotifications from '@/components/ShopkeeperNotifications'; // Importar o novo componente
 
 interface SaleDetail {
   id: string;
@@ -275,7 +274,7 @@ const LojistaDashboard = () => {
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">{productName}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>{productPrice ? formatCurrency(productPrice) : 'N/A'}</TableCell>
+                      <TableCell>{formatCurrency(productPrice)}</TableCell>
                       <TableCell>{formatCurrency(sale.total_price)}</TableCell>
                       <TableCell>{sale.commission_rate.toFixed(2)}%</TableCell>
                       <TableCell>{formatCurrency(commissionAmount)}</TableCell>
@@ -289,7 +288,6 @@ const LojistaDashboard = () => {
           </div>
         )}
       </div>
-      <ShopkeeperNotifications /> {/* Adicionado o componente de notificações aqui */}
     </div>
   );
 };
