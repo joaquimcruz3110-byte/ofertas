@@ -1,2 +1,0 @@
-DROP POLICY IF EXISTS "Shopkeepers can update their own mercadopago_account_id" ON public.shop_details;
-DROP POLICY IF EXISTS "Authenticated users can view shopkeeper mercadopago_account_id" ON public.shop_details;

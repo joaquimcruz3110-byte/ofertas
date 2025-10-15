@@ -1,1 +1,0 @@
-DROP POLICY IF EXISTS "profiles_insert_policy" ON public.profiles;

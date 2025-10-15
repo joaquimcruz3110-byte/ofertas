@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -37,20 +35,20 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* Custom colors */
-    --dyad-dark-blue: 220 39% 30%; /* #1E3A8A */
-    --dyad-vibrant-orange: 24 93% 53%; /* #F97316 */
-    --dyad-white: 0 0% 100%; /* #FFFFFF */
-    --dyad-light-gray: 220 13% 96%; /* #F3F4F6 */
-    --dyad-dark-gray: 218 17% 20%; /* #1F2937 */
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -89,13 +87,6 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Custom colors for dark mode */
-    --dyad-dark-blue: 218 17% 20%; /* Darker blue for backgrounds */
-    --dyad-vibrant-orange: 24 93% 53%; /* Same vibrant orange */
-    --dyad-white: 210 40% 98%; /* Off-white for text */
-    --dyad-light-gray: 217.2 32.6% 17.5%; /* Darker gray for card backgrounds */
-    --dyad-dark-gray: 222.2 84% 4.9%; /* Even darker for main background */
   }
 }
 
@@ -105,6 +96,6 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
   }
 }

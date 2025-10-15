@@ -1,2 +1,0 @@
-ALTER TABLE public.products
-DROP CONSTRAINT IF EXISTS fk_products_shopkeeper_id_shop_details;
