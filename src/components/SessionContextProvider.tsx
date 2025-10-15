@@ -71,6 +71,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
     const getInitialSession = async () => {
       setIsLoading(true);
       const { data: { session: initialSession } } = await supabase.auth.getSession();
+      console.log("Initial session from getSession:", initialSession); // ADD THIS LOG
       setSession(initialSession);
       setIsLoading(false);
     };
@@ -78,6 +79,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
     getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log("Auth state change event:", event, "Session:", currentSession); // ADD THIS LOG
       setSession(currentSession);
       setIsLoading(false);
 

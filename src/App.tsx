@@ -8,7 +8,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
 import { CartProvider } from "./components/CartProvider";
-import React from "react";
+import React, { useEffect } from "react"; // Importar useEffect
 
 // Importar as novas páginas e o MainLayout
 import MeusPedidos from "./pages/MeusPedidos";
@@ -52,47 +52,54 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SessionContextProvider>
-          <CartProvider>
-            <Routes>
-              <Route path="/landing" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/mercadopago-return" element={<MercadoPagoReturnPage />} /> {/* Nova rota */}
+const App = () => {
+  useEffect(() => {
+    console.log("App loaded. Current URL:", window.location.href);
+    console.log("App loaded. URL Hash:", window.location.hash);
+  }, []);
 
-              {/* Todas as rotas protegidas agora usam o MainLayout */}
-              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route path="/" element={<Index />} />
-                <Route path="/profile" element={<UserProfile />} />
-                <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
-                <Route path="/explorar-produtos" element={<ProductListing />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/meus-pedidos" element={<MeusPedidos />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
-                <Route path="/meus-produtos" element={<MeusProdutos />} />
-                <Route path="/minhas-vendas" element={<MinhasVendas />} />
-                <Route path="/shop-setup" element={<ShopSetupPage />} /> {/* Nova rota para configuração da loja */}
-                <Route path="/admin-dashboard" element={<AdminDashboard />} />
-                <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
-                <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
-                <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
-                <Route path="/admin-sales" element={<AdminSales />} /> {/* Nova rota para AdminSales */}
-              </Route>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SessionContextProvider>
+            <CartProvider>
+              <Routes>
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/mercadopago-return" element={<MercadoPagoReturnPage />} /> {/* Nova rota */}
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </CartProvider>
-        </SessionContextProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+                {/* Todas as rotas protegidas agora usam o MainLayout */}
+                <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/profile" element={<UserProfile />} />
+                  <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
+                  <Route path="/explorar-produtos" element={<ProductListing />} />
+                  <Route path="/product/:id" element={<ProductDetail />} />
+                  <Route path="/meus-pedidos" element={<MeusPedidos />} />
+                  <Route path="/cart" element={<CartPage />} />
+                  <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
+                  <Route path="/meus-produtos" element={<MeusProdutos />} />
+                  <Route path="/minhas-vendas" element={<MinhasVendas />} />
+                  <Route path="/shop-setup" element={<ShopSetupPage />} /> {/* Nova rota para configuração da loja */}
+                  <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                  <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
+                  <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
+                  <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
+                  <Route path="/admin-sales" element={<AdminSales />} /> {/* Nova rota para AdminSales */}
+                </Route>
+
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CartProvider>
+          </SessionContextProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
