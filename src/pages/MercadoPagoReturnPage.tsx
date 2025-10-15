@@ -15,7 +15,7 @@ const MercadoPagoReturnPage = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const status = queryParams.get('status');
-    const paymentId = queryParams.get('payment_id'); // ID do pagamento no Mercado Pago
+    // const paymentId = queryParams.get('payment_id'); // ID do pagamento no Mercado Pago // Removido
 
     if (status === 'success') {
       showSuccess('Pagamento aprovado! Seu pedido foi realizado com sucesso.');
