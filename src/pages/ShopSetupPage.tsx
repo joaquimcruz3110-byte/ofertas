@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Loader2, Store, Camera, Trash2 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import *s z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useNavigate } from 'react-router-dom';
 
@@ -21,18 +21,13 @@ interface ShopDetails {
   shop_name: string;
   shop_description: string | null;
   shop_logo_url: string | null;
-}
-
-interface MercadoPagoPreferences {
-  access_token: string;
-  public_key: string;
+  mercadopago_account_id: string | null; // Novo campo
 }
 
 const shopSetupFormSchema = z.object({
   shop_name: z.string().min(1, "O nome da loja é obrigatório."),
   shop_description: z.string().optional(),
-  mercadopago_access_token: z.string().optional(),
-  mercadopago_public_key: z.string().optional(),
+  mercadopago_account_id: z.string().optional(), // Novo campo
 });
 
 type ShopSetupFormValues = z.infer<typeof shopSetupFormSchema>;
@@ -41,7 +36,6 @@ const ShopSetupPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const navigate = useNavigate();
   const [shopDetails, setShopDetails] = useState<ShopDetails | null>(null);
-  const [mercadopagoPreferences, setMercadopagoPreferences] = useState<MercadoPagoPreferences | null>(null);
   const [isLoadingShopDetails, setIsLoadingShopDetails] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
@@ -53,16 +47,14 @@ const ShopSetupPage = () => {
     defaultValues: {
       shop_name: "",
       shop_description: "",
-      mercadopago_access_token: "",
-      mercadopago_public_key: "",
+      mercadopago_account_id: "",
     },
   });
 
-  const fetchShopDetailsAndMercadoPago = async () => {
+  const fetchShopDetails = async () => {
     setIsLoadingShopDetails(true);
     if (!session?.user?.id) {
       setShopDetails(null);
-      setMercadopagoPreferences(null);
       setIsLoadingShopDetails(false);
       return;
     }
@@ -84,24 +76,8 @@ const ShopSetupPage = () => {
       setShopDetails(shopData as ShopDetails);
       form.setValue('shop_name', shopData.shop_name || "");
       form.setValue('shop_description', shopData.shop_description || "");
+      form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || "");
       setLogoPreview(shopData.shop_logo_url);
-    }
-
-    // Fetch Mercado Pago preferences
-    const { data: mpData, error: mpError } = await supabase
-      .from('mercadopago_preferences')
-      .select('access_token, public_key')
-      .eq('id', userId)
-      .single();
-
-    if (mpError && mpError.code !== 'PGRST116') {
-      showError('Erro ao carregar credenciais do Mercado Pago: ' + mpError.message);
-      console.error('Erro ao carregar credenciais do Mercado Pago:', mpError.message);
-      setMercadopagoPreferences(null);
-    } else if (mpData) {
-      setMercadopagoPreferences(mpData as MercadoPagoPreferences);
-      form.setValue('mercadopago_access_token', mpData.access_token || "");
-      form.setValue('mercadopago_public_key', mpData.public_key || "");
     }
 
     setIsLoadingShopDetails(false);
@@ -114,7 +90,7 @@ const ShopSetupPage = () => {
         navigate('/');
         return;
       }
-      fetchShopDetailsAndMercadoPago();
+      fetchShopDetails();
     }
   }, [session, isSessionLoading, userRole, navigate]);
 
@@ -205,7 +181,7 @@ const ShopSetupPage = () => {
       setShopDetails(prev => prev ? { ...prev, shop_logo_url: null } : null);
       setLogoPreview(null);
       setSelectedLogoFile(null);
-      fetchShopDetailsAndMercadoPago();
+      fetchShopDetails();
     } catch (error: any) {
       dismissToast(toastId);
       showError('Erro ao remover logo: ' + error.message);
@@ -235,6 +211,7 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
+            mercadopago_account_id: values.mercadopago_account_id || null,
           })
           .eq('id', session?.user?.id);
 
@@ -249,6 +226,7 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
+            mercadopago_account_id: values.mercadopago_account_id || null,
           });
 
         if (insertError) {
@@ -256,45 +234,9 @@ const ShopSetupPage = () => {
         }
       }
 
-      // Save Mercado Pago credentials
-      if (values.mercadopago_access_token && values.mercadopago_public_key) {
-        const mpData = {
-          id: session?.user?.id,
-          access_token: values.mercadopago_access_token,
-          public_key: values.mercadopago_public_key,
-        };
-
-        if (mercadopagoPreferences) {
-          const { error: mpUpdateError } = await supabase
-            .from('mercadopago_preferences')
-            .update(mpData)
-            .eq('id', session?.user?.id);
-          if (mpUpdateError) {
-            throw new Error('Erro ao atualizar credenciais do Mercado Pago: ' + mpUpdateError.message);
-          }
-        } else {
-          const { error: mpInsertError } = await supabase
-            .from('mercadopago_preferences')
-            .insert(mpData);
-          if (mpInsertError) {
-            throw new Error('Erro ao inserir credenciais do Mercado Pago: ' + mpInsertError.message);
-          }
-        }
-      } else if (mercadopagoPreferences && (!values.mercadopago_access_token || !values.mercadopago_public_key)) {
-        // If credentials were removed, delete them from DB
-        const { error: mpDeleteError } = await supabase
-          .from('mercadopago_preferences')
-          .delete()
-          .eq('id', session?.user?.id);
-        if (mpDeleteError) {
-          throw new Error('Erro ao remover credenciais do Mercado Pago: ' + mpDeleteError.message);
-        }
-      }
-
-
       dismissToast(toastId);
-      showSuccess(shopDetails ? 'Detalhes da loja e credenciais atualizados com sucesso!' : 'Loja configurada com sucesso!');
-      fetchShopDetailsAndMercadoPago(); // Re-fetch to update local state and context
+      showSuccess(shopDetails ? 'Detalhes da loja atualizados com sucesso!' : 'Loja configurada com sucesso!');
+      fetchShopDetails(); // Re-fetch to update local state and context
       navigate('/lojista-dashboard');
     } catch (error: any) {
       dismissToast(toastId);
@@ -399,34 +341,18 @@ const ShopSetupPage = () => {
             )}
           />
 
-          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Credenciais Mercado Pago</h2>
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento (Mercado Pago)</h2>
           <FormField
             control={form.control}
-            name="mercadopago_access_token"
+            name="mercadopago_account_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Access Token (Mercado Pago)</FormLabel>
+                <FormLabel>ID da Conta Mercado Pago</FormLabel>
                 <FormControl>
-                  <Input type="text" placeholder="Seu Access Token do Mercado Pago" {...field} />
+                  <Input type="text" placeholder="Seu ID de Usuário do Mercado Pago" {...field} />
                 </FormControl>
                 <FormDescription>
-                  Obtenha suas credenciais de produção no painel do Mercado Pago.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="mercadopago_public_key"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Public Key (Mercado Pago)</FormLabel>
-                <FormControl>
-                  <Input type="text" placeholder="Sua Public Key do Mercado Pago" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Esta chave é usada para identificar sua loja nas transações.
+                  Este é o ID da sua conta no Mercado Pago, necessário para receber pagamentos divididos. Você pode encontrá-lo no seu painel do Mercado Pago.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

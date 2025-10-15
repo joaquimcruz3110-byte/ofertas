@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client';
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading, userRole, mercadopagoCredentials } = useSession();
+  const { session, isLoading: isSessionLoading, userRole } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
@@ -33,27 +33,33 @@ const CartPage = () => {
     setIsProcessingCheckout(true);
 
     try {
-      // Agrupar itens por lojista para criar uma preferência de pagamento por lojista
-      const itemsByShopkeeper = cartItems.reduce((acc, item) => {
-        if (!acc[item.shopkeeper_id]) {
-          acc[item.shopkeeper_id] = [];
-        }
-        acc[item.shopkeeper_id].push(item);
-        return acc;
-      }, {} as Record<string, typeof cartItems>);
+      // Get unique shopkeeper IDs from cart items
+      const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id)));
 
-      // Para simplificar, vamos processar apenas o primeiro lojista no carrinho.
-      // Em uma aplicação real, você precisaria de um fluxo para múltiplos lojistas (ex: múltiplos pagamentos ou um carrinho unificado com split de pagamentos).
-      const firstShopkeeperId = Object.keys(itemsByShopkeeper)[0];
-      const itemsForFirstShopkeeper = itemsByShopkeeper[firstShopkeeperId];
+      // Fetch Mercado Pago account IDs for all involved shopkeepers
+      const { data: shopDetails, error: shopError } = await supabase
+        .from('shop_details')
+        .select('id, mercadopago_account_id')
+        .in('id', uniqueShopkeeperIds);
 
-      if (!firstShopkeeperId || !itemsForFirstShopkeeper) {
-        showError('Não foi possível identificar o lojista para o checkout.');
+      if (shopError) {
+        showError('Erro ao verificar contas de lojistas: ' + shopError.message);
+        console.error('Erro ao verificar contas de lojistas:', shopError.message);
         setIsProcessingCheckout(false);
         return;
       }
 
-      // Buscar a taxa de comissão ativa
+      const shopkeeperMpAccounts = new Map(shopDetails.map(s => [s.id, s.mercadopago_account_id]));
+
+      // Check if all shopkeepers have a Mercado Pago account ID configured
+      const missingMpAccounts = uniqueShopkeeperIds.filter(id => !shopkeeperMpAccounts.get(id));
+      if (missingMpAccounts.length > 0) {
+        showError('Um ou mais lojistas no seu carrinho não configuraram suas contas Mercado Pago. Não é possível prosseguir com a compra.');
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      // Fetch the active commission rate
       const { data: commissionRateData, error: commissionRateError } = await supabase
         .from('commission_rates')
         .select('rate')
@@ -73,14 +79,14 @@ const CartPage = () => {
 
       const { data, error } = await supabase.functions.invoke('create-mercadopago-payment', {
         body: {
-          items: itemsForFirstShopkeeper.map(item => ({
+          cartItems: cartItems.map(item => ({
             id: item.id,
             name: item.name,
             quantity: item.quantity,
             price: item.price,
+            shopkeeper_id: item.shopkeeper_id,
           })),
           buyer_id: session.user.id,
-          shopkeeper_id: firstShopkeeperId,
           commission_rate: commission_rate,
           app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
         },

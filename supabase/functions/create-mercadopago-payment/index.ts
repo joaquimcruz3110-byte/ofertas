@@ -33,44 +33,78 @@ serve(async (req) => {
       });
     }
 
-    const { items, buyer_id, shopkeeper_id, commission_rate, app_url } = await req.json();
+    const { cartItems, buyer_id, commission_rate, app_url } = await req.json();
 
-    if (!items || !Array.isArray(items) || items.length === 0 || !buyer_id || !shopkeeper_id || !commission_rate || !app_url) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: items, buyer_id, shopkeeper_id, commission_rate, app_url' }), {
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !commission_rate || !app_url) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: cartItems, buyer_id, commission_rate, app_url' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fetch shopkeeper's Mercado Pago credentials
-    const { data: mpPreferences, error: mpError } = await supabaseClient
-      .from('mercadopago_preferences')
-      .select('access_token, public_key')
-      .eq('id', shopkeeper_id)
-      .single();
+    // Group cart items by shopkeeper
+    const itemsByShopkeeper = cartItems.reduce((acc: any, item: any) => {
+      if (!acc[item.shopkeeper_id]) {
+        acc[item.shopkeeper_id] = [];
+      }
+      acc[item.shopkeeper_id].push(item);
+      return acc;
+    }, {});
 
-    if (mpError || !mpPreferences) {
-      console.error('Error fetching Mercado Pago preferences:', mpError?.message);
-      return new Response(JSON.stringify({ error: 'Mercado Pago credentials not found for shopkeeper.' }), {
-        status: 404,
+    const shopkeeperIds = Object.keys(itemsByShopkeeper);
+
+    // Fetch Mercado Pago account IDs for all involved shopkeepers
+    const { data: shopDetails, error: shopError } = await supabaseClient
+      .from('shop_details')
+      .select('id, mercadopago_account_id')
+      .in('id', shopkeeperIds);
+
+    if (shopError || !shopDetails || shopDetails.length !== shopkeeperIds.length) {
+      console.error('Error fetching shop details or missing Mercado Pago account IDs:', shopError?.message);
+      return new Response(JSON.stringify({ error: 'Mercado Pago account not configured for all shopkeepers involved in the cart.' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const shopkeeperMpAccounts = new Map(shopDetails.map(s => [s.id, s.mercadopago_account_id]));
+
+    // Construct items for Mercado Pago preference
+    const mpItems = cartItems.map((item: any) => ({
+      id: item.id,
+      title: item.name,
+      quantity: item.quantity,
+      unit_price: item.price,
+    }));
+
+    // Construct payments array for split payments
+    const payments = shopkeeperIds.map(shopkeeperId => {
+      const shopkeeperItems = itemsByShopkeeper[shopkeeperId];
+      const shopkeeperRevenue = shopkeeperItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const commissionAmount = shopkeeperRevenue * (commission_rate / 100);
+      const amountToReceive = shopkeeperRevenue - commissionAmount;
+
+      const mpAccountId = shopkeeperMpAccounts.get(shopkeeperId);
+      if (!mpAccountId) {
+        throw new Error(`Mercado Pago account ID not found for shopkeeper ${shopkeeperId}`);
+      }
+
+      return {
+        receiver_id: mpAccountId,
+        amount: parseFloat(amountToReceive.toFixed(2)), // Amount for the shopkeeper
+      };
+    });
+
+    // Initialize Mercado Pago client with platform's access token
     const client = new MercadoPagoConfig({
-      accessToken: mpPreferences.access_token,
+      accessToken: Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') ?? '',
       options: { timeout: 5000, idempotencyKey: crypto.randomUUID() }
     });
 
     const preference = new Preference(client);
 
     const preferenceBody = {
-      items: items.map((item: any) => ({
-        id: item.id,
-        title: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-      })),
+      items: mpItems,
       payer: {
         id: buyer_id,
       },
@@ -80,8 +114,10 @@ serve(async (req) => {
         pending: `${app_url}/mercadopago-return?status=pending`,
       },
       auto_return: "approved",
-      notification_url: `${app_url}/functions/v1/mercadopago-webhook`, // Use the app_url for webhook
-      external_reference: JSON.stringify({ buyer_id, shopkeeper_id, commission_rate, items: items.map((item: any) => ({ id: item.id, quantity: item.quantity, price: item.price })) }),
+      notification_url: `${app_url}/functions/v1/mercadopago-webhook`,
+      external_reference: JSON.stringify({ buyer_id, commission_rate, cartItems: cartItems.map((item: any) => ({ id: item.id, quantity: item.quantity, price: item.price, shopkeeper_id: item.shopkeeper_id })) }),
+      // Split payments configuration
+      payments: payments,
     };
 
     const result = await preference.create({ body: preferenceBody });

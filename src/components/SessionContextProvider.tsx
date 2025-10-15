@@ -12,7 +12,7 @@ interface SessionContextType {
   userRole: string | null;
   hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
   userProfile: any; // Adicionado para armazenar o perfil completo
-  mercadopagoCredentials: { access_token: string; public_key: string } | null; // Credenciais do Mercado Pago
+  shopkeeperMercadopagoAccountId: string | null; // ID da conta Mercado Pago do lojista
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -24,7 +24,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasShopDetails, setHasShopDetails] = useState(false); // Estado para detalhes da loja
   const [userProfile, setUserProfile] = useState<any>(null); // Estado para o perfil completo
-  const [mercadopagoCredentials, setMercadopagoCredentials] = useState<{ access_token: string; public_key: string } | null>(null);
+  const [shopkeeperMercadopagoAccountId, setShopkeeperMercadopagoAccountId] = useState<string | null>(null);
 
   // Memoize fetchUserProfile to ensure it's stable across renders
   const fetchUserProfile = useCallback(async (userId: string) => {
@@ -40,7 +40,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole("comprador"); // Fallback
       setHasShopDetails(false);
       setUserProfile(null);
-      setMercadopagoCredentials(null);
+      setShopkeeperMercadopagoAccountId(null);
     } else if (profileData) {
       setUserName(profileData.first_name || profileData.last_name || "Usuário");
       setUserRole(profileData.role || "comprador"); // Fallback
@@ -50,36 +50,25 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       if (profileData.role === 'lojista') {
         const { data: shopData, error: shopError } = await supabase
           .from('shop_details')
-          .select('id')
+          .select('id, mercadopago_account_id') // Buscar o mercadopago_account_id
           .eq('id', userId)
           .single();
         
         if (shopError && shopError.code !== 'PGRST116') { // PGRST116 means "no rows found"
           console.error('Erro ao buscar detalhes da loja:', shopError.message);
           setHasShopDetails(false);
+          setShopkeeperMercadopagoAccountId(null);
+        } else if (shopData) {
+          setHasShopDetails(true); // True if data exists
+          setShopkeeperMercadopagoAccountId(shopData.mercadopago_account_id);
         } else {
-          setHasShopDetails(!!shopData); // True if data exists, false otherwise
-        }
-
-        // Fetch Mercado Pago credentials for shopkeepers
-        const { data: mpData, error: mpError } = await supabase
-          .from('mercadopago_preferences')
-          .select('access_token, public_key')
-          .eq('id', userId)
-          .single();
-
-        if (mpError && mpError.code !== 'PGRST116') {
-          console.error('Erro ao buscar credenciais do Mercado Pago:', mpError.message);
-          setMercadopagoCredentials(null);
-        } else if (mpData) {
-          setMercadopagoCredentials(mpData);
-        } else {
-          setMercadopagoCredentials(null);
+          setHasShopDetails(false);
+          setShopkeeperMercadopagoAccountId(null);
         }
 
       } else {
         setHasShopDetails(false); // Not a shopkeeper, so no shop details
-        setMercadopagoCredentials(null); // Not a shopkeeper, so no MP credentials
+        setShopkeeperMercadopagoAccountId(null); // Not a shopkeeper, so no MP account ID
       }
     }
   }, []); // No dependencies, as it only uses supabase client and setters
@@ -140,12 +129,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole(null);
       setHasShopDetails(false);
       setUserProfile(null);
-      setMercadopagoCredentials(null);
+      setShopkeeperMercadopagoAccountId(null);
     }
   }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile, mercadopagoCredentials }}>
+    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile, shopkeeperMercadopagoAccountId }}>
       {children}
     </SessionContext.Provider>
   );

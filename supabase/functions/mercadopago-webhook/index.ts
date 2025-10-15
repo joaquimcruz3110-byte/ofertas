@@ -30,24 +30,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch payment details from Mercado Pago API
-    const { data: mpPreferences, error: mpError } = await supabaseAdmin
-      .from('mercadopago_preferences')
-      .select('access_token')
-      .limit(1) // Assuming one access token is enough to query MP API
-      .single();
-
-    if (mpError || !mpPreferences) {
-      console.error('Error fetching Mercado Pago preferences for webhook:', mpError?.message);
-      return new Response(JSON.stringify({ error: 'Mercado Pago credentials not found for webhook processing.' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Initialize Mercado Pago client with platform's access token
+    const client = new MercadoPagoConfig({
+      accessToken: Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') ?? '',
+      options: { timeout: 5000 }
+    });
 
     const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
-        'Authorization': `Bearer ${mpPreferences.access_token}`,
+        'Authorization': `Bearer ${client.accessToken}`,
         'Content-Type': 'application/json',
       },
     });
@@ -73,7 +64,7 @@ serve(async (req) => {
       });
     }
 
-    const { buyer_id, shopkeeper_id, commission_rate, items: saleItems } = JSON.parse(externalReference);
+    const { buyer_id, commission_rate, cartItems: saleItems } = JSON.parse(externalReference);
 
     if (paymentStatus === 'approved') {
       for (const item of saleItems) {
@@ -90,15 +81,11 @@ serve(async (req) => {
 
         if (saleError) {
           console.error(`Error performing purchase for product ${item.id}:`, saleError.message);
-          // Depending on the error, you might want to revert stock or handle it differently
-          // For now, we'll log and continue, but a more robust solution might involve retries or manual intervention
+          // Dependendo do erro, você pode querer reverter o estoque ou lidar de forma diferente
         }
       }
     } else {
-      // If payment is not approved, just update the sales record if it exists
-      // Or log the status for further review
       console.log(`Payment ${paymentId} status is ${paymentStatus}. No stock update performed.`);
-      // You might want to update a pending sale record here if you create one before payment
     }
 
     return new Response(JSON.stringify({ message: 'Webhook processed successfully' }), {
