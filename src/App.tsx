@@ -27,8 +27,6 @@ import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import MainLayout from "./components/MainLayout"; // Importar MainLayout
 import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
-import PicPayReturnPage from "./pages/PicPayReturnPage"; // Importar a nova página de retorno do PicPay
-import PagSeguroReturnPage from "./pages/PagSeguroReturnPage"; // Importar a nova página de retorno do PagSeguro
 
 const queryClient = new QueryClient();
 
@@ -63,8 +61,7 @@ const App = () => (
             <Routes>
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/picpay-return" element={<PicPayReturnPage />} /> {/* Rota para retorno do PicPay */}
-              <Route path="/pagseguro-return" element={<PagSeguroReturnPage />} /> {/* Nova rota para retorno do PagSeguro */}
+              {/* Rotas de retorno de pagamento removidas */}
 
               {/* Todas as rotas protegidas agora usam o MainLayout */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

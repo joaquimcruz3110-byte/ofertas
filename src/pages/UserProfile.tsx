@@ -20,29 +20,11 @@ interface Profile {
   last_name: string | null;
   avatar_url: string | null;
   role: 'comprador' | 'lojista' | 'administrador';
-  cpf: string | null;
-  phone_number: string | null;
-  address_street: string | null;
-  address_number: string | null;
-  address_complement: string | null;
-  address_district: string | null;
-  address_postal_code: string | null;
-  address_city: string | null;
-  address_state: string | null;
 }
 
 const profileFormSchema = z.object({
   first_name: z.string().min(1, "O primeiro nome é obrigatório.").optional().or(z.literal('')),
   last_name: z.string().min(1, "O sobrenome é obrigatório.").optional().or(z.literal('')),
-  cpf: z.string().optional().nullable(),
-  phone_number: z.string().optional().nullable(),
-  address_street: z.string().optional().nullable(),
-  address_number: z.string().optional().nullable(),
-  address_complement: z.string().optional().nullable(),
-  address_district: z.string().optional().nullable(),
-  address_postal_code: z.string().optional().nullable(),
-  address_city: z.string().optional().nullable(),
-  address_state: z.string().optional().nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -61,15 +43,6 @@ const UserProfile = () => {
     defaultValues: {
       first_name: "",
       last_name: "",
-      cpf: "",
-      phone_number: "",
-      address_street: "",
-      address_number: "",
-      address_complement: "",
-      address_district: "",
-      address_postal_code: "",
-      address_city: "",
-      address_state: "",
     },
   });
 
@@ -83,7 +56,7 @@ const UserProfile = () => {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, avatar_url, role, cpf, phone_number, address_street, address_number, address_complement, address_district, address_postal_code, address_city, address_state')
+      .select('id, first_name, last_name, avatar_url, role')
       .eq('id', session.user.id)
       .single();
 
@@ -96,15 +69,6 @@ const UserProfile = () => {
       form.reset({
         first_name: data.first_name || "",
         last_name: data.last_name || "",
-        cpf: data.cpf || "",
-        phone_number: data.phone_number || "",
-        address_street: data.address_street || "",
-        address_number: data.address_number || "",
-        address_complement: data.address_complement || "",
-        address_district: data.address_district || "",
-        address_postal_code: data.address_postal_code || "",
-        address_city: data.address_city || "",
-        address_state: data.address_state || "",
       });
       setAvatarPreview(data.avatar_url);
     }
@@ -233,15 +197,6 @@ const UserProfile = () => {
           first_name: values.first_name,
           last_name: values.last_name,
           avatar_url: avatarUrlToSave,
-          cpf: values.cpf,
-          phone_number: values.phone_number,
-          address_street: values.address_street,
-          address_number: values.address_number,
-          address_complement: values.address_complement,
-          address_district: values.address_district,
-          address_postal_code: values.address_postal_code,
-          address_city: values.address_city,
-          address_state: values.address_state,
           updated_at: new Date().toISOString(),
         })
         .eq('id', session?.user?.id);
@@ -364,129 +319,6 @@ const UserProfile = () => {
             </FormControl>
             <FormMessage />
           </FormItem>
-
-          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Informações de Contato e Endereço</h2>
-          <FormField
-            control={form.control}
-            name="cpf"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>CPF</FormLabel>
-                <FormControl>
-                  <Input placeholder="000.000.000-00" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="phone_number"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Telefone</FormLabel>
-                <FormControl>
-                  <Input placeholder="(DD) 99999-9999" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="address_postal_code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>CEP</FormLabel>
-                <FormControl>
-                  <Input placeholder="00000-000" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="address_street"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Rua</FormLabel>
-                <FormControl>
-                  <Input placeholder="Nome da Rua" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="address_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número</FormLabel>
-                  <FormControl>
-                    <Input placeholder="123" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address_complement"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Complemento</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Apto 101" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <FormField
-            control={form.control}
-            name="address_district"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bairro</FormLabel>
-                <FormControl>
-                  <Input placeholder="Nome do Bairro" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="address_city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome da Cidade" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address_state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado (UF)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="SP" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
 
           <Button type="submit" className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
