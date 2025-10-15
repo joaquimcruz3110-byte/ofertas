@@ -112,12 +112,12 @@ serve(async (req: Request) => {
         id: buyer_id,
       },
       back_urls: {
-        success: `${app_url}/mercadopago-return?status=success`,
-        failure: `${app_url}/mercadopago-return?status=failure`,
-        pending: `${app_url}/mercadopago-return?status=pending`,
+        success: `${app_url}/mercadopago-return?status=success&payment_id={payment_id}`, // Adicionado payment_id
+        failure: `${app_url}/mercadopago-return?status=failure&payment_id={payment_id}`, // Adicionado payment_id
+        pending: `${app_url}/mercadopago-return?status=pending&payment_id={payment_id}`, // Adicionado payment_id
       },
       auto_return: "approved",
-      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`, // CORRIGIDO AQUI
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`,
       external_reference: JSON.stringify({ buyer_id, commission_rate, cartItems: cartItems.map((item: any) => ({ id: item.id, quantity: item.quantity, price: item.price, shopkeeper_id: item.shopkeeper_id })) }),
       // Split payments configuration
       payments: payments,

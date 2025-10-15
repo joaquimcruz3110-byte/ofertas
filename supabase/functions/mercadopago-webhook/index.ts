@@ -86,6 +86,31 @@ serve(async (req: Request) => {
         if (saleError) {
           console.error(`Error performing purchase for product ${item.id}:`, saleError.message);
           // Dependendo do erro, você pode querer reverter o estoque ou lidar de forma diferente
+        } else {
+          // Fetch product details to get shopkeeper_id and product name
+          const { data: productData, error: productError } = await supabaseAdmin
+            .from('products')
+            .select('name, shopkeeper_id')
+            .eq('id', item.id)
+            .single();
+
+          if (productError) {
+            console.error(`Error fetching product details for notification for product ${item.id}:`, productError.message);
+          } else if (productData && productData.shopkeeper_id) {
+            // Insert notification for the shopkeeper
+            const notificationMessage = `Nova venda! O produto "${productData.name}" (x${item.quantity}) foi vendido.`;
+            const { error: notificationError } = await supabaseAdmin
+              .from('notifications')
+              .insert({
+                user_id: productData.shopkeeper_id,
+                message: notificationMessage,
+                is_read: false,
+              });
+
+            if (notificationError) {
+              console.error(`Error inserting notification for shopkeeper ${productData.shopkeeper_id}:`, notificationError.message);
+            }
+          }
         }
       }
     } else {
