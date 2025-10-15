@@ -78,8 +78,17 @@ serve(async (req: Request) => {
         console.error('Error fetching buyer user for email:', buyerUserError?.message);
       }
 
-      const productsSoldDetails = [];
+      const productsSoldDetails: {
+        name: string;
+        quantity: number;
+        price: number;
+        total: number;
+        shopkeeper_id: string | null;
+      }[] = [];
       let totalPurchasePrice = 0;
+
+      // Map to store products grouped by shopkeeper for consolidated emails
+      const shopkeeperSalesMap = new Map<string, { email: string | null; products: typeof productsSoldDetails }>();
 
       for (const item of saleItems) {
         const total_price = item.quantity * item.price;
@@ -92,87 +101,30 @@ serve(async (req: Request) => {
           .eq('id', item.id)
           .single();
 
-        if (productError || !productData) {
-          console.error(`Error fetching product ${item.id} details for email:`, productError?.message);
-          productsSoldDetails.push({
-            name: 'Produto Desconhecido',
-            quantity: item.quantity,
-            price: item.price,
-            total: total_price,
-            shopkeeper_id: item.shopkeeper_id,
-          });
-        } else {
-          productsSoldDetails.push({
-            name: productData.name,
-            quantity: item.quantity,
-            price: productData.price,
-            total: total_price,
-            shopkeeper_id: productData.shopkeeper_id,
-          });
+        const productDetail = {
+          name: productData?.name || 'Produto Desconhecido',
+          quantity: item.quantity,
+          price: productData?.price || item.price,
+          total: total_price,
+          shopkeeper_id: productData?.shopkeeper_id || item.shopkeeper_id,
+        };
+        productsSoldDetails.push(productDetail);
 
-          // Fetch shopkeeper's email for this product
-          if (productData.shopkeeper_id) {
-            const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productData.shopkeeper_id);
+        // Add product to shopkeeper's sales map
+        if (productDetail.shopkeeper_id) {
+          if (!shopkeeperSalesMap.has(productDetail.shopkeeper_id)) {
+            // Fetch shopkeeper email only once per shopkeeper
+            const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productDetail.shopkeeper_id);
             const shopkeeperEmail = shopkeeperUserError ? null : shopkeeperUser?.user?.email;
             if (shopkeeperUserError) {
-              console.error(`Error fetching shopkeeper user ${productData.shopkeeper_id} for email:`, shopkeeperUserError?.message);
+              console.error(`Error fetching shopkeeper user ${productDetail.shopkeeper_id} for email:`, shopkeeperUserError?.message);
             }
-
-            if (shopkeeperEmail) {
-              // Send shopkeeper notification
-              const shopkeeperSubject = `Nova Venda: ${productData.name} vendido!`;
-              const shopkeeperHtml = `
-                <!DOCTYPE html>
-                <html lang="pt-BR">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Nova Venda no Olímpia Ofertas!</title>
-                    <style>
-                        body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
-                        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); overflow: hidden; }
-                        .header { background-color: #1e3a8a; padding: 30px 20px; text-align: center; color: #ffffff; }
-                        .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
-                        .content { padding: 30px 20px; color: #1f2937; line-height: 1.6; }
-                        .content p { margin-bottom: 15px; font-size: 16px; }
-                        .product-list { list-style: none; padding: 0; margin: 20px 0; border-top: 1px solid #eee; }
-                        .product-list li { padding: 10px 0; border-bottom: 1px solid #eee; }
-                        .footer { background-color: #1e3a8a; padding: 20px; text-align: center; color: #ffffff; font-size: 12px; }
-                        .footer a { color: #f97316; text-decoration: none; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>Olímpia Ofertas</h1>
-                        </div>
-                        <div class="content">
-                            <p>Olá Lojista,</p>
-                            <p>Você tem uma nova venda!</p>
-                            <p><strong>Detalhes do Produto Vendido:</strong></p>
-                            <ul class="product-list">
-                                <li><strong>Produto:</strong> ${productData.name}</li>
-                                <li><strong>Quantidade:</strong> ${item.quantity}</li>
-                                <li><strong>Preço Unitário:</strong> R$ ${productData.price.toFixed(2)}</li>
-                                <li><strong>Total da Venda:</strong> R$ ${total_price.toFixed(2)}</li>
-                            </ul>
-                            <p>O comprador foi notificado. Parabéns pela venda!</p>
-                            <p>Atenciosamente,<br>Equipe Olímpia Ofertas</p>
-                        </div>
-                        <div class="footer">
-                            <p>&copy; ${new Date().getFullYear()} Olímpia Ofertas. Todos os direitos reservados.</p>
-                            <p>Visite nosso site: <a href="${Deno.env.get('VITE_APP_URL')}" target="_blank">${Deno.env.get('VITE_APP_URL')}</a></p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-              `;
-              await invokeSendEmail(shopkeeperEmail, shopkeeperSubject, shopkeeperHtml);
-            }
+            shopkeeperSalesMap.set(productDetail.shopkeeper_id, { email: shopkeeperEmail, products: [] });
           }
+          shopkeeperSalesMap.get(productDetail.shopkeeper_id)?.products.push(productDetail);
         }
 
-        // Perform the purchase RPC call
+        // Perform the purchase RPC call for each item
         const { error: saleError } = await supabaseAdmin.rpc('perform_purchase', {
           p_product_id: item.id,
           p_buyer_id: buyer_id,
@@ -188,7 +140,58 @@ serve(async (req: Request) => {
         }
       }
 
-      // Send buyer receipt email
+      // Send consolidated shopkeeper notification emails
+      for (const [shopkeeperId, salesInfo] of shopkeeperSalesMap.entries()) {
+        if (salesInfo.email) {
+          const shopkeeperSubject = `Nova Venda(s) no Olímpia Ofertas!`;
+          const shopkeeperHtml = `
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Nova Venda(s) no Olímpia Ofertas!</title>
+                <style>
+                    body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background-color: #1e3a8a; padding: 30px 20px; text-align: center; color: #ffffff; }
+                    .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+                    .content { padding: 30px 20px; color: #1f2937; line-height: 1.6; }
+                    .content p { margin-bottom: 15px; font-size: 16px; }
+                    .product-list { list-style: none; padding: 0; margin: 20px 0; border-top: 1px solid #eee; }
+                    .product-list li { padding: 10px 0; border-bottom: 1px solid #eee; }
+                    .footer { background-color: #1e3a8a; padding: 20px; text-align: center; color: #ffffff; font-size: 12px; }
+                    .footer a { color: #f97316; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Olímpia Ofertas</h1>
+                    </div>
+                    <div class="content">
+                        <p>Olá Lojista,</p>
+                        <p>Você tem uma nova venda(s)!</p>
+                        <p><strong>Detalhes do(s) Produto(s) Vendido(s):</strong></p>
+                        <ul class="product-list">
+                            ${salesInfo.products.map(p => `<li><strong>Produto:</strong> ${p.name} - <strong>Quantidade:</strong> ${p.quantity}x - <strong>Preço Unitário:</strong> R$ ${p.price.toFixed(2)} - <strong>Total:</strong> R$ ${p.total.toFixed(2)}</li>`).join('')}
+                        </ul>
+                        <p>O comprador foi notificado. Parabéns pela venda!</p>
+                        <p>Atenciosamente,<br>Equipe Olímpia Ofertas</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; ${new Date().getFullYear()} Olímpia Ofertas. Todos os direitos reservados.</p>
+                        <p>Visite nosso site: <a href="${Deno.env.get('VITE_APP_URL')}" target="_blank">${Deno.env.get('VITE_APP_URL')}</a></p>
+                    </div>
+                </div>
+            </body>
+            </html>
+          `;
+          await invokeSendEmail(salesInfo.email, shopkeeperSubject, shopkeeperHtml);
+        }
+      }
+
+      // Send buyer receipt email (already consolidated for all items)
       if (buyerEmail) {
         const buyerSubject = 'Seu Comprovante de Compra no Olímpia Ofertas';
         const buyerHtml = `
