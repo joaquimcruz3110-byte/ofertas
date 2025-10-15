@@ -12,7 +12,7 @@ const corsHeaders = {
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 200 }); // Adicionado status: 200
+    return new Response(null, { headers: corsHeaders, status: 200 });
   }
 
   try {
@@ -71,8 +71,108 @@ serve(async (req: Request) => {
     const { buyer_id, commission_rate, cartItems: saleItems } = JSON.parse(externalReference);
 
     if (paymentStatus === 'approved') {
+      // Fetch buyer's email
+      const { data: buyerUser, error: buyerUserError } = await supabaseAdmin.auth.admin.getUserById(buyer_id);
+      const buyerEmail = buyerUserError ? null : buyerUser?.user?.email;
+      if (buyerUserError) {
+        console.error('Error fetching buyer user for email:', buyerUserError?.message);
+      }
+
+      const productsSoldDetails = [];
+      let totalPurchasePrice = 0;
+
       for (const item of saleItems) {
         const total_price = item.quantity * item.price;
+        totalPurchasePrice += total_price;
+
+        // Fetch product details for email content and shopkeeper_id
+        const { data: productData, error: productError } = await supabaseAdmin
+          .from('products')
+          .select('name, price, shopkeeper_id')
+          .eq('id', item.id)
+          .single();
+
+        if (productError || !productData) {
+          console.error(`Error fetching product ${item.id} details for email:`, productError?.message);
+          productsSoldDetails.push({
+            name: 'Produto Desconhecido',
+            quantity: item.quantity,
+            price: item.price,
+            total: total_price,
+            shopkeeper_id: item.shopkeeper_id,
+          });
+        } else {
+          productsSoldDetails.push({
+            name: productData.name,
+            quantity: item.quantity,
+            price: productData.price,
+            total: total_price,
+            shopkeeper_id: productData.shopkeeper_id,
+          });
+
+          // Fetch shopkeeper's email for this product
+          if (productData.shopkeeper_id) {
+            const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productData.shopkeeper_id);
+            const shopkeeperEmail = shopkeeperUserError ? null : shopkeeperUser?.user?.email;
+            if (shopkeeperUserError) {
+              console.error(`Error fetching shopkeeper user ${productData.shopkeeper_id} for email:`, shopkeeperUserError?.message);
+            }
+
+            if (shopkeeperEmail) {
+              // Send shopkeeper notification
+              const shopkeeperSubject = `Nova Venda: ${productData.name} vendido!`;
+              const shopkeeperHtml = `
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Nova Venda no Olímpia Ofertas!</title>
+                    <style>
+                        body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+                        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); overflow: hidden; }
+                        .header { background-color: #1e3a8a; padding: 30px 20px; text-align: center; color: #ffffff; }
+                        .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+                        .content { padding: 30px 20px; color: #1f2937; line-height: 1.6; }
+                        .content p { margin-bottom: 15px; font-size: 16px; }
+                        .product-list { list-style: none; padding: 0; margin: 20px 0; border-top: 1px solid #eee; }
+                        .product-list li { padding: 10px 0; border-bottom: 1px solid #eee; }
+                        .footer { background-color: #1e3a8a; padding: 20px; text-align: center; color: #ffffff; font-size: 12px; }
+                        .footer a { color: #f97316; text-decoration: none; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Olímpia Ofertas</h1>
+                        </div>
+                        <div class="content">
+                            <p>Olá Lojista,</p>
+                            <p>Você tem uma nova venda!</p>
+                            <p><strong>Detalhes do Produto Vendido:</strong></p>
+                            <ul class="product-list">
+                                <li><strong>Produto:</strong> ${productData.name}</li>
+                                <li><strong>Quantidade:</strong> ${item.quantity}</li>
+                                <li><strong>Preço Unitário:</strong> R$ ${productData.price.toFixed(2)}</li>
+                                <li><strong>Total da Venda:</strong> R$ ${total_price.toFixed(2)}</li>
+                            </ul>
+                            <p>O comprador foi notificado. Parabéns pela venda!</p>
+                            <p>Atenciosamente,<br>Equipe Olímpia Ofertas</p>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; ${new Date().getFullYear()} Olímpia Ofertas. Todos os direitos reservados.</p>
+                            <p>Visite nosso site: <a href="${Deno.env.get('VITE_APP_URL')}" target="_blank">${Deno.env.get('VITE_APP_URL')}</a></p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+              `;
+              await invokeSendEmail(shopkeeperEmail, shopkeeperSubject, shopkeeperHtml);
+            }
+          }
+        }
+
+        // Perform the purchase RPC call
         const { error: saleError } = await supabaseAdmin.rpc('perform_purchase', {
           p_product_id: item.id,
           p_buyer_id: buyer_id,
@@ -85,9 +185,61 @@ serve(async (req: Request) => {
 
         if (saleError) {
           console.error(`Error performing purchase for product ${item.id}:`, saleError.message);
-          // Dependendo do erro, você pode querer reverter o estoque ou lidar de forma diferente
         }
       }
+
+      // Send buyer receipt email
+      if (buyerEmail) {
+        const buyerSubject = 'Seu Comprovante de Compra no Olímpia Ofertas';
+        const buyerHtml = `
+          <!DOCTYPE html>
+          <html lang="pt-BR">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Seu Comprovante de Compra no Olímpia Ofertas</title>
+              <style>
+                  body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+                  .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); overflow: hidden; }
+                  .header { background-color: #1e3a8a; padding: 30px 20px; text-align: center; color: #ffffff; }
+                  .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+                  .content { padding: 30px 20px; color: #1f2937; line-height: 1.6; }
+                  .content p { margin-bottom: 15px; font-size: 16px; }
+                  .product-list { list-style: none; padding: 0; margin: 20px 0; border-top: 1px solid #eee; }
+                  .product-list li { padding: 10px 0; border-bottom: 1px solid #eee; }
+                  .total { font-size: 18px; font-weight: bold; text-align: right; margin-top: 20px; }
+                  .footer { background-color: #1e3a8a; padding: 20px; text-align: center; color: #ffffff; font-size: 12px; }
+                  .footer a { color: #f97316; text-decoration: none; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>Olímpia Ofertas</h1>
+                  </div>
+                  <div class="content">
+                      <p>Olá Comprador,</p>
+                      <p>Obrigado por sua compra no Olímpia Ofertas! Seu pagamento foi aprovado e seu pedido está a caminho.</p>
+                      <p><strong>Detalhes do Pedido:</strong></p>
+                      <ul class="product-list">
+                          ${productsSoldDetails.map(p => `<li>${p.name} - ${p.quantity}x - R$ ${p.price.toFixed(2)} cada (Total: R$ ${p.total.toFixed(2)})</li>`).join('')}
+                      </ul>
+                      <p class="total">Total da Compra: R$ ${totalPurchasePrice.toFixed(2)}</p>
+                      <p><strong>ID do Pagamento:</strong> ${paymentId}</p>
+                      <p>Você pode acompanhar seus pedidos na sua conta.</p>
+                      <p>Atenciosamente,<br>Equipe Olímpia Ofertas</p>
+                  </div>
+                  <div class="footer">
+                      <p>&copy; ${new Date().getFullYear()} Olímpia Ofertas. Todos os direitos reservados.</p>
+                      <p>Visite nosso site: <a href="${Deno.env.get('VITE_APP_URL')}" target="_blank">${Deno.env.get('VITE_APP_URL')}</a></p>
+                  </div>
+              </div>
+          </body>
+          </html>
+        `;
+        await invokeSendEmail(buyerEmail, buyerSubject, buyerHtml);
+      }
+
     } else {
       console.log(`Payment ${paymentId} status is ${paymentStatus}. No stock update performed.`);
     }
@@ -104,3 +256,36 @@ serve(async (req: Request) => {
     });
   }
 });
+
+// Helper function to invoke the send-email Edge Function
+async function invokeSendEmail(to: string, subject: string, htmlContent: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('Supabase URL or Service Role Key not set for invoking send-email.');
+    return;
+  }
+
+  const sendEmailFunctionUrl = `${supabaseUrl}/functions/v1/send-email`;
+
+  try {
+    const response = await fetch(sendEmailFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`, // Use service role key for internal function invocation
+      },
+      body: JSON.stringify({ to, subject, htmlContent }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Failed to invoke send-email function: ${response.status} - ${errorBody}`);
+    } else {
+      console.log(`Email invocation successful for ${to}.`);
+    }
+  } catch (error) {
+    console.error('Error invoking send-email function:', error);
+  }
+}
