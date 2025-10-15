@@ -11,6 +11,7 @@ interface SessionContextType {
   userName: string | null;
   userRole: string | null;
   hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
+  userProfile: any; // Adicionado para armazenar o perfil completo do usuário
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -21,12 +22,13 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasShopDetails, setHasShopDetails] = useState(false); // Estado para detalhes da loja
+  const [userProfile, setUserProfile] = useState<any>(null); // Estado para o perfil completo
 
   // Memoize fetchUserProfile to ensure it's stable across renders
   const fetchUserProfile = useCallback(async (userId: string) => {
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('first_name, last_name, role')
+      .select('first_name, last_name, role, cpf, phone_number, address_street, address_number, address_complement, address_district, address_postal_code, address_city, address_state')
       .eq('id', userId)
       .single();
 
@@ -35,9 +37,11 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserName("Usuário");
       setUserRole("comprador"); // Fallback
       setHasShopDetails(false);
+      setUserProfile(null);
     } else if (profileData) {
       setUserName(profileData.first_name || profileData.last_name || "Usuário");
       setUserRole(profileData.role || "comprador"); // Fallback
+      setUserProfile(profileData); // Armazena o perfil completo
 
       // Check for shop details if the user is a shopkeeper
       if (profileData.role === 'lojista') {
@@ -114,11 +118,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserName(null);
       setUserRole(null);
       setHasShopDetails(false);
+      setUserProfile(null);
     }
   }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails }}>
+    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile }}>
       {children}
     </SessionContext.Provider>
   );

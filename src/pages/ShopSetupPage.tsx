@@ -23,9 +23,17 @@ interface ShopDetails {
   shop_logo_url: string | null;
 }
 
+interface MercadoPagoPreferences {
+  shopkeeper_id: string;
+  access_token: string;
+  public_key: string;
+}
+
 const shopSetupFormSchema = z.object({
   shop_name: z.string().min(1, "O nome da loja é obrigatório."),
   shop_description: z.string().optional(),
+  mercadopago_access_token: z.string().optional(),
+  mercadopago_public_key: z.string().optional(),
 });
 
 type ShopSetupFormValues = z.infer<typeof shopSetupFormSchema>;
@@ -34,6 +42,7 @@ const ShopSetupPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
   const navigate = useNavigate();
   const [shopDetails, setShopDetails] = useState<ShopDetails | null>(null);
+  const [mercadopagoPreferences, setMercadoPagoPreferences] = useState<MercadoPagoPreferences | null>(null);
   const [isLoadingShopDetails, setIsLoadingShopDetails] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
@@ -45,6 +54,8 @@ const ShopSetupPage = () => {
     defaultValues: {
       shop_name: "",
       shop_description: "",
+      mercadopago_access_token: "",
+      mercadopago_public_key: "",
     },
   });
 
@@ -52,28 +63,45 @@ const ShopSetupPage = () => {
     setIsLoadingShopDetails(true);
     if (!session?.user?.id) {
       setShopDetails(null);
+      setMercadoPagoPreferences(null);
       setIsLoadingShopDetails(false);
       return;
     }
 
-    const { data, error } = await supabase
+    const { data: shopData, error: shopError } = await supabase
       .from('shop_details')
       .select('*')
       .eq('id', session.user.id)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
-      showError('Erro ao carregar detalhes da loja: ' + error.message);
-      console.error('Erro ao carregar detalhes da loja:', error.message);
+    if (shopError && shopError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+      showError('Erro ao carregar detalhes da loja: ' + shopError.message);
+      console.error('Erro ao carregar detalhes da loja:', shopError.message);
       setShopDetails(null);
-    } else if (data) {
-      setShopDetails(data as ShopDetails);
+    } else if (shopData) {
+      setShopDetails(shopData as ShopDetails);
       form.reset({
-        shop_name: data.shop_name || "",
-        shop_description: data.shop_description || "",
+        shop_name: shopData.shop_name || "",
+        shop_description: shopData.shop_description || "",
       });
-      setLogoPreview(data.shop_logo_url);
+      setLogoPreview(shopData.shop_logo_url);
     }
+
+    const { data: mpData, error: mpError } = await supabase
+      .from('mercadopago_preferences')
+      .select('*')
+      .eq('shopkeeper_id', session.user.id)
+      .single();
+
+    if (mpError && mpError.code !== 'PGRST116') {
+      console.error('Erro ao carregar preferências do Mercado Pago:', mpError.message);
+      setMercadoPagoPreferences(null);
+    } else if (mpData) {
+      setMercadoPagoPreferences(mpData as MercadoPagoPreferences);
+      form.setValue('mercadopago_access_token', mpData.access_token || "");
+      form.setValue('mercadopago_public_key', mpData.public_key || "");
+    }
+
     setIsLoadingShopDetails(false);
   };
 
@@ -229,6 +257,32 @@ const ShopSetupPage = () => {
         }
       }
 
+      // Save Mercado Pago preferences
+      if (session?.user?.id && (values.mercadopago_access_token || values.mercadopago_public_key)) {
+        const mpData = {
+          shopkeeper_id: session.user.id,
+          access_token: values.mercadopago_access_token || '',
+          public_key: values.mercadopago_public_key || '',
+        };
+
+        if (mercadopagoPreferences) {
+          const { error: updateMpError } = await supabase
+            .from('mercadopago_preferences')
+            .update(mpData)
+            .eq('shopkeeper_id', session.user.id);
+          if (updateMpError) {
+            throw new Error('Erro ao atualizar preferências do Mercado Pago: ' + updateMpError.message);
+          }
+        } else {
+          const { error: insertMpError } = await supabase
+            .from('mercadopago_preferences')
+            .insert(mpData);
+          if (insertMpError) {
+            throw new Error('Erro ao inserir preferências do Mercado Pago: ' + insertMpError.message);
+          }
+        }
+      }
+
       dismissToast(toastId);
       showSuccess(shopDetails ? 'Detalhes da loja atualizados com sucesso!' : 'Loja configurada com sucesso!');
       fetchShopDetails(); // Re-fetch to update local state and context
@@ -330,6 +384,40 @@ const ShopSetupPage = () => {
                 </FormControl>
                 <FormDescription>
                   Conte um pouco sobre sua loja, seus produtos e sua missão.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configurações do Mercado Pago</h2>
+          <FormField
+            control={form.control}
+            name="mercadopago_access_token"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mercado Pago Access Token</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="ACCESS_TOKEN do Mercado Pago" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Seu Access Token do Mercado Pago. Encontre-o nas suas credenciais de produção/sandbox.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="mercadopago_public_key"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mercado Pago Public Key</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="PUBLIC_KEY do Mercado Pago" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Sua Public Key do Mercado Pago. Encontre-a nas suas credenciais de produção/sandbox.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

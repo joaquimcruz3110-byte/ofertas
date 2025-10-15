@@ -4,16 +4,125 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy, Check, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-// import { showError } from '@/utils/toast'; // Removido
+import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label'; // Adicionado
+import { supabase } from '@/integrations/supabase/client'; // Adicionado
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session, isLoading: isSessionLoading, userRole, userProfile } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
-  const [isProcessingCheckout] = useState(false); // Mantido para desabilitar botões, mas sem funcionalidade
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [isPixDialogOpen, setIsPixDialogOpen] = useState(false);
+  const [pixQrCodeBase64, setPixQrCodeBase64] = useState<string | null>(null);
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPixCode = () => {
+    if (pixQrCode) {
+      navigator.clipboard.writeText(pixQrCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      showSuccess('Código Pix copiado!');
+    }
+  };
+
+  const handleCheckout = async () => {
+    setIsProcessingCheckout(true);
+    const toastId = showLoading('Processando pagamento com Mercado Pago...');
+
+    if (!session?.user?.id) {
+      dismissToast(toastId);
+      showError('Usuário não autenticado.');
+      setIsProcessingCheckout(false);
+      return;
+    }
+
+    // Validate buyer profile for Mercado Pago
+    const requiredProfileFields = ['first_name', 'last_name', 'cpf', 'phone_number', 'address_street', 'address_number', 'address_postal_code', 'address_city', 'address_state'];
+    const missingFields = requiredProfileFields.filter(field => !userProfile?.[field]);
+
+    if (missingFields.length > 0) {
+      dismissToast(toastId);
+      showError(`Por favor, complete seu perfil com as seguintes informações: ${missingFields.join(', ')}.`);
+      setIsProcessingCheckout(false);
+      return;
+    }
+
+    // Group cart items by shopkeeper_id
+    const itemsByShopkeeper: { [key: string]: typeof cartItems } = {};
+    for (const item of cartItems) {
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('shopkeeper_id')
+        .eq('id', item.id)
+        .single();
+
+      if (productError || !productData?.shopkeeper_id) {
+        dismissToast(toastId);
+        showError(`Erro ao obter informações do lojista para o produto ${item.name}.`);
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      if (!itemsByShopkeeper[productData.shopkeeper_id]) {
+        itemsByShopkeeper[productData.shopkeeper_id] = [];
+      }
+      itemsByShopkeeper[productData.shopkeeper_id].push(item);
+    }
+
+    // For simplicity, we'll only process the first shopkeeper's items.
+    // A real-world scenario might involve multiple payments or a marketplace payment solution.
+    const firstShopkeeperId = Object.keys(itemsByShopkeeper)[0];
+    if (!firstShopkeeperId) {
+      dismissToast(toastId);
+      showError('Nenhum produto no carrinho associado a um lojista.');
+      setIsProcessingCheckout(false);
+      return;
+    }
+    const itemsForPayment = itemsByShopkeeper[firstShopkeeperId];
+
+    try {
+      const response = await supabase.functions.invoke('create-mercadopago-payment', {
+        body: {
+          cartItems: itemsForPayment,
+          buyerId: session.user.id,
+          returnUrl: window.location.origin + '/meus-pedidos', // URL de retorno após o pagamento
+        },
+      });
+
+      dismissToast(toastId);
+
+      if (response.error) {
+        showError('Erro ao gerar pagamento Pix com Mercado Pago: ' + response.error.message);
+        console.error('Erro ao gerar pagamento Pix com Mercado Pago:', response.error);
+      } else if (response.data) {
+        const { qr_code_base64, qr_code } = response.data;
+        setPixQrCodeBase64(qr_code_base64);
+        setPixQrCode(qr_code);
+        setIsPixDialogOpen(true);
+        clearCart(); // Limpa o carrinho após iniciar o pagamento
+      }
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError('Erro inesperado ao processar pagamento: ' + error.message);
+      console.error('Erro inesperado ao processar pagamento:', error);
+    } finally {
+      setIsProcessingCheckout(false);
+    }
+  };
 
   if (isSessionLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
@@ -113,10 +222,52 @@ const CartPage = () => {
             >
               Limpar Carrinho
             </Button>
-            {/* Botão de checkout removido */}
+            <Button
+              onClick={handleCheckout}
+              className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white"
+              disabled={cartItems.length === 0 || isProcessingCheckout}
+            >
+              {isProcessingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Finalizar Compra com Mercado Pago
+            </Button>
           </div>
         </div>
       )}
+
+      <Dialog open={isPixDialogOpen} onOpenChange={setIsPixDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] text-center">
+          <DialogHeader>
+            <DialogTitle>Pagamento Pix via Mercado Pago</DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code ou copie o código Pix para finalizar seu pagamento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+            {pixQrCodeBase64 ? (
+              <img src={`data:image/png;base64,${pixQrCodeBase64}`} alt="QR Code Pix" className="w-48 h-48 mb-4 border rounded-md" />
+            ) : (
+              <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-md mb-4">
+                <Loader2 className="h-12 w-12 animate-spin text-gray-400" />
+              </div>
+            )}
+            <p className="text-sm text-gray-600 mb-2">Valor: <span className="font-bold text-dyad-vibrant-orange">{formatCurrency(totalPrice)}</span></p>
+            <Separator className="my-4" />
+            <Label htmlFor="pix-code" className="text-left w-full mb-2">Código Pix (Copia e Cola)</Label>
+            <div className="flex w-full max-w-sm items-center space-x-2">
+              <Input id="pix-code" value={pixQrCode || ''} readOnly className="flex-grow" />
+              <Button onClick={handleCopyPixCode} disabled={copied}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <span className="sr-only">{copied ? 'Copiado!' : 'Copiar'}</span>
+              </Button>
+            </div>
+          </div>
+          <DialogFooter className="flex sm:justify-center">
+            <Button onClick={() => setIsPixDialogOpen(false)} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
