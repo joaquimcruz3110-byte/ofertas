@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,15 @@ import RevenueOverTimeChart from '@/components/RevenueOverTimeChart';
 import { DatePickerWithRange } from '@/components/DatePickerWithRange';
 import { DateRange } from 'react-day-picker';
 import { addDays } from 'date-fns';
-import { formatCurrency } from '@/utils/formatters'; // Importar a nova função
+import { formatCurrency } from '@/utils/formatters';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface SaleDetail {
   id: string;
@@ -33,6 +41,12 @@ interface SaleDetail {
   product_name: string;
   product_price: number;
   buyer_name: string;
+  shopkeeper_name: string; // Adicionado para exibir o nome do lojista
+}
+
+interface ShopDetail {
+  id: string;
+  shop_name: string;
 }
 
 const AdminDashboard = () => {
@@ -48,8 +62,22 @@ const AdminDashboard = () => {
     from: addDays(new Date(), -30),
     to: new Date(),
   });
+  const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
+  const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
 
-  const fetchDashboardData = async (startDate?: Date, endDate?: Date) => {
+  const fetchShopkeepers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('shop_details')
+      .select('id, shop_name');
+
+    if (error) {
+      console.error('Erro ao buscar detalhes das lojas:', error.message);
+    } else {
+      setShopkeepers(data || []);
+    }
+  }, []);
+
+  const fetchDashboardData = useCallback(async (startDate?: Date, endDate?: Date, shopkeeperIdFilter?: string) => {
     setIsLoadingData(true);
     if (!session?.user?.id) {
       setTotalSalesCount(0);
@@ -70,6 +98,36 @@ const AdminDashboard = () => {
       commission_rate,
       sale_date
     `, { count: 'exact' });
+
+    let productIdsToFilter: string[] | undefined = undefined;
+
+    if (shopkeeperIdFilter) {
+      // Primeiro, obter os IDs dos produtos que pertencem ao lojista selecionado
+      const { data: shopkeeperProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('shopkeeper_id', shopkeeperIdFilter);
+
+      if (productsError) {
+        console.error('Erro ao buscar produtos do lojista para filtro:', productsError.message);
+        setIsLoadingData(false);
+        return;
+      }
+
+      productIdsToFilter = shopkeeperProducts.map(p => p.id);
+
+      if (productIdsToFilter.length === 0) {
+        // Se o lojista não tem produtos, não há vendas para ele
+        setTotalSalesCount(0);
+        setTotalRevenue(0);
+        setTotalCommission(0);
+        setDetailedSales([]);
+        setRevenueChartData([]);
+        setIsLoadingData(false);
+        return;
+      }
+      salesQuery = salesQuery.in('product_id', productIdsToFilter);
+    }
 
     if (startDate) {
       salesQuery = salesQuery.gte('sale_date', startDate.toISOString());
@@ -115,15 +173,15 @@ const AdminDashboard = () => {
     setRevenueChartData(sortedRevenueData);
 
     const uniqueProductIds = [...new Set(salesRawData.map(sale => sale.product_id))];
-    const { data: productsData, error: productsError } = await supabase
+    const { data: productsData, error: productsDetailsError } = await supabase
       .from('products')
-      .select('id, name, price')
-      .in('id', uniqueProductIds);
+      .select('id, name, price, shopkeeper_id') // Incluir shopkeeper_id
+      .in('id', uniqueProductIds); // Usar uniqueProductIds para filtrar
 
-    if (productsError) {
-      console.error('Erro ao carregar detalhes dos produtos:', productsError.message);
+    if (productsDetailsError) {
+      console.error('Erro ao carregar detalhes dos produtos:', productsDetailsError.message);
     }
-    const productDetailsMap = new Map(productsData?.map(p => [p.id, { name: p.name, price: p.price }]));
+    const productDetailsMap = new Map(productsData?.map(p => [p.id, { name: p.name, price: p.price, shopkeeper_id: p.shopkeeper_id }]));
 
     const buyerIds = [...new Set(salesRawData.map(sale => sale.buyer_id))];
     const { data: profilesData, error: profilesError } = await supabase
@@ -136,22 +194,44 @@ const AdminDashboard = () => {
     }
     const profileMap = new Map(profilesData?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Comprador Desconhecido']));
 
-    const formattedSales: SaleDetail[] = salesRawData.map(sale => ({
-      ...sale,
-      product_name: productDetailsMap.get(sale.product_id)?.name || 'Produto Desconhecido',
-      product_price: productDetailsMap.get(sale.product_id)?.price || 0,
-      buyer_name: profileMap.get(sale.buyer_id) || 'Comprador Desconhecido',
-    }));
+    const uniqueShopkeeperIdsFromSales = [...new Set(productsData?.map(p => p.shopkeeper_id).filter(Boolean))];
+    const { data: shopDetailsData, error: shopDetailsError } = await supabase
+      .from('shop_details')
+      .select('id, shop_name')
+      .in('id', uniqueShopkeeperIdsFromSales);
+
+    if (shopDetailsError) {
+      console.error('Erro ao carregar detalhes das lojas:', shopDetailsError.message);
+    }
+    const shopNameMap = new Map(shopDetailsData?.map(s => [s.id, s.shop_name]));
+
+    const formattedSales: SaleDetail[] = salesRawData.map(sale => {
+      const productDetail = productDetailsMap.get(sale.product_id);
+      const shopkeeperId = productDetail?.shopkeeper_id;
+      return {
+        ...sale,
+        product_name: productDetail?.name || 'Produto Desconhecido',
+        product_price: productDetail?.price || 0,
+        buyer_name: profileMap.get(sale.buyer_id) || 'Comprador Desconhecido',
+        shopkeeper_name: shopkeeperId ? (shopNameMap.get(shopkeeperId) || 'Lojista Desconhecido') : 'Lojista Desconhecido',
+      };
+    });
     setDetailedSales(formattedSales);
 
     setIsLoadingData(false);
-  };
+  }, [session?.user?.id]); // Adicionado session.user.id como dependência
 
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'administrador') {
-      fetchDashboardData(dateRange?.from, dateRange?.to);
+      fetchShopkeepers();
     }
-  }, [session, isSessionLoading, userRole, dateRange]);
+  }, [session, isSessionLoading, userRole, fetchShopkeepers]);
+
+  useEffect(() => {
+    if (!isSessionLoading && session && userRole === 'administrador') {
+      fetchDashboardData(dateRange?.from, dateRange?.to, selectedShopkeeperId);
+    }
+  }, [session, isSessionLoading, userRole, dateRange, selectedShopkeeperId, fetchDashboardData]);
 
   const handleExportPdf = () => {
     if (reportRef.current) {
@@ -159,6 +239,10 @@ const AdminDashboard = () => {
     } else {
       showError('Conteúdo do relatório não encontrado para exportação.');
     }
+  };
+
+  const handleShopkeeperFilterChange = (value: string) => {
+    setSelectedShopkeeperId(value === 'all' ? undefined : value);
   };
 
   if (isSessionLoading || isLoadingData) {
@@ -178,11 +262,27 @@ const AdminDashboard = () => {
 
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold text-dyad-dark-blue">Painel do Administrador</h1>
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col md:flex-row items-end md:items-center space-y-4 md:space-y-0 md:space-x-4 w-full md:w-auto">
+          <div className="w-full md:w-[200px]">
+            <Label htmlFor="filter-shopkeeper">Filtrar por Lojista</Label>
+            <Select value={selectedShopkeeperId || 'all'} onValueChange={handleShopkeeperFilterChange}>
+              <SelectTrigger id="filter-shopkeeper" className="w-full">
+                <SelectValue placeholder="Todos os Lojistas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Lojistas</SelectItem>
+                {shopkeepers.map(shopkeeper => (
+                  <SelectItem key={shopkeeper.id} value={shopkeeper.id}>
+                    {shopkeeper.shop_name || 'Lojista Desconhecido'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-          <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white">
+          <Button onClick={handleExportPdf} className="bg-dyad-vibrant-orange hover:bg-dyad-dark-blue text-dyad-white w-full md:w-auto">
             <FileText className="mr-2 h-4 w-4" /> Exportar PDF
           </Button>
         </div>
@@ -246,6 +346,7 @@ const AdminDashboard = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Lojista</TableHead> {/* Nova coluna */}
                   <TableHead>Comprador</TableHead>
                   <TableHead>Quantidade</TableHead>
                   <TableHead>Preço Unitário</TableHead>
@@ -264,6 +365,7 @@ const AdminDashboard = () => {
                   return (
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">{productName}</TableCell>
+                      <TableCell>{sale.shopkeeper_name}</TableCell> {/* Exibe o nome do lojista */}
                       <TableCell>{sale.buyer_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>{formatCurrency(productPrice)}</TableCell>
