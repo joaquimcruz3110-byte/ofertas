@@ -77,7 +77,7 @@ const productFormSchema = z.object({
     (val) => Number(val),
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
-  category: z.string().optional(),
+  category: z.string().min(1, "A categoria é obrigatória."), // Categoria agora é obrigatória
   // photo_url: z.string().optional(), // Removido
   discount: z.preprocess(
     (val) => Number(val),
@@ -645,9 +645,20 @@ const GerenciarProdutos = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoria</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -659,7 +670,7 @@ const GerenciarProdutos = () => {
                     <FormItem>
                       <FormLabel>Desconto (%)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.01" {...field} />
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

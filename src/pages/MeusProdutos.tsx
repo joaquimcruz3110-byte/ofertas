@@ -29,6 +29,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { formatCurrency } from '@/utils/formatters';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Importar Select
 
 interface Product {
   id: string;
@@ -43,6 +44,19 @@ interface Product {
   created_at: string;
 }
 
+const CATEGORIES = [
+  "Alimentos",
+  "Eletrônicos",
+  "Roupas",
+  "Livros",
+  "Casa e Decoração",
+  "Esportes",
+  "Beleza",
+  "Brinquedos",
+  "Automotivo",
+  "Outros"
+];
+
 const productFormSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório."),
   description: z.string().optional(),
@@ -54,7 +68,7 @@ const productFormSchema = z.object({
     (val) => Number(val),
     z.number().int().min(0, "A quantidade não pode ser negativa.")
   ),
-  category: z.string().optional(),
+  category: z.string().min(1, "A categoria é obrigatória."), // Categoria agora é obrigatória
   discount: z.preprocess(
     (val) => Number(val),
     z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
@@ -481,9 +495,20 @@ const MeusProdutos = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoria</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Eletrônicos, Roupas, etc." {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
