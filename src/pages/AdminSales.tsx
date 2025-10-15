@@ -41,14 +41,14 @@ interface Sale {
   is_paid_out: boolean;
   payout_date: string | null;
   payout_admin_id: string | null;
-  products: Array<{ // Alterado para Array
+  products: Array<{
     name: string;
     shopkeeper_id: string;
-  }> | null; // Permitir que seja null
-  profiles: {
+  }> | null;
+  profiles: Array<{ // Alterado para Array
     first_name: string;
     last_name: string;
-  } | null; // Permitir que seja null
+  }> | null; // Permitir que seja null
 }
 
 const AdminSales = () => {
@@ -117,8 +117,22 @@ const AdminSales = () => {
       .order("sale_date", { ascending: false });
 
     if (shopkeeperId) {
-      // Ajuste na condição para filtrar pelo shopkeeper_id do produto
-      query = query.in("product_id", supabase.from("products").select("id").eq("shopkeeper_id", shopkeeperId));
+      // 1. Executar a subconsulta para obter os IDs dos produtos do lojista
+      const { data: productIdsData, error: productIdsError } = await supabase
+        .from("products")
+        .select("id")
+        .eq("shopkeeper_id", shopkeeperId);
+
+      if (productIdsError) {
+        console.error("Erro ao buscar IDs de produtos para o lojista:", productIdsError);
+        showError("Erro ao carregar vendas: não foi possível filtrar por lojista.");
+        setError(productIdsError.message);
+        setLoading(false);
+        return;
+      }
+
+      const productIds = productIdsData ? productIdsData.map(p => p.id) : [];
+      query = query.in("product_id", productIds); // Passar o array de IDs
     }
 
     const { data, error } = await query;
@@ -128,7 +142,8 @@ const AdminSales = () => {
       showError("Erro ao carregar vendas.");
       setError(error.message);
     } else {
-      setSales(data as Sale[] || []);
+      // O cast para 'unknown' primeiro resolve o erro de incompatibilidade de tipos
+      setSales(data as unknown as Sale[] || []);
       showSuccess("Vendas carregadas com sucesso!");
     }
     setLoading(false);
@@ -236,7 +251,7 @@ const AdminSales = () => {
                       <TableCell>
                         {shopkeepers.find(s => s.id === sale.products?.[0]?.shopkeeper_id)?.first_name || "N/A"}
                       </TableCell>
-                      <TableCell>{sale.profiles?.first_name} {sale.profiles?.last_name}</TableCell>
+                      <TableCell>{sale.profiles?.[0]?.first_name} {sale.profiles?.[0]?.last_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>R$ {sale.total_price.toFixed(2)}</TableCell>
                       <TableCell>{(sale.commission_rate * 100).toFixed(2)}%</TableCell>
