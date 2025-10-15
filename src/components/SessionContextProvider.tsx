@@ -12,6 +12,7 @@ interface SessionContextType {
   userRole: string | null;
   hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
   userProfile: any; // Adicionado para armazenar o perfil completo
+  mercadopagoCredentials: { access_token: string; public_key: string } | null; // Credenciais do Mercado Pago
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -23,6 +24,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasShopDetails, setHasShopDetails] = useState(false); // Estado para detalhes da loja
   const [userProfile, setUserProfile] = useState<any>(null); // Estado para o perfil completo
+  const [mercadopagoCredentials, setMercadopagoCredentials] = useState<{ access_token: string; public_key: string } | null>(null);
 
   // Memoize fetchUserProfile to ensure it's stable across renders
   const fetchUserProfile = useCallback(async (userId: string) => {
@@ -38,6 +40,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole("comprador"); // Fallback
       setHasShopDetails(false);
       setUserProfile(null);
+      setMercadopagoCredentials(null);
     } else if (profileData) {
       setUserName(profileData.first_name || profileData.last_name || "Usuário");
       setUserRole(profileData.role || "comprador"); // Fallback
@@ -57,8 +60,26 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
         } else {
           setHasShopDetails(!!shopData); // True if data exists, false otherwise
         }
+
+        // Fetch Mercado Pago credentials for shopkeepers
+        const { data: mpData, error: mpError } = await supabase
+          .from('mercadopago_preferences')
+          .select('access_token, public_key')
+          .eq('id', userId)
+          .single();
+
+        if (mpError && mpError.code !== 'PGRST116') {
+          console.error('Erro ao buscar credenciais do Mercado Pago:', mpError.message);
+          setMercadopagoCredentials(null);
+        } else if (mpData) {
+          setMercadopagoCredentials(mpData);
+        } else {
+          setMercadopagoCredentials(null);
+        }
+
       } else {
         setHasShopDetails(false); // Not a shopkeeper, so no shop details
+        setMercadopagoCredentials(null); // Not a shopkeeper, so no MP credentials
       }
     }
   }, []); // No dependencies, as it only uses supabase client and setters
@@ -119,11 +140,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole(null);
       setHasShopDetails(false);
       setUserProfile(null);
+      setMercadopagoCredentials(null);
     }
   }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile }}>
+    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile, mercadopagoCredentials }}>
       {children}
     </SessionContext.Provider>
   );

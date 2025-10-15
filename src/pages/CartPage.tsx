@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters';
+import { supabase } from '@/integrations/supabase/client';
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session, isLoading: isSessionLoading, userRole, mercadopagoCredentials } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
@@ -30,8 +31,76 @@ const CartPage = () => {
     }
 
     setIsProcessingCheckout(true);
-    showError('A funcionalidade de checkout está temporariamente desabilitada. Por favor, tente novamente mais tarde.');
-    setIsProcessingCheckout(false);
+
+    try {
+      // Agrupar itens por lojista para criar uma preferência de pagamento por lojista
+      const itemsByShopkeeper = cartItems.reduce((acc, item) => {
+        if (!acc[item.shopkeeper_id]) {
+          acc[item.shopkeeper_id] = [];
+        }
+        acc[item.shopkeeper_id].push(item);
+        return acc;
+      }, {} as Record<string, typeof cartItems>);
+
+      // Para simplificar, vamos processar apenas o primeiro lojista no carrinho.
+      // Em uma aplicação real, você precisaria de um fluxo para múltiplos lojistas (ex: múltiplos pagamentos ou um carrinho unificado com split de pagamentos).
+      const firstShopkeeperId = Object.keys(itemsByShopkeeper)[0];
+      const itemsForFirstShopkeeper = itemsByShopkeeper[firstShopkeeperId];
+
+      if (!firstShopkeeperId || !itemsForFirstShopkeeper) {
+        showError('Não foi possível identificar o lojista para o checkout.');
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      // Buscar a taxa de comissão ativa
+      const { data: commissionRateData, error: commissionRateError } = await supabase
+        .from('commission_rates')
+        .select('rate')
+        .eq('active', true)
+        .order('set_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (commissionRateError || !commissionRateData) {
+        showError('Erro ao buscar a taxa de comissão. Por favor, tente novamente mais tarde.');
+        console.error('Erro ao buscar taxa de comissão:', commissionRateError?.message);
+        setIsProcessingCheckout(false);
+        return;
+      }
+
+      const commission_rate = commissionRateData.rate;
+
+      const { data, error } = await supabase.functions.invoke('create-mercadopago-payment', {
+        body: {
+          items: itemsForFirstShopkeeper.map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          buyer_id: session.user.id,
+          shopkeeper_id: firstShopkeeperId,
+          commission_rate: commission_rate,
+          app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
+        },
+      });
+
+      if (error) {
+        showError('Erro ao iniciar o pagamento: ' + error.message);
+        console.error('Erro ao invocar Edge Function create-mercadopago-payment:', error);
+      } else if (data && data.init_point) {
+        showSuccess('Redirecionando para o Mercado Pago...');
+        window.location.href = data.init_point;
+      } else {
+        showError('Resposta inesperada da função de pagamento.');
+      }
+    } catch (error: any) {
+      showError('Erro inesperado durante o checkout: ' + error.message);
+      console.error('Erro inesperado durante o checkout:', error);
+    } finally {
+      setIsProcessingCheckout(false);
+    }
   };
 
   if (isSessionLoading) {
