@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0'; // Alterado para npm:
 import * as MercadoPago from 'npm:mercadopago@2.0.0'; // Importa como namespace usando npm:
 
 const corsHeaders = {
