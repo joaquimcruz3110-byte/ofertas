@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { showSuccess, showError } from "@/utils/toast";
 import { format } from "date-fns";
 
@@ -37,14 +38,17 @@ interface Sale {
   sale_date: string;
   payment_gateway_id: string | null;
   payment_gateway_status: string | null;
-  products: {
+  is_paid_out: boolean;
+  payout_date: string | null;
+  payout_admin_id: string | null;
+  products: Array<{ // Alterado para Array
     name: string;
     shopkeeper_id: string;
-  };
+  }> | null; // Permitir que seja null
   profiles: {
     first_name: string;
     last_name: string;
-  };
+  } | null; // Permitir que seja null
 }
 
 const AdminSales = () => {
@@ -89,12 +93,17 @@ const AdminSales = () => {
       .select(
         `
         id,
+        product_id,
+        buyer_id,
         quantity,
         total_price,
         commission_rate,
         sale_date,
         payment_gateway_id,
         payment_gateway_status,
+        is_paid_out,
+        payout_date,
+        payout_admin_id,
         products (
           name,
           shopkeeper_id
@@ -108,7 +117,8 @@ const AdminSales = () => {
       .order("sale_date", { ascending: false });
 
     if (shopkeeperId) {
-      query = query.eq("products.shopkeeper_id", shopkeeperId);
+      // Ajuste na condição para filtrar pelo shopkeeper_id do produto
+      query = query.in("product_id", supabase.from("products").select("id").eq("shopkeeper_id", shopkeeperId));
     }
 
     const { data, error } = await query;
@@ -120,6 +130,37 @@ const AdminSales = () => {
     } else {
       setSales(data as Sale[] || []);
       showSuccess("Vendas carregadas com sucesso!");
+    }
+    setLoading(false);
+  };
+
+  const handleMarkAsPaidOut = async (saleId: string) => {
+    setLoading(true);
+    const user = await supabase.auth.getUser();
+    const adminId = user.data.user?.id;
+
+    if (!adminId) {
+      showError("Você precisa estar logado como administrador para realizar esta ação.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("sales")
+      .update({
+        is_paid_out: true,
+        payout_date: new Date().toISOString(),
+        payout_admin_id: adminId,
+      })
+      .eq("id", saleId);
+
+    if (error) {
+      console.error("Erro ao marcar venda como repassada:", error);
+      showError("Erro ao marcar venda como repassada.");
+      setError(error.message);
+    } else {
+      showSuccess("Venda marcada como repassada com sucesso!");
+      fetchSales(selectedShopkeeperId); // Recarregar as vendas para atualizar o status
     }
     setLoading(false);
   };
@@ -184,14 +225,16 @@ const AdminSales = () => {
                     <TableHead>Comissão</TableHead>
                     <TableHead>Data da Venda</TableHead>
                     <TableHead>Status Pagamento</TableHead>
+                    <TableHead>Status Repasse</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sales.map((sale) => (
                     <TableRow key={sale.id}>
-                      <TableCell className="font-medium">{sale.products?.name || "N/A"}</TableCell>
+                      <TableCell className="font-medium">{sale.products?.[0]?.name || "N/A"}</TableCell>
                       <TableCell>
-                        {shopkeepers.find(s => s.id === sale.products?.shopkeeper_id)?.first_name || "N/A"}
+                        {shopkeepers.find(s => s.id === sale.products?.[0]?.shopkeeper_id)?.first_name || "N/A"}
                       </TableCell>
                       <TableCell>{sale.profiles?.first_name} {sale.profiles?.last_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
@@ -199,6 +242,25 @@ const AdminSales = () => {
                       <TableCell>{(sale.commission_rate * 100).toFixed(2)}%</TableCell>
                       <TableCell>{format(new Date(sale.sale_date), "dd/MM/yyyy HH:mm")}</TableCell>
                       <TableCell>{sale.payment_gateway_status || "N/A"}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          sale.is_paid_out ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {sale.is_paid_out ? `Repassado em ${format(new Date(sale.payout_date!), "dd/MM/yyyy")}` : "Pendente"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {!sale.is_paid_out && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkAsPaidOut(sale.id)}
+                            disabled={loading}
+                          >
+                            Marcar como Repassado
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
