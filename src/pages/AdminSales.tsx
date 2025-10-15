@@ -29,6 +29,14 @@ interface Profile {
   role: string;
 }
 
+// A interface ShopDetail foi removida pois não estava sendo utilizada.
+
+interface ProductDetail {
+  id: string;
+  name: string;
+  shopkeeper_id: string | null;
+}
+
 interface Sale {
   id: string;
   product_id: string;
@@ -42,11 +50,9 @@ interface Sale {
   is_paid_out: boolean;
   payout_date: string | null;
   payout_admin_id: string | null;
-  products: Array<{
-    name: string;
-    shopkeeper_id: string;
-  }> | null;
-  buyer_name: string; // Adicionado para armazenar o nome do comprador
+  buyer_name: string;
+  product_name: string;
+  shopkeeper_name: string; // Mantido como string, pois a lógica garante que sempre será uma string
 }
 
 const AdminSales = () => {
@@ -82,7 +88,7 @@ const AdminSales = () => {
     setLoading(false);
   };
 
-  const fetchSales = async (shopkeeperId: string | null) => {
+  const fetchSales = async (shopkeeperIdFilter: string | null) => {
     setLoading(true);
     setError(null);
 
@@ -101,20 +107,16 @@ const AdminSales = () => {
         payment_gateway_status,
         is_paid_out,
         payout_date,
-        payout_admin_id,
-        products (
-          name,
-          shopkeeper_id
-        )
+        payout_admin_id
       `,
       )
       .order("sale_date", { ascending: false });
 
-    if (shopkeeperId) {
+    if (shopkeeperIdFilter) {
       const { data: productIdsData, error: productIdsError } = await supabase
         .from("products")
         .select("id")
-        .eq("shopkeeper_id", shopkeeperId);
+        .eq("shopkeeper_id", shopkeeperIdFilter);
 
       if (productIdsError) {
         console.error("Erro ao buscar IDs de produtos para o lojista:", productIdsError);
@@ -133,22 +135,63 @@ const AdminSales = () => {
       query = query.in("product_id", productIds);
     }
 
-    const { data, error } = await query;
+    const { data: salesRawData, error: salesError } = await query;
 
-    if (error) {
-      console.error("Erro ao buscar vendas:", error);
-      showError("Erro ao carregar vendas. Detalhes: " + error.message);
-      setError(error.message);
+    if (salesError) {
+      console.error("Erro ao buscar vendas:", salesError);
+      showError("Erro ao carregar vendas. Detalhes: " + salesError.message);
+      setError(salesError.message);
       setLoading(false);
       return;
     }
 
-    const salesRawData = data || [];
+    const salesData = salesRawData || [];
+
+    // Collect all unique product IDs from the fetched sales
+    const uniqueProductIds = [...new Set(salesData.map(sale => sale.product_id))];
+    
+    // Fetch product details (name, shopkeeper_id) for all unique product IDs
+    let productDetailsMap = new Map<string, ProductDetail>();
+    if (uniqueProductIds.length > 0) {
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, shopkeeper_id')
+        .in('id', uniqueProductIds);
+
+      if (productsError) {
+        console.error('Erro ao buscar detalhes dos produtos:', productsError.message);
+        showError('Erro ao carregar detalhes dos produtos: ' + productsError.message);
+      } else {
+        productsData?.forEach(p => {
+          productDetailsMap.set(p.id, { id: p.id, name: p.name, shopkeeper_id: p.shopkeeper_id });
+        });
+      }
+    }
+
+    // Collect all unique shopkeeper IDs from the fetched product details
+    const uniqueShopkeeperIds = [...new Set(Array.from(productDetailsMap.values()).map(p => p.shopkeeper_id).filter(Boolean))] as string[];
+
+    // Fetch shop names for these shopkeepers
+    let shopNamesMap = new Map<string, string>();
+    if (uniqueShopkeeperIds.length > 0) {
+      const { data: shopDetailsData, error: shopDetailsError } = await supabase
+        .from('shop_details')
+        .select('id, shop_name')
+        .in('id', uniqueShopkeeperIds);
+
+      if (shopDetailsError) {
+        console.error('Erro ao buscar detalhes das lojas:', shopDetailsError.message);
+        showError('Erro ao carregar detalhes das lojas: ' + shopDetailsError.message);
+      } else {
+        shopDetailsData?.forEach(shop => {
+          shopNamesMap.set(shop.id, shop.shop_name || 'Lojista Desconhecido');
+        });
+      }
+    }
 
     // Fetch buyer profiles separately
-    const uniqueBuyerIds = [...new Set(salesRawData.map(sale => sale.buyer_id))];
+    const uniqueBuyerIds = [...new Set(salesData.map(sale => sale.buyer_id))];
     let buyerProfilesMap = new Map<string, string>();
-
     if (uniqueBuyerIds.length > 0) {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -158,7 +201,6 @@ const AdminSales = () => {
       if (profilesError) {
         console.error('Erro ao buscar perfis dos compradores:', profilesError.message);
         showError('Erro ao carregar perfis dos compradores: ' + profilesError.message);
-        // Continue without profile names if there's an error
       } else {
         profilesData?.forEach(profile => {
           buyerProfilesMap.set(profile.id, `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Comprador Desconhecido');
@@ -166,22 +208,36 @@ const AdminSales = () => {
       }
     }
 
-    const typedSales: Sale[] = salesRawData.map((item: any) => ({
-      id: item.id,
-      product_id: item.product_id,
-      buyer_id: item.buyer_id,
-      quantity: item.quantity,
-      total_price: item.total_price,
-      commission_rate: item.commission_rate,
-      sale_date: item.sale_date,
-      payment_gateway_id: item.payment_gateway_id,
-      payment_gateway_status: item.payment_gateway_status,
-      is_paid_out: item.is_paid_out,
-      payout_date: item.payout_date,
-      payout_admin_id: item.payout_admin_id,
-      products: item.products,
-      buyer_name: buyerProfilesMap.get(item.buyer_id) || 'Comprador Desconhecido', // Add buyer_name
-    }));
+    const typedSales: Sale[] = salesData.map((item: any) => {
+      const productDetail = productDetailsMap.get(item.product_id);
+      const productName = productDetail?.name || "N/A";
+      const shopkeeperIdForProduct = productDetail?.shopkeeper_id;
+      
+      let shopkeeperName: string;
+      if (shopkeeperIdForProduct) {
+        shopkeeperName = shopNamesMap.get(shopkeeperIdForProduct) || 'Lojista Desconhecido';
+      } else {
+        shopkeeperName = 'N/A';
+      }
+
+      return {
+        id: item.id,
+        product_id: item.product_id,
+        buyer_id: item.buyer_id,
+        quantity: item.quantity,
+        total_price: item.total_price,
+        commission_rate: item.commission_rate,
+        sale_date: item.sale_date,
+        payment_gateway_id: item.payment_gateway_id,
+        payment_gateway_status: item.payment_gateway_status,
+        is_paid_out: item.is_paid_out,
+        payout_date: item.payout_date,
+        payout_admin_id: item.payout_admin_id,
+        buyer_name: buyerProfilesMap.get(item.buyer_id) || 'Comprador Desconhecido',
+        product_name: productName,
+        shopkeeper_name: shopkeeperName,
+      };
+    });
     setSales(typedSales);
     setLoading(false);
   };
@@ -227,7 +283,6 @@ const AdminSales = () => {
     sales.forEach(sale => {
       totalSalesCount++;
       totalRevenue += sale.total_price;
-      // A taxa de comissão é um percentual (ex: 5 para 5%), então dividimos por 100
       totalCommission += sale.total_price * (sale.commission_rate / 100);
 
       const amountToShopkeeper = sale.total_price * (1 - (sale.commission_rate / 100));
@@ -358,11 +413,9 @@ const AdminSales = () => {
                 <TableBody>
                   {sales.map((sale) => (
                     <TableRow key={sale.id}>
-                      <TableCell className="font-medium">{sale.products?.[0]?.name || "N/A"}</TableCell>
-                      <TableCell>
-                        {shopkeepers.find(s => s.id === sale.products?.[0]?.shopkeeper_id)?.first_name || "N/A"}
-                      </TableCell>
-                      <TableCell>{sale.buyer_name}</TableCell> {/* Usando buyer_name */}
+                      <TableCell className="font-medium">{sale.product_name}</TableCell>
+                      <TableCell>{sale.shopkeeper_name}</TableCell>
+                      <TableCell>{sale.buyer_name}</TableCell>
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>{formatCurrency(sale.total_price)}</TableCell>
                       <TableCell>{(sale.commission_rate).toFixed(2)}%</TableCell>
