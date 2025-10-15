@@ -12,7 +12,7 @@ interface SessionContextType {
   userRole: string | null;
   hasShopDetails: boolean; // Novo campo para verificar se o lojista tem detalhes da loja
   userProfile: any; // Adicionado para armazenar o perfil completo
-  shopkeeperMercadopagoAccountId: string | null; // ID da conta Mercado Pago do lojista
+  // shopkeeperMercadopagoAccountId: string | null; // Removido
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -24,7 +24,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasShopDetails, setHasShopDetails] = useState(false); // Estado para detalhes da loja
   const [userProfile, setUserProfile] = useState<any>(null); // Estado para o perfil completo
-  const [shopkeeperMercadopagoAccountId, setShopkeeperMercadopagoAccountId] = useState<string | null>(null);
+  // const [shopkeeperMercadopagoAccountId, setShopkeeperMercadopagoAccountId] = useState<string | null>(null); // Removido
 
   // Memoize fetchUserProfile to ensure it's stable across renders
   const fetchUserProfile = useCallback(async (userId: string) => {
@@ -40,7 +40,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole("comprador"); // Fallback
       setHasShopDetails(false);
       setUserProfile(null);
-      setShopkeeperMercadopagoAccountId(null);
+      // setShopkeeperMercadopagoAccountId(null); // Removido
     } else if (profileData) {
       setUserName(profileData.first_name || profileData.last_name || "Usuário");
       setUserRole(profileData.role || "comprador"); // Fallback
@@ -50,25 +50,25 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       if (profileData.role === 'lojista') {
         const { data: shopData, error: shopError } = await supabase
           .from('shop_details')
-          .select('id, mercadopago_account_id') // Buscar o mercadopago_account_id
+          .select('id') // Não precisamos mais do mercadopago_account_id aqui
           .eq('id', userId)
           .single();
         
         if (shopError && shopError.code !== 'PGRST116') { // PGRST116 means "no rows found"
           console.error('Erro ao buscar detalhes da loja:', shopError.message);
           setHasShopDetails(false);
-          setShopkeeperMercadopagoAccountId(null);
+          // setShopkeeperMercadopagoAccountId(null); // Removido
         } else if (shopData) {
           setHasShopDetails(true); // True if data exists
-          setShopkeeperMercadopagoAccountId(shopData.mercadopago_account_id);
+          // setShopkeeperMercadopagoAccountId(shopData.mercadopago_account_id); // Removido
         } else {
           setHasShopDetails(false);
-          setShopkeeperMercadopagoAccountId(null);
+          // setShopkeeperMercadopagoAccountId(null); // Removido
         }
 
       } else {
         setHasShopDetails(false); // Not a shopkeeper, so no shop details
-        setShopkeeperMercadopagoAccountId(null); // Not a shopkeeper, so no MP account ID
+        // setShopkeeperMercadopagoAccountId(null); // Removido
       }
     }
   }, []); // No dependencies, as it only uses supabase client and setters
@@ -129,12 +129,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setUserRole(null);
       setHasShopDetails(false);
       setUserProfile(null);
-      setShopkeeperMercadopagoAccountId(null);
+      // setShopkeeperMercadopagoAccountId(null); // Removido
     }
   }, [session, fetchUserProfile]); // Depend on session and the stable fetchUserProfile
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile, shopkeeperMercadopagoAccountId }}>
+    <SessionContext.Provider value={{ session, isLoading, userName, userRole, hasShopDetails, userProfile }}>
       {children}
     </SessionContext.Provider>
   );

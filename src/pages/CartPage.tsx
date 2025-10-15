@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast'; // 'showSuccess' removido
 import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters';
-import { supabase } from '@/integrations/supabase/client';
+// import { supabase } from '@/integrations/supabase/client'; // Removido
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userRole } = useSession();
@@ -31,82 +31,84 @@ const CartPage = () => {
     }
 
     setIsProcessingCheckout(true);
+    showError('A funcionalidade de checkout está temporariamente desabilitada. Por favor, aguarde.');
+    setIsProcessingCheckout(false);
 
-    try {
-      // Get unique shopkeeper IDs from cart items
-      const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id)));
+    // try {
+    //   // Get unique shopkeeper IDs from cart items
+    //   const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id)));
 
-      // Fetch Mercado Pago account IDs for all involved shopkeepers
-      const { data: shopDetails, error: shopError } = await supabase
-        .from('shop_details')
-        .select('id, mercadopago_account_id')
-        .in('id', uniqueShopkeeperIds);
+    //   // Fetch Mercado Pago account IDs for all involved shopkeepers
+    //   const { data: shopDetails, error: shopError } = await supabase
+    //     .from('shop_details')
+    //     .select('id, mercadopago_account_id') // Buscar o mercadopago_account_id
+    //     .in('id', uniqueShopkeeperIds);
 
-      if (shopError) {
-        showError('Erro ao verificar contas de lojistas: ' + shopError.message);
-        console.error('Erro ao verificar contas de lojistas:', shopError.message);
-        setIsProcessingCheckout(false);
-        return;
-      }
+    //   if (shopError) {
+    //     showError('Erro ao verificar contas de lojistas: ' + shopError.message);
+    //     console.error('Erro ao verificar contas de lojistas:', shopError.message);
+    //     setIsProcessingCheckout(false);
+    //     return;
+    //   }
 
-      const shopkeeperMpAccounts = new Map(shopDetails.map(s => [s.id, s.mercadopago_account_id]));
+    //   const shopkeeperMpAccounts = new Map(shopDetails.map(s => [s.id, s.mercadopago_account_id]));
 
-      // Check if all shopkeepers have a Mercado Pago account ID configured
-      const missingMpAccounts = uniqueShopkeeperIds.filter(id => !shopkeeperMpAccounts.get(id));
-      if (missingMpAccounts.length > 0) {
-        showError('Um ou mais lojistas no seu carrinho não configuraram suas contas Mercado Pago. Não é possível prosseguir com a compra.');
-        setIsProcessingCheckout(false);
-        return;
-      }
+    //   // Check if all shopkeepers have a Mercado Pago account ID configured
+    //   const missingMpAccounts = uniqueShopkeeperIds.filter(id => !shopkeeperMpAccounts.get(id));
+    //   if (missingMpAccounts.length > 0) {
+    //     showError('Um ou mais lojistas no seu carrinho não configuraram suas contas Mercado Pago. Não é possível prosseguir com a compra.');
+    //     setIsProcessingCheckout(false);
+    //     return;
+    //   }
 
-      // Fetch the active commission rate
-      const { data: commissionRateData, error: commissionRateError } = await supabase
-        .from('commission_rates')
-        .select('rate')
-        .eq('active', true)
-        .order('set_date', { ascending: false })
-        .limit(1)
-        .single();
+    //   // Fetch the active commission rate
+    //   const { data: commissionRateData, error: commissionRateError } = await supabase
+    //     .from('commission_rates')
+    //     .select('rate')
+    //     .eq('active', true)
+    //     .order('set_date', { ascending: false })
+    //     .limit(1)
+    //     .single();
 
-      if (commissionRateError || !commissionRateData) {
-        showError('Erro ao buscar a taxa de comissão. Por favor, tente novamente mais tarde.');
-        console.error('Erro ao buscar taxa de comissão:', commissionRateError?.message);
-        setIsProcessingCheckout(false);
-        return;
-      }
+    //   if (commissionRateError || !commissionRateData) {
+    //     showError('Erro ao buscar a taxa de comissão. Por favor, tente novamente mais tarde.');
+    //     console.error('Erro ao buscar taxa de comissão:', commissionRateError?.message);
+    //     setIsProcessingCheckout(false);
+    //     return;
+    //   }
 
-      const commission_rate = commissionRateData.rate;
+    //   const commission_rate = commissionRateData.rate;
 
-      const { data, error } = await supabase.functions.invoke('create-mercadopago-payment', {
-        body: {
-          cartItems: cartItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            shopkeeper_id: item.shopkeeper_id,
-          })),
-          buyer_id: session.user.id,
-          commission_rate: commission_rate,
-          app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
-        },
-      });
+    //   const { data, error } = await supabase.functions.invoke('create-mercadopago-payment', {
+    //     body: {
+    //       cartItems: cartItems.map(item => ({
+    //         id: item.id,
+    //         name: item.name,
+    //         quantity: item.quantity,
+    //         price: item.price,
+    //         shopkeeper_id: item.shopkeeper_id,
+    //       })),
+    //       buyer_id: session.user.id,
+    //       commission_rate: commission_rate,
+    //       app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
+    //     },
+    //   });
 
-      if (error) {
-        showError('Erro ao iniciar o pagamento: ' + error.message);
-        console.error('Erro ao invocar Edge Function create-mercadopago-payment:', error);
-      } else if (data && data.init_point) {
-        showSuccess('Redirecionando para o Mercado Pago...');
-        window.location.href = data.init_point;
-      } else {
-        showError('Resposta inesperada da função de pagamento.');
-      }
-    } catch (error: any) {
-      showError('Erro inesperado durante o checkout: ' + error.message);
-      console.error('Erro inesperado durante o checkout:', error);
-    } finally {
-      setIsProcessingCheckout(false);
-    }
+    //   if (error) {
+    //     showError('Erro ao iniciar o pagamento: ' + error.message);
+    //     console.error('Erro ao invocar Edge Function create-mercadopago-payment:', error);
+    //   } else if (data && data.init_point) {
+    //     showSuccess('Redirecionando para o Mercado Pago...');
+    //     window.location.href = data.init_point;
+    //   } else {
+    //     showError('Resposta inesperada da função de pagamento.');
+    //   }
+    // } catch (error: any) {
+    //   showError('Erro inesperado durante o checkout: ' + error.message);
+    //   console.error('Erro inesperado durante o checkout:', error);
+    // } finally {
+    //   setIsProcessingCheckout(false);
+    // }
   };
 
   if (isSessionLoading) {
