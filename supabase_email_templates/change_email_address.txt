@@ -1,0 +1,16 @@
+Olá!
+
+Você solicitou a alteração do seu endereço de e-mail de {{ .Email }} para {{ .NewEmail }} no Ponta de Estoque.
+
+Para confirmar esta alteração, por favor, clique no link abaixo:
+
+{{ .URL }}
+
+Se você não solicitou esta alteração, por favor, ignore este e-mail e entre em contato conosco imediatamente.
+
+Atenciosamente,
+A Equipe Ponta de Estoque
+
+---
+© {{ .Year }} Ponta de Estoque. Todos os direitos reservados.
+Visite nosso site: {{ .SiteURL }}

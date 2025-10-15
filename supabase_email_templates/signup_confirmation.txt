@@ -1,0 +1,12 @@
+Olá!
+
+Obrigado por se cadastrar no Olímpia Ofertas. Para ativar sua conta e começar a explorar nossos produtos ou listar os seus, por favor, confirme seu endereço de e-mail clicando no link abaixo:
+
+{{ .URL }}
+
+Se você não solicitou este cadastro, pode ignorar este e-mail com segurança.
+
+Atenciosamente,
+A Equipe Olímpia Ofertas
+
+Visite nosso site: {{ .SiteURL }}
