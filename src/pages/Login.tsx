@@ -91,7 +91,6 @@ const Login = () => {
               },
             },
           }}
-          redirectTo={import.meta.env.VITE_APP_URL} // Adicionado esta linha
         />
         <div className="mt-6 text-center">
           <Link to="/landing" className="text-dyad-dark-blue hover:text-dyad-vibrant-orange text-sm underline">
