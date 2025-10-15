@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -45,10 +45,10 @@ interface Sale {
     name: string;
     shopkeeper_id: string;
   }> | null;
-  profiles: Array<{ // Alterado para Array
+  profiles: Array<{
     first_name: string;
     last_name: string;
-  }> | null; // Permitir que seja null
+  }> | null;
 }
 
 const AdminSales = () => {
@@ -117,7 +117,6 @@ const AdminSales = () => {
       .order("sale_date", { ascending: false });
 
     if (shopkeeperId) {
-      // 1. Executar a subconsulta para obter os IDs dos produtos do lojista
       const { data: productIdsData, error: productIdsError } = await supabase
         .from("products")
         .select("id")
@@ -132,7 +131,7 @@ const AdminSales = () => {
       }
 
       const productIds = productIdsData ? productIdsData.map(p => p.id) : [];
-      query = query.in("product_id", productIds); // Passar o array de IDs
+      query = query.in("product_id", productIds);
     }
 
     const { data, error } = await query;
@@ -142,7 +141,6 @@ const AdminSales = () => {
       showError("Erro ao carregar vendas.");
       setError(error.message);
     } else {
-      // O cast para 'unknown' primeiro resolve o erro de incompatibilidade de tipos
       setSales(data as unknown as Sale[] || []);
       showSuccess("Vendas carregadas com sucesso!");
     }
@@ -175,10 +173,38 @@ const AdminSales = () => {
       setError(error.message);
     } else {
       showSuccess("Venda marcada como repassada com sucesso!");
-      fetchSales(selectedShopkeeperId); // Recarregar as vendas para atualizar o status
+      fetchSales(selectedShopkeeperId);
     }
     setLoading(false);
   };
+
+  const { totalSalesCount, totalRevenue, totalCommission, totalPaidOut, totalPendingPayout } = useMemo(() => {
+    let totalSalesCount = 0;
+    let totalRevenue = 0;
+    let totalCommission = 0;
+    let totalPaidOut = 0;
+    let totalPendingPayout = 0;
+
+    sales.forEach(sale => {
+      totalSalesCount++;
+      totalRevenue += sale.total_price;
+      totalCommission += sale.total_price * sale.commission_rate;
+
+      if (sale.is_paid_out) {
+        totalPaidOut += sale.total_price * (1 - sale.commission_rate); // Valor repassado ao lojista
+      } else {
+        totalPendingPayout += sale.total_price * (1 - sale.commission_rate); // Valor a ser repassado ao lojista
+      }
+    });
+
+    return {
+      totalSalesCount,
+      totalRevenue,
+      totalCommission,
+      totalPaidOut,
+      totalPendingPayout,
+    };
+  }, [sales]);
 
   if (loading && sales.length === 0) {
     return (
@@ -198,7 +224,7 @@ const AdminSales = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">Painel de Vendas</CardTitle>
         </CardHeader>
@@ -223,6 +249,49 @@ const AdminSales = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalSalesCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ {totalRevenue.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Comissão Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ {totalCommission.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Repassado Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ {totalPaidOut.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pendente de Repasse</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ {totalPendingPayout.toFixed(2)}</div>
+              </CardContent>
+            </Card>
           </div>
 
           {sales.length === 0 ? (
