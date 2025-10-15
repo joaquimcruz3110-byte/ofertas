@@ -6,5 +6,6 @@
     "lib": ["DOM", "DOM.Iterable", "ES2020"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "supabase"]
+  // Exclui explicitamente os diretórios das funções Supabase para evitar erros de compilação no frontend.
+  "exclude": ["node_modules", "dist", "supabase", "functions", "supabase/functions"]
 }
