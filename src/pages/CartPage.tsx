@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client'; // Importar supabase
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession(); // Removido userRole pois não é usado diretamente aqui
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
@@ -33,6 +33,17 @@ const CartPage = () => {
     setIsProcessingCheckout(true);
 
     try {
+      // Explicitamente refrescar a sessão antes de invocar a função
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError || !refreshedSession) {
+        showError('Sua sessão expirou ou é inválida. Por favor, faça login novamente.');
+        console.error('Erro ao refrescar sessão:', refreshError?.message);
+        navigate('/login');
+        setIsProcessingCheckout(false);
+        return;
+      }
+
       // Get unique shopkeeper IDs from cart items
       const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id)));
 
@@ -86,7 +97,7 @@ const CartPage = () => {
             price: item.price,
             shopkeeper_id: item.shopkeeper_id,
           })),
-          buyer_id: session.user.id,
+          buyer_id: refreshedSession.user.id, // Usar o ID da sessão atualizada
           commission_rate: commission_rate,
           app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
         },
@@ -109,16 +120,20 @@ const CartPage = () => {
     }
   };
 
+  // A verificação de userRole foi movida para o ProtectedRoute em App.tsx
+  // e para o componente SessionContextProvider para o hasShopDetails.
+  // Aqui, apenas verificamos se a sessão está carregando ou se não há sessão.
   if (isSessionLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
 
-  if (!session || userRole !== 'comprador') {
+  if (!session) {
+    // O ProtectedRoute já deve redirecionar, mas como fallback, podemos mostrar uma mensagem.
     return (
       <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
         <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
           <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
+          <p className="text-xl text-gray-600">Você precisa estar logado para acessar esta página.</p>
         </div>
       </div>
     );
