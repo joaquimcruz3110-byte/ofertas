@@ -52,12 +52,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Custom colors
-        "dyad-dark-blue": "#1E3A8A",
-        "dyad-vibrant-orange": "#F97316",
-        "dyad-white": "#FFFFFF",
-        "dyad-light-gray": "#F3F4F6",
-        "dyad-dark-gray": "#1F2937", // For dark mode background
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -73,11 +67,6 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        "dyad-rounded": "8px", // Custom rounded corners
-        "dyad-rounded-lg": "12px",
-      },
-      boxShadow: {
-        "dyad-soft": "0 4px 8px rgba(0, 0, 0, 0.1)", // Custom soft shadow
       },
       keyframes: {
         "accordion-down": {
@@ -100,9 +89,6 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'], // Using Inter as the sans-serif font
       },
     },
   },

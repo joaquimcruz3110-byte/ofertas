@@ -1,1 +1,0 @@
-DROP POLICY IF EXISTS "Shopkeepers can insert their own products" ON public.products;
