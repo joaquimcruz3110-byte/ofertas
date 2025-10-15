@@ -42,7 +42,7 @@ serve(async (req: Request) => {
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'Olímpia Ofertas <onboarding@resend.dev>', // Altere para um e-mail de remetente verificado no Resend
+        from: 'Olímpia Ofertas <SEU_EMAIL_VERIFICADO_NO_RESEND>', // <-- ALtere este e-mail!
         to: to,
         subject: subject,
         html: htmlContent,
