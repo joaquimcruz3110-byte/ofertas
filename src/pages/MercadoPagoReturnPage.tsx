@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Clock, ArrowLeft } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingCart as ShoppingCartIcon } from 'lucide-react'; // Corrigido: Adicionado ShoppingCartIcon
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/components/CartProvider';
 import { showSuccess, showError } from '@/utils/toast';

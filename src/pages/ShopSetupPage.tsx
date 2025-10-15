@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Loader2, Store, Camera, Trash2 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import *s z from "zod";
+import * as z from "zod"; // Corrigido: de '*s z' para '* as z'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useNavigate } from 'react-router-dom';
 
