@@ -46,10 +46,7 @@ interface Sale {
     name: string;
     shopkeeper_id: string;
   }> | null;
-  profiles: Array<{
-    first_name: string;
-    last_name: string;
-  }> | null;
+  buyer_name: string; // Adicionado para armazenar o nome do comprador
 }
 
 const AdminSales = () => {
@@ -108,10 +105,6 @@ const AdminSales = () => {
         products (
           name,
           shopkeeper_id
-        ),
-        profiles (
-          first_name,
-          last_name
         )
       `,
       )
@@ -133,7 +126,6 @@ const AdminSales = () => {
 
       const productIds = productIdsData ? productIdsData.map(p => p.id) : [];
       if (productIds.length === 0) {
-        // Se não há produtos para este lojista, não há vendas para mostrar.
         setSales([]);
         setLoading(false);
         return;
@@ -147,26 +139,50 @@ const AdminSales = () => {
       console.error("Erro ao buscar vendas:", error);
       showError("Erro ao carregar vendas. Detalhes: " + error.message);
       setError(error.message);
-    } else {
-      const typedSales: Sale[] = (data || []).map((item: any) => ({
-        id: item.id,
-        product_id: item.product_id,
-        buyer_id: item.buyer_id,
-        quantity: item.quantity,
-        total_price: item.total_price,
-        commission_rate: item.commission_rate,
-        sale_date: item.sale_date,
-        payment_gateway_id: item.payment_gateway_id,
-        payment_gateway_status: item.payment_gateway_status,
-        is_paid_out: item.is_paid_out,
-        payout_date: item.payout_date,
-        payout_admin_id: item.payout_admin_id,
-        products: item.products,
-        profiles: item.profiles,
-      }));
-      setSales(typedSales);
-      // showSuccess("Vendas carregadas com sucesso!"); // Removido para evitar spam de toasts
+      setLoading(false);
+      return;
     }
+
+    const salesRawData = data || [];
+
+    // Fetch buyer profiles separately
+    const uniqueBuyerIds = [...new Set(salesRawData.map(sale => sale.buyer_id))];
+    let buyerProfilesMap = new Map<string, string>();
+
+    if (uniqueBuyerIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', uniqueBuyerIds);
+
+      if (profilesError) {
+        console.error('Erro ao buscar perfis dos compradores:', profilesError.message);
+        showError('Erro ao carregar perfis dos compradores: ' + profilesError.message);
+        // Continue without profile names if there's an error
+      } else {
+        profilesData?.forEach(profile => {
+          buyerProfilesMap.set(profile.id, `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Comprador Desconhecido');
+        });
+      }
+    }
+
+    const typedSales: Sale[] = salesRawData.map((item: any) => ({
+      id: item.id,
+      product_id: item.product_id,
+      buyer_id: item.buyer_id,
+      quantity: item.quantity,
+      total_price: item.total_price,
+      commission_rate: item.commission_rate,
+      sale_date: item.sale_date,
+      payment_gateway_id: item.payment_gateway_id,
+      payment_gateway_status: item.payment_gateway_status,
+      is_paid_out: item.is_paid_out,
+      payout_date: item.payout_date,
+      payout_admin_id: item.payout_admin_id,
+      products: item.products,
+      buyer_name: buyerProfilesMap.get(item.buyer_id) || 'Comprador Desconhecido', // Add buyer_name
+    }));
+    setSales(typedSales);
     setLoading(false);
   };
 
@@ -346,10 +362,10 @@ const AdminSales = () => {
                       <TableCell>
                         {shopkeepers.find(s => s.id === sale.products?.[0]?.shopkeeper_id)?.first_name || "N/A"}
                       </TableCell>
-                      <TableCell>{sale.profiles?.[0]?.first_name} {sale.profiles?.[0]?.last_name}</TableCell>
+                      <TableCell>{sale.buyer_name}</TableCell> {/* Usando buyer_name */}
                       <TableCell>{sale.quantity}</TableCell>
                       <TableCell>{formatCurrency(sale.total_price)}</TableCell>
-                      <TableCell>{(sale.commission_rate).toFixed(2)}%</TableCell> {/* Exibe a taxa como porcentagem */}
+                      <TableCell>{(sale.commission_rate).toFixed(2)}%</TableCell>
                       <TableCell>{format(new Date(sale.sale_date), "dd/MM/yyyy HH:mm")}</TableCell>
                       <TableCell>{sale.payment_gateway_status || "N/A"}</TableCell>
                       <TableCell>
