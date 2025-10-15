@@ -1,16 +1,14 @@
 /// <reference types="./types.d.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-// @deno-types="https://esm.sh/@supabase/supabase-js@2.45.0/dist/main.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-// @deno-types="https://esm.sh/mercadopago@2.0.0/dist/index.d.ts"
-import * as MercadoPago from 'https://esm.sh/mercadopago@2.0.0'; // Importa como namespace
+import * as MercadoPago from 'npm:mercadopago@2.0.0'; // Importa como namespace usando npm:
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req: Request) => { // Tipagem explícita para 'req'
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -70,7 +68,6 @@ serve(async (req: Request) => { // Tipagem explícita para 'req'
       });
     }
 
-    // Tipagem explícita para 's'
     const shopkeeperMpAccounts = new Map(shopDetails.map((s: { id: string; mercadopago_account_id: string | null }) => [s.id, s.mercadopago_account_id]));
 
     // Construct items for Mercado Pago preference
@@ -100,12 +97,12 @@ serve(async (req: Request) => { // Tipagem explícita para 'req'
     });
 
     // Initialize Mercado Pago client with platform's access token
-    const client = new MercadoPago.MercadoPagoConfig({ // Usando MercadoPago.MercadoPagoConfig
+    const client = new MercadoPago.MercadoPagoConfig({
       accessToken: Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') ?? '',
       options: { timeout: 5000, idempotencyKey: crypto.randomUUID() }
     });
 
-    const preference = new MercadoPago.Preference(client); // Usando MercadoPago.Preference
+    const preference = new MercadoPago.Preference(client);
 
     const preferenceBody = {
       items: mpItems,
@@ -130,7 +127,7 @@ serve(async (req: Request) => { // Tipagem explícita para 'req'
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error: unknown) { // Tipagem explícita para 'error'
+  } catch (error: unknown) {
     console.error('Error creating Mercado Pago preference:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
