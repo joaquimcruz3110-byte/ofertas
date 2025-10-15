@@ -117,7 +117,7 @@ serve(async (req: Request) => {
         pending: `${app_url}/mercadopago-return?status=pending`,
       },
       auto_return: "approved",
-      notification_url: `${app_url}/functions/v1/mercadopago-webhook`,
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercadopago-webhook`, // CORRIGIDO AQUI
       external_reference: JSON.stringify({ buyer_id, commission_rate, cartItems: cartItems.map((item: any) => ({ id: item.id, quantity: item.quantity, price: item.price, shopkeeper_id: item.shopkeeper_id })) }),
       // Split payments configuration
       payments: payments,
