@@ -21,14 +21,12 @@ interface ShopDetails {
   shop_name: string;
   shop_description: string | null;
   shop_logo_url: string | null;
-  // mercadopago_account_id: string | null; // Removido
   pagarme_recipient_id: string | null;
 }
 
 const shopSetupFormSchema = z.object({
   shop_name: z.string().min(1, "O nome da loja é obrigatório."),
   shop_description: z.string().optional(),
-  // mercadopago_account_id: z.string().optional(), // Removido
   pagarme_recipient_id: z.string().optional(),
 });
 
@@ -49,7 +47,6 @@ const ShopSetupPage = () => {
     defaultValues: {
       shop_name: "",
       shop_description: "",
-      // mercadopago_account_id: "", // Removido
       pagarme_recipient_id: "",
     },
   });
@@ -79,7 +76,6 @@ const ShopSetupPage = () => {
       setShopDetails(shopData as ShopDetails);
       form.setValue('shop_name', shopData.shop_name || "");
       form.setValue('shop_description', shopData.shop_description || "");
-      // form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || ""); // Removido
       form.setValue('pagarme_recipient_id', shopData.pagarme_recipient_id || "");
       setLogoPreview(shopData.shop_logo_url);
     }
@@ -215,7 +211,6 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            // mercadopago_account_id: values.mercadopago_account_id || null, // Removido
             pagarme_recipient_id: values.pagarme_recipient_id || null,
           })
           .eq('id', session?.user?.id);
@@ -231,7 +226,6 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            // mercadopago_account_id: values.mercadopago_account_id || null, // Removido
             pagarme_recipient_id: values.pagarme_recipient_id || null,
           });
 
@@ -348,7 +342,6 @@ const ShopSetupPage = () => {
           />
 
           <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento</h2>
-          {/* Campo Mercado Pago removido */}
           <FormField
             control={form.control}
             name="pagarme_recipient_id"
