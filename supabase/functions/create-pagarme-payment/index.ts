@@ -118,7 +118,6 @@ serve(async (req: Request) => {
     const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
     if (totalCommissionInCents > 0) {
       if (!platformRecipientId) {
-        // Este é o erro que você está recebendo!
         throw new Error('PAGARME_PLATFORM_RECIPIENT_ID not configured for commission split. Please set this environment variable.');
       }
       splitRules.push({
@@ -195,7 +194,7 @@ serve(async (req: Request) => {
 
     const transactionPayload = {
       amount: totalAmountInCents, // Use the calculated total amount in cents
-      payment_method: 'checkout',
+      // payment_method: 'checkout', // Removido para o fluxo de checkout hospedado
       customer: customerData, // Use the constructed object
       items: cartItems.map((item: any) => ({
         id: item.id,
