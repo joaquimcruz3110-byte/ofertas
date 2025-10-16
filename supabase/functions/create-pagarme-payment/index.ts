@@ -38,10 +38,10 @@ serve(async (req: Request) => {
       });
     }
 
-    const { cartItems, buyer_id, customer_cpf, commission_rate, app_url } = await req.json();
+    const { cartItems, buyer_id, customer_cpf, customer_phone_number, commission_rate, app_url } = await req.json();
 
-    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || commission_rate === undefined || !app_url) {
-      console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, commission_rate, app_url });
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || !customer_phone_number || commission_rate === undefined || !app_url) {
+      console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, customer_phone_number, commission_rate, app_url });
       return new Response(JSON.stringify({ error: 'Missing required fields for payment creation.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,18 +77,6 @@ serve(async (req: Request) => {
 
     const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
 
-    // Fetch buyer's profile to get first_name, last_name, phone_number
-    const { data: buyerProfile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('first_name, last_name, phone_number')
-      .eq('id', buyer_id)
-      .single();
-
-    if (profileError) {
-      console.error('Error fetching buyer profile:', profileError.message);
-      // Continue without phone number if there's an error, but log it
-    }
-
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
     if (!cleanedCpf) {
       return new Response(JSON.stringify({ error: 'CPF do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
@@ -116,6 +104,13 @@ serve(async (req: Request) => {
     const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100); // Total amount in cents
 
     // Refatorando a construção do nome do cliente para evitar erros de parsing
+    // Fetch buyer's profile to get first_name, last_name (phone_number is now passed directly)
+    const { data: buyerProfile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', buyer_id)
+      .single();
+
     let customerName = user.email; // Fallback padrão
     if (buyerProfile) {
       const firstName = buyerProfile.first_name || '';
@@ -126,17 +121,17 @@ serve(async (req: Request) => {
       }
     }
 
-    // --- Lógica de formatação e validação do número de telefone ---
+    // --- Lógica de formatação e validação do número de telefone (agora recebido via body) ---
     let formattedPhoneNumber: string | null = null;
     const phoneRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/; // Pagar.me's required pattern
 
-    if (buyerProfile?.phone_number) {
-      const cleaned = buyerProfile.phone_number.replace(/\D/g, '');
+    if (customer_phone_number) {
+      const cleaned = customer_phone_number.replace(/\D/g, '');
       // Assume que se o número tem 10 ou 11 dígitos e não começa com '+', é um número brasileiro sem DDI
-      if (cleaned.length >= 10 && cleaned.length <= 11 && !buyerProfile.phone_number.startsWith('+')) {
+      if (cleaned.length >= 10 && cleaned.length <= 11 && !customer_phone_number.startsWith('+')) {
         formattedPhoneNumber = `+55${cleaned}`;
-      } else if (buyerProfile.phone_number.startsWith('+')) {
-        formattedPhoneNumber = buyerProfile.phone_number; // Já está no formato internacional
+      } else if (customer_phone_number.startsWith('+')) {
+        formattedPhoneNumber = customer_phone_number; // Já está no formato internacional
       } else {
         // Se não se encaixa nos padrões acima, tenta prefixar com '+' e deixa a regex validar
         formattedPhoneNumber = `+${cleaned}`;
@@ -166,6 +161,14 @@ serve(async (req: Request) => {
         });
       }
       customerData.phone_numbers = [formattedPhoneNumber];
+    } else {
+      // Se formattedPhoneNumber ainda for null aqui, significa que customer_phone_number estava vazio/nulo
+      // e o CartPage não o capturou, ou o Pagar.me exige o campo mesmo que o cliente não tenha um.
+      // Para evitar o erro do Pagar.me, podemos adicionar um número placeholder ou lançar um erro.
+      // Como o CartPage agora valida, este else não deve ser atingido se o campo for obrigatório.
+      // Se o Pagar.me exigir o campo mesmo que o cliente não tenha, um placeholder pode ser necessário.
+      // Por enquanto, vamos assumir que a validação do CartPage é suficiente.
+      console.warn('customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
     }
     // --- Fim da lógica de formatação e validação do número de telefone ---
 

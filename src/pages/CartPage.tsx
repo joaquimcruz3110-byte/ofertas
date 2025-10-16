@@ -37,6 +37,13 @@ const CartPage = () => {
       return;
     }
 
+    // NOVO: Verificar se o número de telefone está disponível no perfil do usuário
+    if (!userProfile?.phone_number) {
+      showError('Seu número de telefone é necessário para finalizar a compra. Por favor, complete seu perfil.');
+      navigate('/profile'); // Redirecionar para a página de perfil
+      return;
+    }
+
     setIsProcessingCheckout(true);
     console.log('Iniciando checkout...'); // Log 1
 
@@ -119,6 +126,7 @@ const CartPage = () => {
           })),
           buyer_id: refreshedSession.user.id,
           customer_cpf: userProfile.cpf, // ENVIANDO O CPF AQUI
+          customer_phone_number: userProfile.phone_number, // NOVO: ENVIANDO O NÚMERO DE TELEFONE AQUI
           commission_rate: commission_rate,
           app_url: import.meta.env.VITE_APP_URL,
         },
