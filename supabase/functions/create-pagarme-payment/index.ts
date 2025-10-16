@@ -133,6 +133,7 @@ serve(async (req: Request) => {
     }
 
     const pagarmeApiKey = Deno.env.get('PAGARME_API_KEY');
+    console.log('PAGARME_API_KEY read in function (first 5 chars):', pagarmeApiKey ? pagarmeApiKey.substring(0, 5) : 'Not set'); // Log da chave de API
     if (!pagarmeApiKey) {
       console.error('PAGARME_API_KEY not set in environment variables.');
       return new Response(JSON.stringify({ error: 'Pagar.me API Key not configured.' }), {
