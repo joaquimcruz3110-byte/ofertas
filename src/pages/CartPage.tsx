@@ -31,6 +31,7 @@ const CartPage = () => {
     }
 
     setIsProcessingCheckout(true);
+    console.log('Iniciando checkout...'); // Log 1
 
     try {
       // Explicitamente refrescar a sessão antes de invocar a função
@@ -43,6 +44,7 @@ const CartPage = () => {
         setIsProcessingCheckout(false);
         return;
       }
+      console.log('Sessão refrescada com sucesso. User ID:', refreshedSession.user.id); // Log 2
 
       // Get unique shopkeeper IDs from cart items, filtering out null/undefined values
       const uniqueShopkeeperIds = Array.from(new Set(cartItems.map(item => item.shopkeeper_id))).filter(id => id !== null && id !== undefined) as string[];
@@ -53,11 +55,12 @@ const CartPage = () => {
         setIsProcessingCheckout(false);
         return;
       }
+      console.log('Lojistas únicos no carrinho:', uniqueShopkeeperIds); // Log 3
 
       // Fetch Pagar.me recipient IDs for all involved shopkeepers
       const { data: shopDetails, error: shopError } = await supabase
         .from('shop_details')
-        .select('id, pagarme_recipient_id') // Buscar o pagarme_recipient_id
+        .select('id, pagarme_recipient_id') // Agora buscamos o pagarme_recipient_id
         .in('id', uniqueShopkeeperIds);
 
       if (shopError) {
@@ -76,6 +79,7 @@ const CartPage = () => {
         setIsProcessingCheckout(false);
         return;
       }
+      console.log('Todos os lojistas têm ID de recebedor Pagar.me.'); // Log 4
 
       // Fetch the active commission rate
       const { data: commissionRateData, error: commissionRateError } = await supabase
@@ -92,10 +96,11 @@ const CartPage = () => {
         setIsProcessingCheckout(false);
         return;
       }
-
       const commission_rate = commissionRateData.rate;
+      console.log('Taxa de comissão ativa:', commission_rate); // Log 5
 
       // Invocar a Edge Function do Pagar.me
+      console.log('Invocando Edge Function create-pagarme-payment...'); // Log 6
       const { data, error } = await supabase.functions.invoke('create-pagarme-payment', {
         body: {
           cartItems: cartItems.map(item => ({
@@ -110,6 +115,9 @@ const CartPage = () => {
           app_url: import.meta.env.VITE_APP_URL,
         },
       });
+
+      console.log('Resposta da invocação da Edge Function - data:', data); // Log 7
+      console.log('Resposta da invocação da Edge Function - error:', error); // Log 8
 
       if (error) {
         // Exibir a mensagem de erro da função Edge
@@ -126,6 +134,7 @@ const CartPage = () => {
       console.error('Erro inesperado durante o checkout:', error);
     } finally {
       setIsProcessingCheckout(false);
+      console.log('Processo de checkout finalizado.'); // Log 9
     }
   };
 
