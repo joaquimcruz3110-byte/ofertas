@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client'; // Importar supabase
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading } = useSession(); // Removido userRole pois não é usado diretamente aqui
+  const { session, isLoading: isSessionLoading } = useSession();
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
@@ -54,10 +54,10 @@ const CartPage = () => {
         return;
       }
 
-      // Fetch Mercado Pago account IDs for all involved shopkeepers
+      // Fetch Pagar.me recipient IDs for all involved shopkeepers
       const { data: shopDetails, error: shopError } = await supabase
         .from('shop_details')
-        .select('id, mercadopago_account_id') // Buscar o mercadopago_account_id
+        .select('id, pagarme_recipient_id') // Buscar o pagarme_recipient_id
         .in('id', uniqueShopkeeperIds);
 
       if (shopError) {
@@ -67,12 +67,12 @@ const CartPage = () => {
         return;
       }
 
-      const shopkeeperMpAccounts = new Map(shopDetails.map(s => [s.id, s.mercadopago_account_id]));
+      const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
 
-      // Check if all shopkeepers have a Mercado Pago account ID configured
-      const missingMpAccounts = uniqueShopkeeperIds.filter(id => !shopkeeperMpAccounts.get(id));
-      if (missingMpAccounts.length > 0) {
-        showError('Um ou mais lojistas no seu carrinho não configuraram suas contas Mercado Pago. Não é possível prosseguir com a compra.');
+      // Check if all shopkeepers have a Pagar.me recipient ID configured
+      const missingPagarmeRecipients = uniqueShopkeeperIds.filter(id => !shopkeeperPagarmeRecipients.get(id));
+      if (missingPagarmeRecipients.length > 0) {
+        showError('Um ou mais lojistas no seu carrinho não configuraram suas contas Pagar.me. Não é possível prosseguir com a compra.');
         setIsProcessingCheckout(false);
         return;
       }
@@ -95,7 +95,8 @@ const CartPage = () => {
 
       const commission_rate = commissionRateData.rate;
 
-      const { data, error } = await supabase.functions.invoke('create-mercadopago-payment', {
+      // Invocar a Edge Function do Pagar.me
+      const { data, error } = await supabase.functions.invoke('create-pagarme-payment', {
         body: {
           cartItems: cartItems.map(item => ({
             id: item.id,
@@ -104,20 +105,20 @@ const CartPage = () => {
             price: item.price,
             shopkeeper_id: item.shopkeeper_id,
           })),
-          buyer_id: refreshedSession.user.id, // Usar o ID da sessão atualizada
+          buyer_id: refreshedSession.user.id,
           commission_rate: commission_rate,
-          app_url: import.meta.env.VITE_APP_URL, // Passa a URL da aplicação para a Edge Function
+          app_url: import.meta.env.VITE_APP_URL,
         },
       });
 
       if (error) {
         showError('Erro ao iniciar o pagamento: ' + error.message);
-        console.error('Erro ao invocar Edge Function create-mercadopago-payment:', error);
-      } else if (data && data.init_point) {
-        showSuccess('Redirecionando para o Mercado Pago...');
-        window.location.href = data.init_point;
+        console.error('Erro ao invocar Edge Function create-pagarme-payment:', error);
+      } else if (data && data.checkout_url) {
+        showSuccess('Redirecionando para o Pagar.me...');
+        window.location.href = data.checkout_url;
       } else {
-        showError('Resposta inesperada da função de pagamento.');
+        showError('Resposta inesperada da função de pagamento Pagar.me.');
       }
     } catch (error: any) {
       showError('Erro inesperado durante o checkout: ' + error.message);
@@ -127,15 +128,11 @@ const CartPage = () => {
     }
   };
 
-  // A verificação de userRole foi movida para o ProtectedRoute em App.tsx
-  // e para o componente SessionContextProvider para o hasShopDetails.
-  // Aqui, apenas verificamos se a sessão está carregando ou se não há sessão.
   if (isSessionLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
 
   if (!session) {
-    // O ProtectedRoute já deve redirecionar, mas como fallback, podemos mostrar uma mensagem.
     return (
       <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
         <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
@@ -234,7 +231,7 @@ const CartPage = () => {
               className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white"
               disabled={cartItems.length === 0 || isProcessingCheckout}
             >
-              Finalizar Compra
+              Finalizar Compra (Pagar.me)
             </Button>
           </div>
         </div>

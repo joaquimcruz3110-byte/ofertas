@@ -47,7 +47,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       if (profileData.role === 'lojista') {
         const { data: shopData, error: shopError } = await supabase
           .from('shop_details')
-          .select('id, mercadopago_account_id') // Agora buscamos o mercadopago_account_id
+          .select('id, pagarme_recipient_id') // Agora buscamos o pagarme_recipient_id
           .eq('id', userId)
           .single();
         

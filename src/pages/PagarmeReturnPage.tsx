@@ -7,7 +7,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
-const MercadoPagoReturnPage = () => {
+const PagarmeReturnPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearCart } = useCart();
@@ -15,13 +15,13 @@ const MercadoPagoReturnPage = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const status = queryParams.get('status');
-    // const paymentId = queryParams.get('payment_id'); // ID do pagamento no Mercado Pago // Removido
+    // const transactionId = queryParams.get('id'); // ID da transação no Pagar.me
 
     if (status === 'success') {
       showSuccess('Pagamento aprovado! Seu pedido foi realizado com sucesso.');
       clearCart(); // Limpa o carrinho após o sucesso
     } else if (status === 'pending') {
-      showError('Pagamento pendente. Aguardando confirmação do Mercado Pago.');
+      showError('Pagamento pendente. Aguardando confirmação do Pagar.me.');
     } else if (status === 'failure') {
       showError('Pagamento falhou. Por favor, tente novamente.');
     } else {
@@ -78,4 +78,4 @@ const MercadoPagoReturnPage = () => {
   );
 };
 
-export default MercadoPagoReturnPage;
+export default PagarmeReturnPage;
