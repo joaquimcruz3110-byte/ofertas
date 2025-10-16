@@ -160,6 +160,7 @@ serve(async (req: Request) => {
         amount: amountToShopkeeperForThisItem,
         liable: true,
         charge_processing_fee: true,
+        type: 'flat', // Adicionado o campo 'type'
       });
     }
 
@@ -173,6 +174,7 @@ serve(async (req: Request) => {
         amount: totalCommissionInCents,
         liable: false,
         charge_processing_fee: false,
+        type: 'flat', // Adicionado o campo 'type'
       });
     }
 
@@ -290,7 +292,9 @@ serve(async (req: Request) => {
             accepted_payment_methods: ['credit_card', 'pix'], // Aceitar cartão de crédito e Pix
             success_url: `${app_url}/pagarme-return?status=success`,
             cancel_url: `${app_url}/pagarme-return?status=failure`,
-            // postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`, // Webhook é configurado na transação, não no checkout
+            pix: { // Adicionado o objeto pix
+              expires_in: 3600, // Expira em 1 hora (em segundos)
+            },
           },
           split: splitRules.map(rule => ({
             recipient_id: rule.recipient_id,
@@ -300,16 +304,25 @@ serve(async (req: Request) => {
               charge_remainder_fee: rule.charge_remainder_fee,
               liable: rule.liable,
             },
+            type: rule.type, // Adicionado o campo 'type' aqui também
           })),
         },
       ],
       billing: billingData,
       shipping: { // Pagar.me exige shipping mesmo que não seja físico
-        address: billingData.address,
+        address: { // O endereço de shipping precisa de todos os campos, incluindo zipcode
+          country: 'br',
+          state: customer_address_state,
+          city: customer_address_city,
+          neighborhood: customer_address_district,
+          street: customer_address_street,
+          street_number: customer_address_number,
+          zipcode: customer_address_postal_code.replace(/\D/g, ''), // Adicionado zipcode
+          complementary_info: customer_address_complement || '', 
+        },
         description: "Entrega padrão",
         amount: 0, // Custo de frete, se houver
         recipient_name: customerName,
-        // NOVO: Adicionar service_code e delivery_date para evitar erros de validação
         service_code: "STANDARD", 
         delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Data de entrega futura (ex: 7 dias)
       },
@@ -340,11 +353,10 @@ serve(async (req: Request) => {
       payments: orderPayload.payments.map((p: any) => ({
         payment_method: p.payment_method,
         checkout: {
-          customer_editable: p.checkout.customer_editable,
-          billing_address_editable: p.checkout.billing_address_editable,
           accepted_payment_methods: p.checkout.accepted_payment_methods,
           success_url: p.checkout.success_url,
           cancel_url: p.checkout.cancel_url,
+          pix: p.checkout.pix,
         },
         split: p.split,
       })),
@@ -368,8 +380,8 @@ serve(async (req: Request) => {
     if (!pagarmeResponse.ok) {
       console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
       let errorMessage = 'Erro ao criar pedido no Pagar.me.';
-      if (responseData.errors && Array.isArray(responseData.errors)) {
-        errorMessage = responseData.errors.map((e: any) => e.message || e.code).join('; ');
+      if (responseData.errors && typeof responseData.errors === 'object') {
+        errorMessage = Object.entries(responseData.errors).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`).join('; ');
       } else if (responseData.message) {
         errorMessage = responseData.message;
       }
