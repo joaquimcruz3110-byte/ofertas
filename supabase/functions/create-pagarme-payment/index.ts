@@ -126,6 +126,23 @@ serve(async (req: Request) => {
       }
     }
 
+    // --- Lógica de formatação e validação do número de telefone ---
+    let formattedPhoneNumber: string | null = null;
+    const phoneRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/; // Pagar.me's required pattern
+
+    if (buyerProfile?.phone_number) {
+      const cleaned = buyerProfile.phone_number.replace(/\D/g, '');
+      // Assume que se o número tem 10 ou 11 dígitos e não começa com '+', é um número brasileiro sem DDI
+      if (cleaned.length >= 10 && cleaned.length <= 11 && !buyerProfile.phone_number.startsWith('+')) {
+        formattedPhoneNumber = `+55${cleaned}`;
+      } else if (buyerProfile.phone_number.startsWith('+')) {
+        formattedPhoneNumber = buyerProfile.phone_number; // Já está no formato internacional
+      } else {
+        // Se não se encaixa nos padrões acima, tenta prefixar com '+' e deixa a regex validar
+        formattedPhoneNumber = `+${cleaned}`;
+      }
+    }
+
     const customerData: any = {
       external_id: user.id,
       name: customerName, // Usando o nome construído de forma mais robusta
@@ -140,9 +157,17 @@ serve(async (req: Request) => {
       ],
     };
 
-    if (buyerProfile?.phone_number) {
-      customerData.phone_numbers = [buyerProfile.phone_number.replace(/\D/g, '')];
+    if (formattedPhoneNumber) {
+      if (!phoneRegex.test(formattedPhoneNumber)) {
+        console.error('Invalid phone number format after formatting:', formattedPhoneNumber);
+        return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: +5511999999999).' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      customerData.phone_numbers = [formattedPhoneNumber];
     }
+    // --- Fim da lógica de formatação e validação do número de telefone ---
 
     const transactionPayload = {
       amount: totalAmount,
