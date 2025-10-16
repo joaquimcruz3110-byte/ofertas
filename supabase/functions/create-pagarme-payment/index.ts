@@ -138,7 +138,6 @@ serve(async (req: Request) => {
       });
     }
 
-    // CORREÇÃO AQUI: Inicializa o cliente Pagar.me corretamente
     const client = await Pagarme.client.connect({ api_key: pagarmeApiKey });
 
     const transactionBody = {
@@ -210,8 +209,15 @@ serve(async (req: Request) => {
       });
     }
 
-  } catch (error: unknown) {
+  } catch (error: any) { // Alterado para 'any' para acessar 'error.response'
     console.error('Error creating Pagar.me payment:', error); // Captura erros gerais
+    if (error.response && error.response.data) {
+      console.error('Pagar.me API Error Response Data:', JSON.stringify(error.response.data, null, 2));
+      return new Response(JSON.stringify({ error: `Pagar.me API Error: ${JSON.stringify(error.response.data)}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
