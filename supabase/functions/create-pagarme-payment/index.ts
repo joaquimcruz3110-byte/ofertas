@@ -3,7 +3,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import Pagarme from 'npm:pagarme@4.35.2'; // Versão atualizada
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +17,7 @@ serve(async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('Unauthorized: Missing Authorization header');
+      console.error('create-pagarme-payment: Unauthorized: Missing Authorization header');
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
@@ -31,7 +30,7 @@ serve(async (req: Request) => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      console.error('Unauthorized: Invalid user session', userError?.message);
+      console.error('create-pagarme-payment: Unauthorized: Invalid user session', userError?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized: Invalid user session' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -51,7 +50,7 @@ serve(async (req: Request) => {
       customer_address_city,
       customer_address_state,
       commission_rate,
-      app_url
+      app_url,
     } = await req.json();
 
     console.log('create-pagarme-payment: Received request with buyer_id:', buyer_id);
@@ -82,7 +81,6 @@ serve(async (req: Request) => {
       console.error('create-pagarme-payment: App URL is missing.');
       return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    // Validação dos campos de endereço para billing
     if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
       console.error('create-pagarme-payment: Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
       return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
@@ -109,9 +107,6 @@ serve(async (req: Request) => {
       });
     }
 
-    const client = await Pagarme.client.connect({ api_key: pagarmeApiKey });
-    console.log('create-pagarme-payment: Pagar.me client connected.');
-
     // Fetch Pagar.me recipient IDs for all involved shopkeepers
     const uniqueShopkeeperIds = Array.from(new Set(cartItems.map((item: any) => item.shopkeeper_id))).filter(id => id !== null && id !== undefined);
     
@@ -132,7 +127,7 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Shopkeeper Pagar.me Recipients Map:', shopkeeperPagarmeRecipients);
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
-    if (cleanedCpf.length !== 11) { // Basic CPF length validation
+    if (cleanedCpf.length !== 11) {
       console.error('create-pagarme-payment: Invalid CPF length:', cleanedCpf);
       return new Response(JSON.stringify({ error: 'CPF inválido. Deve conter 11 dígitos.' }), {
         status: 400,
@@ -276,24 +271,52 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Billing Data:', JSON.stringify(billingData));
     // --- Fim da construção e validação do objeto billing ---
 
-    const transactionPayload = {
-      amount: totalAmountInCents,
+    const pagarmeApiUrl = 'https://api.pagar.me/core/v5/orders'; // API v5 para Orders
+
+    const orderPayload = {
       customer: customerData,
-      billing: billingData,
       items: cartItems.map((item: any) => ({
-        id: item.id,
-        title: item.name,
-        unit_price: Math.round(item.price * 100),
+        amount: Math.round(item.price * 100), // Preço unitário em centavos
+        description: item.name,
         quantity: item.quantity,
-        tangible: true,
+        code: item.id, // Usar ID do produto como código
       })),
-      split_rules: splitRules,
-      postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`,
-      async: true, // Mantido como true para o fluxo de checkout hospedado
+      payments: [
+        {
+          payment_method: 'checkout', // Usar checkout hospedado
+          checkout: {
+            customer_editable: false,
+            billing_address_editable: false,
+            accepted_payment_methods: ['credit_card', 'pix'], // Aceitar cartão de crédito e Pix
+            success_url: `${app_url}/pagarme-return?status=success`,
+            cancel_url: `${app_url}/pagarme-return?status=failure`,
+            // postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`, // Webhook é configurado na transação, não no checkout
+          },
+          split: splitRules.map(rule => ({
+            recipient_id: rule.recipient_id,
+            amount: rule.amount,
+            options: {
+              charge_processing_fee: rule.charge_processing_fee,
+              charge_remainder_fee: rule.charge_remainder_fee,
+              liable: rule.liable,
+            },
+          })),
+        },
+      ],
+      billing: billingData,
+      shipping: { // Pagar.me exige shipping mesmo que não seja físico
+        address: billingData.address,
+        description: "Entrega padrão",
+        amount: 0, // Custo de frete, se houver
+        recipient_name: customerName,
+        // NOVO: Adicionar service_code e delivery_date para evitar erros de validação
+        service_code: "STANDARD", 
+        delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Data de entrega futura (ex: 7 dias)
+      },
       metadata: { // Adicionando metadata para o webhook
         buyer_id: buyer_id,
-        commission_rate: commission_rate.toString(), // Converter para string
-        cartItems: JSON.stringify(cartItems.map((item: any) => ({ // Simplificar para o webhook
+        commission_rate: commission_rate.toString(),
+        cartItems: JSON.stringify(cartItems.map((item: any) => ({
           id: item.id,
           name: item.name,
           price: item.price,
@@ -303,35 +326,66 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Transaction Payload (non-sensitive fields):', JSON.stringify({
-      amount: transactionPayload.amount,
+    console.log('create-pagarme-payment: Pagar.me Order Payload (non-sensitive fields):', JSON.stringify({
       customer: {
-        external_id: transactionPayload.customer.external_id,
-        name: transactionPayload.customer.name,
-        email: transactionPayload.customer.email,
-        type: transactionPayload.customer.type,
-        country: transactionPayload.customer.country,
-        documents: transactionPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })), // Censor CPF
-        phone_numbers: transactionPayload.customer.phone_numbers,
+        external_id: orderPayload.customer.external_id,
+        name: orderPayload.customer.name,
+        email: orderPayload.customer.email,
+        type: orderPayload.customer.type,
+        country: orderPayload.customer.country,
+        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
+        phone_numbers: orderPayload.customer.phone_numbers,
       },
-      billing: transactionPayload.billing,
-      items: transactionPayload.items.map((item: any) => ({ id: item.id, title: item.title, quantity: item.quantity, unit_price: item.unit_price })),
-      split_rules: transactionPayload.split_rules,
-      postback_url: transactionPayload.postback_url,
-      async: transactionPayload.async,
-      metadata: transactionPayload.metadata, // Incluir metadata nos logs
+      items: orderPayload.items,
+      payments: orderPayload.payments.map((p: any) => ({
+        payment_method: p.payment_method,
+        checkout: {
+          customer_editable: p.checkout.customer_editable,
+          billing_address_editable: p.checkout.billing_address_editable,
+          accepted_payment_methods: p.checkout.accepted_payment_methods,
+          success_url: p.checkout.success_url,
+          cancel_url: p.checkout.cancel_url,
+        },
+        split: p.split,
+      })),
+      billing: orderPayload.billing,
+      shipping: orderPayload.shipping,
+      metadata: orderPayload.metadata,
     }, null, 2));
 
-    const transaction = await client.transactions.create(transactionPayload);
-    console.log('create-pagarme-payment: Pagar.me transaction created. Response:', JSON.stringify(transaction));
+    const pagarmeResponse = await fetch(pagarmeApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${btoa(pagarmeApiKey + ':')}`, // API Key no formato Basic Auth
+      },
+      body: JSON.stringify(orderPayload),
+    });
 
-    if (transaction.checkout_url) {
-      return new Response(JSON.stringify({ checkout_url: transaction.checkout_url }), {
+    const responseData = await pagarmeResponse.json();
+    console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData));
+
+    if (!pagarmeResponse.ok) {
+      console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
+      let errorMessage = 'Erro ao criar pedido no Pagar.me.';
+      if (responseData.errors && Array.isArray(responseData.errors)) {
+        errorMessage = responseData.errors.map((e: any) => e.message || e.code).join('; ');
+      } else if (responseData.message) {
+        errorMessage = responseData.message;
+      }
+      return new Response(JSON.stringify({ error: errorMessage }), {
+        status: pagarmeResponse.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].checkout_url) {
+      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].checkout_url }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('create-pagarme-payment: Pagar.me transaction creation did not return a checkout_url:', transaction);
+      console.error('create-pagarme-payment: Pagar.me order creation did not return a checkout_url:', responseData);
       return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -344,18 +398,6 @@ serve(async (req: Request) => {
 
     if (error instanceof Error) {
       clientErrorMessage = error.message;
-    }
-
-    if (error.response) {
-      if (error.response.data && error.response.data.errors && Array.isArray(error.response.data.errors)) {
-        const pagarmeErrors = error.response.data.errors.map((e: any) => e.message).join('; ');
-        clientErrorMessage = `Erro Pagar.me: ${pagarmeErrors}`;
-      } else if (typeof error.response.data === 'string') {
-        clientErrorMessage = `Erro Pagar.me: ${error.response.data}`;
-      } else {
-        clientErrorMessage = `Erro Pagar.me: ${JSON.stringify(error.response.data)}`;
-      }
-      console.error('create-pagarme-payment: Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
     }
 
     return new Response(JSON.stringify({ error: clientErrorMessage }), {

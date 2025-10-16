@@ -3,7 +3,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import Pagarme from 'npm:pagarme@4.35.2'; // Versão atualizada
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,41 +24,33 @@ serve(async (req: Request) => {
       });
     }
 
-    const client = await Pagarme.client.connect({ api_key: pagarmeApiKey });
     const body = await req.json();
-    const signature = req.headers.get('x-hub-signature');
+    // const signature = req.headers.get('x-hub-signature'); // Pagar.me v5 usa 'x-hub-signature' para webhooks
 
-    console.log('pagarme-webhook: Webhook received. Event Type:', body.event, 'Transaction ID:', body.transaction?.id);
+    console.log('pagarme-webhook: Webhook received. Event Type:', body.event, 'Order ID:', body.id);
     console.log('pagarme-webhook: Full Webhook Body:', JSON.stringify(body));
 
-    // Note: Pagar.me's webhook verification might require a specific library or method.
-    // For simplicity, this example skips full signature verification, but it's highly recommended in production.
-    // You would typically use `client.postbacks.verifySignature(body, signature)` if available.
-    // For now, we'll proceed without it, but be aware of the security implications.
-    // if (!client.postbacks.verifySignature(body, signature)) {
-    //   return new Response(JSON.stringify({ error: 'Invalid webhook signature' }), { status: 403, headers: corsHeaders });
-    // }
-
+    // Para Pagar.me v5, o evento principal é 'order.paid' ou 'order.status_changed'
     const eventType = body.event;
-    const transaction = body.transaction;
+    const order = body; // O corpo do webhook para orders é o próprio objeto Order
 
-    if (!transaction || !transaction.id || !eventType) {
-      console.log('pagarme-webhook: Received Pagar.me webhook with missing transaction data or event type:', body);
-      return new Response(JSON.stringify({ message: 'Not a valid Pagar.me transaction notification' }), {
+    if (!order || !order.id || !eventType) {
+      console.log('pagarme-webhook: Received Pagar.me webhook with missing order data or event type:', body);
+      return new Response(JSON.stringify({ message: 'Not a valid Pagar.me order notification' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const transactionId = transaction.id;
-    const transactionStatus = transaction.status;
-    const metadata = transaction.metadata;
+    const orderId = order.id;
+    const orderStatus = order.status;
+    const metadata = order.metadata;
 
-    console.log(`pagarme-webhook: Processing transaction ${transactionId} with status ${transactionStatus}. Metadata:`, JSON.stringify(metadata));
+    console.log(`pagarme-webhook: Processing order ${orderId} with status ${orderStatus}. Metadata:`, JSON.stringify(metadata));
 
     if (!metadata || !metadata.buyer_id || !metadata.commission_rate || !metadata.cartItems) {
-      console.warn(`pagarme-webhook: Pagar.me transaction ${transactionId} has no required metadata. Cannot process sale.`);
-      return new Response(JSON.stringify({ message: 'Transaction has no required metadata' }), {
+      console.warn(`pagarme-webhook: Pagar.me order ${orderId} has no required metadata. Cannot process sale.`);
+      return new Response(JSON.stringify({ message: 'Order has no required metadata' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -75,8 +66,8 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    if (transactionStatus === 'paid') { // Pagar.me uses 'paid' for approved transactions
-      console.log(`pagarme-webhook: Transaction ${transactionId} is 'paid'. Proceeding to record sales.`);
+    if (orderStatus === 'paid') { // Pagar.me v5 usa 'paid' para pedidos aprovados
+      console.log(`pagarme-webhook: Order ${orderId} is 'paid'. Proceeding to record sales.`);
 
       // Fetch buyer's email
       const { data: buyerUser, error: buyerUserError } = await supabaseAdmin.auth.admin.getUserById(buyer_id);
@@ -86,7 +77,7 @@ serve(async (req: Request) => {
       }
 
       const productsSoldDetails: {
-        id: string; // Adicionado ID do produto para o email do lojista
+        id: string;
         name: string;
         quantity: number;
         price: number;
@@ -95,14 +86,12 @@ serve(async (req: Request) => {
       }[] = [];
       let totalPurchasePrice = 0;
 
-      // Map to store products grouped by shopkeeper for consolidated emails
       const shopkeeperSalesMap = new Map<string, { email: string | null; products: typeof productsSoldDetails }>();
 
       for (const item of saleItems) {
         const total_price = item.quantity * item.price;
         totalPurchasePrice += total_price;
 
-        // Fetch product details for email content and shopkeeper_id
         const { data: productData, error: productError } = await supabaseAdmin
           .from('products')
           .select('name, price, shopkeeper_id')
@@ -110,7 +99,7 @@ serve(async (req: Request) => {
           .single();
 
         const productDetail = {
-          id: item.id, // Incluir ID do produto
+          id: item.id,
           name: productData?.name || item.name || 'Produto Desconhecido',
           quantity: item.quantity,
           price: productData?.price || item.price,
@@ -119,10 +108,8 @@ serve(async (req: Request) => {
         };
         productsSoldDetails.push(productDetail);
 
-        // Add product to shopkeeper's sales map
         if (productDetail.shopkeeper_id) {
           if (!shopkeeperSalesMap.has(productDetail.shopkeeper_id)) {
-            // Fetch shopkeeper email only once per shopkeeper
             const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productDetail.shopkeeper_id);
             const shopkeeperEmail = shopkeeperUserError ? null : shopkeeperUser?.user?.email;
             if (shopkeeperUserError) {
@@ -140,8 +127,8 @@ serve(async (req: Request) => {
           p_quantity: item.quantity,
           p_total_price: total_price,
           p_commission_rate: commission_rate,
-          p_payment_gateway_id: transactionId,
-          p_payment_gateway_status: transactionStatus,
+          p_payment_gateway_id: orderId, // Usar o ID do pedido como ID do gateway
+          p_payment_gateway_status: orderStatus,
         });
 
         if (saleError) {
@@ -242,7 +229,7 @@ serve(async (req: Request) => {
                           ${productsSoldDetails.map(p => `<li>${p.name} - ${p.quantity}x - R$ ${p.price.toFixed(2)} cada (Total: R$ ${p.total.toFixed(2)})</li>`).join('')}
                       </ul>
                       <p class="total">Total da Compra: R$ ${totalPurchasePrice.toFixed(2)}</p>
-                      <p><strong>ID do Pagamento:</strong> ${transactionId}</p>
+                      <p><strong>ID do Pagamento:</strong> ${orderId}</p>
                       <p>Você pode acompanhar seus pedidos na sua conta.</p>
                       <p>Atenciosamente,<br>Equipe Olímpia Ofertas</p>
                   </div>
@@ -261,7 +248,7 @@ serve(async (req: Request) => {
       }
 
     } else {
-      console.log(`pagarme-webhook: Pagar.me transaction ${transactionId} status is ${transactionStatus}. No stock update performed.`);
+      console.log(`pagarme-webhook: Pagar.me order ${orderId} status is ${orderStatus}. No stock update performed.`);
     }
 
     return new Response(JSON.stringify({ message: 'Webhook processed successfully' }), {
