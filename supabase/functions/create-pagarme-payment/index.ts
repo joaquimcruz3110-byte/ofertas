@@ -54,28 +54,37 @@ serve(async (req: Request) => {
       app_url
     } = await req.json();
 
+    console.log('create-pagarme-payment: Received request with buyer_id:', buyer_id);
+    console.log('create-pagarme-payment: Cart Items:', JSON.stringify(cartItems));
+
     // --- Validação de campos obrigatórios da requisição ---
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      console.error('create-pagarme-payment: Cart items are empty or invalid.');
       return new Response(JSON.stringify({ error: 'Carrinho de compras vazio ou inválido.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (!buyer_id) {
+      console.error('create-pagarme-payment: Buyer ID is missing.');
       return new Response(JSON.stringify({ error: 'ID do comprador é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (!customer_cpf) {
+      console.error('create-pagarme-payment: Customer CPF is missing.');
       return new Response(JSON.stringify({ error: 'CPF do cliente é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (!customer_phone_number) {
+      console.error('create-pagarme-payment: Customer phone number is missing.');
       return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (commission_rate === undefined || commission_rate < 0 || commission_rate > 100) {
+      console.error('create-pagarme-payment: Invalid commission rate:', commission_rate);
       return new Response(JSON.stringify({ error: 'Taxa de comissão inválida.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (!app_url) {
+      console.error('create-pagarme-payment: App URL is missing.');
       return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     // Validação dos campos de endereço para billing
     if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
-      console.error('Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
+      console.error('create-pagarme-payment: Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
       return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -84,7 +93,7 @@ serve(async (req: Request) => {
 
     const pagarmeApiKey = Deno.env.get('PAGARME_API_KEY');
     if (!pagarmeApiKey) {
-      console.error('PAGARME_API_KEY not set in environment variables.');
+      console.error('create-pagarme-payment: PAGARME_API_KEY not set.');
       return new Response(JSON.stringify({ error: 'Pagar.me API Key não configurada.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -93,7 +102,7 @@ serve(async (req: Request) => {
 
     const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
     if (!platformRecipientId) {
-      console.error('PAGARME_PLATFORM_RECIPIENT_ID not set in environment variables.');
+      console.error('create-pagarme-payment: PAGARME_PLATFORM_RECIPIENT_ID not set.');
       return new Response(JSON.stringify({ error: 'ID do recebedor da plataforma Pagar.me não configurado.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,6 +110,7 @@ serve(async (req: Request) => {
     }
 
     const client = await Pagarme.client.connect({ api_key: pagarmeApiKey });
+    console.log('create-pagarme-payment: Pagar.me client connected.');
 
     // Fetch Pagar.me recipient IDs for all involved shopkeepers
     const uniqueShopkeeperIds = Array.from(new Set(cartItems.map((item: any) => item.shopkeeper_id))).filter(id => id !== null && id !== undefined);
@@ -111,7 +121,7 @@ serve(async (req: Request) => {
       .in('id', uniqueShopkeeperIds);
 
     if (shopError) {
-      console.error('Error fetching shop details for recipients:', shopError.message);
+      console.error('create-pagarme-payment: Error fetching shop details for recipients:', shopError.message);
       return new Response(JSON.stringify({ error: 'Erro ao buscar detalhes das lojas para recebedores.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -119,9 +129,11 @@ serve(async (req: Request) => {
     }
 
     const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
+    console.log('create-pagarme-payment: Shopkeeper Pagar.me Recipients Map:', shopkeeperPagarmeRecipients);
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
     if (cleanedCpf.length !== 11) { // Basic CPF length validation
+      console.error('create-pagarme-payment: Invalid CPF length:', cleanedCpf);
       return new Response(JSON.stringify({ error: 'CPF inválido. Deve conter 11 dígitos.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -130,6 +142,7 @@ serve(async (req: Request) => {
 
     // --- Calculate total amount in cents ---
     const totalAmountInCents = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100);
+    console.log('create-pagarme-payment: Total amount in cents:', totalAmountInCents);
 
     // --- Build split rules ---
     const splitRules = [];
@@ -143,6 +156,7 @@ serve(async (req: Request) => {
       const recipientId = shopkeeperPagarmeRecipients.get(item.shopkeeper_id);
 
       if (!recipientId) {
+        console.error(`create-pagarme-payment: Pagar.me recipient ID not found for shopkeeper ${item.shopkeeper_id}.`);
         throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${item.shopkeeper_id}.`);
       }
 
@@ -170,12 +184,13 @@ serve(async (req: Request) => {
     // Validate that the sum of split rules equals the total amount
     const sumOfSplitAmounts = splitRules.reduce((sum, rule) => sum + rule.amount, 0);
     if (sumOfSplitAmounts !== totalAmountInCents) {
-      console.error('Split rules total amount does not match transaction total amount.', { sumOfSplitAmounts, totalAmountInCents });
+      console.error('create-pagarme-payment: Split rules total amount does not match transaction total amount.', { sumOfSplitAmounts, totalAmountInCents });
       return new Response(JSON.stringify({ error: 'Configuração de divisão de pagamento inválida: a soma dos valores de split não corresponde ao total da transação.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('create-pagarme-payment: Split Rules:', JSON.stringify(splitRules));
     // --- End build split rules ---
 
     // Fetch buyer's profile to get first_name, last_name
@@ -194,6 +209,7 @@ serve(async (req: Request) => {
         customerName = fullName;
       }
     }
+    console.log('create-pagarme-payment: Customer Name:', customerName);
 
     // --- Lógica de formatação e validação do número de telefone ---
     let formattedPhoneNumber: string | null = null;
@@ -226,7 +242,7 @@ serve(async (req: Request) => {
 
     if (formattedPhoneNumber) {
       if (!phoneRegex.test(formattedPhoneNumber)) {
-        console.error('Invalid phone number format after formatting:', formattedPhoneNumber);
+        console.error('create-pagarme-payment: Invalid phone number format after formatting:', formattedPhoneNumber);
         return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: +5511999999999).' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -234,12 +250,13 @@ serve(async (req: Request) => {
       }
       customerData.phone_numbers = [formattedPhoneNumber];
     } else {
-      console.warn('customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
+      console.warn('create-pagarme-payment: customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
       return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('create-pagarme-payment: Customer Data:', JSON.stringify(customerData));
     // --- Fim da lógica de formatação e validação do número de telefone ---
 
     // --- Construção e validação do objeto billing ---
@@ -253,9 +270,10 @@ serve(async (req: Request) => {
         street: customer_address_street,
         street_number: customer_address_number,
         zipcode: customer_address_postal_code.replace(/\D/g, ''),
-        complementary_info: customer_address_complement || '', // CORREÇÃO AQUI: Garante que seja uma string vazia se nulo/undefined
+        complementary_info: customer_address_complement || '', 
       },
     };
+    console.log('create-pagarme-payment: Billing Data:', JSON.stringify(billingData));
     // --- Fim da construção e validação do objeto billing ---
 
     const transactionPayload = {
@@ -272,9 +290,20 @@ serve(async (req: Request) => {
       split_rules: splitRules,
       postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`,
       async: true, // Mantido como true para o fluxo de checkout hospedado
+      metadata: { // Adicionando metadata para o webhook
+        buyer_id: buyer_id,
+        commission_rate: commission_rate.toString(), // Converter para string
+        cartItems: JSON.stringify(cartItems.map((item: any) => ({ // Simplificar para o webhook
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          shopkeeper_id: item.shopkeeper_id,
+        }))),
+      },
     };
 
-    console.log('Pagar.me Transaction Payload (non-sensitive fields):', JSON.stringify({
+    console.log('create-pagarme-payment: Pagar.me Transaction Payload (non-sensitive fields):', JSON.stringify({
       amount: transactionPayload.amount,
       customer: {
         external_id: transactionPayload.customer.external_id,
@@ -290,9 +319,11 @@ serve(async (req: Request) => {
       split_rules: transactionPayload.split_rules,
       postback_url: transactionPayload.postback_url,
       async: transactionPayload.async,
+      metadata: transactionPayload.metadata, // Incluir metadata nos logs
     }, null, 2));
 
     const transaction = await client.transactions.create(transactionPayload);
+    console.log('create-pagarme-payment: Pagar.me transaction created. Response:', JSON.stringify(transaction));
 
     if (transaction.checkout_url) {
       return new Response(JSON.stringify({ checkout_url: transaction.checkout_url }), {
@@ -300,7 +331,7 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('Pagar.me transaction creation did not return a checkout_url:', transaction);
+      console.error('create-pagarme-payment: Pagar.me transaction creation did not return a checkout_url:', transaction);
       return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -308,7 +339,7 @@ serve(async (req: Request) => {
     }
 
   } catch (error: any) {
-    console.error('Error creating Pagar.me payment:', error);
+    console.error('create-pagarme-payment: Error creating Pagar.me payment:', error);
     let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.';
 
     if (error instanceof Error) {
@@ -324,7 +355,7 @@ serve(async (req: Request) => {
       } else {
         clientErrorMessage = `Erro Pagar.me: ${JSON.stringify(error.response.data)}`;
       }
-      console.error('Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
+      console.error('create-pagarme-payment: Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
     }
 
     return new Response(JSON.stringify({ error: clientErrorMessage }), {

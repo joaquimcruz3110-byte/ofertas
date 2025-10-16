@@ -352,7 +352,7 @@ const ShopSetupPage = () => {
                   <Input type="text" placeholder="Seu ID de Recebedor Pagar.me" {...field} />
                 </FormControl>
                 <FormDescription>
-                  Este é o ID do seu recebedor Pagar.me, necessário para receber pagamentos divididos.
+                  Este é o ID do seu recebedor Pagar.me. Você pode obtê-lo no seu dashboard Pagar.me, na seção "Recebedores".
                 </FormDescription>
                 <FormMessage />
               </FormItem>
