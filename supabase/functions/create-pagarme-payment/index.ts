@@ -180,17 +180,26 @@ serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error('Error creating Pagar.me payment:', error);
-    let errorMessage = 'An unknown error occurred.';
+    let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.'; // Default message for client
 
     if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    if (error.response) {
-      console.error('Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
-      errorMessage = `Pagar.me API Error: ${JSON.stringify(error.response.data || error.response)}`;
+      clientErrorMessage = error.message;
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    if (error.response) {
+      // Pagar.me API errors usually have a 'data' field with 'errors' array
+      if (error.response.data && error.response.data.errors && Array.isArray(error.response.data.errors)) {
+        const pagarmeErrors = error.response.data.errors.map((e: any) => e.message).join('; ');
+        clientErrorMessage = `Erro Pagar.me: ${pagarmeErrors}`;
+      } else if (typeof error.response.data === 'string') {
+        clientErrorMessage = `Erro Pagar.me: ${error.response.data}`;
+      } else {
+        clientErrorMessage = `Erro Pagar.me: ${JSON.stringify(error.response.data)}`;
+      }
+      console.error('Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
+    }
+
+    return new Response(JSON.stringify({ error: clientErrorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
