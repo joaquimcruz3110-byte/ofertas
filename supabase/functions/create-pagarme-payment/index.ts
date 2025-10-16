@@ -85,23 +85,49 @@ serve(async (req: Request) => {
       });
     }
 
-    const splitRules = cartItems.map((item: any) => {
-      const amountToShopkeeper = Math.round(item.price * item.quantity * (1 - commission_rate / 100));
+    // --- Calculate total amount in cents ---
+    const totalAmountInCents = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100);
+
+    // --- Build split rules ---
+    const splitRules = [];
+    let totalAmountToShopkeepersInCents = 0;
+
+    for (const item of cartItems) {
+      const itemTotalPriceInCents = Math.round(item.price * item.quantity * 100);
+      const amountToShopkeeperForThisItem = Math.round(itemTotalPriceInCents * (1 - commission_rate / 100));
+      totalAmountToShopkeepersInCents += amountToShopkeeperForThisItem;
+
       const recipientId = shopkeeperPagarmeRecipients.get(item.shopkeeper_id);
 
       if (!recipientId) {
         throw new Error(`Recipient ID not found for shopkeeper ${item.shopkeeper_id}`);
       }
 
-      return {
+      splitRules.push({
         recipient_id: recipientId,
-        amount: amountToShopkeeper,
-        liable: true, // O lojista é responsável pela transação
-        charge_processing_fee: true, // O lojista paga a taxa de processamento
-      };
-    });
+        amount: amountToShopkeeperForThisItem,
+        liable: true,
+        charge_processing_fee: true,
+      });
+    }
 
-    const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100); // Total amount in cents
+    // Calculate the total commission for the platform
+    const totalCommissionInCents = totalAmountInCents - totalAmountToShopkeepersInCents;
+
+    // Add the platform's split rule if there's commission
+    const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
+    if (totalCommissionInCents > 0) {
+      if (!platformRecipientId) {
+        throw new Error('PAGARME_PLATFORM_RECIPIENT_ID not configured for commission split. Please set this environment variable.');
+      }
+      splitRules.push({
+        recipient_id: platformRecipientId,
+        amount: totalCommissionInCents,
+        liable: false, // The platform is not liable for the transaction itself, but receives its share
+        charge_processing_fee: false, // The platform might not pay processing fee on its commission, or it might. This depends on business logic.
+      });
+    }
+    // --- End build split rules ---
 
     // Refatorando a construção do nome do cliente para evitar erros de parsing
     // Fetch buyer's profile to get first_name, last_name (phone_number is now passed directly)
@@ -162,18 +188,12 @@ serve(async (req: Request) => {
       }
       customerData.phone_numbers = [formattedPhoneNumber];
     } else {
-      // Se formattedPhoneNumber ainda for null aqui, significa que customer_phone_number estava vazio/nulo
-      // e o CartPage não o capturou, ou o Pagar.me exige o campo mesmo que o cliente não tenha um.
-      // Para evitar o erro do Pagar.me, podemos adicionar um número placeholder ou lançar um erro.
-      // Como o CartPage agora valida, este else não deve ser atingido se o campo for obrigatório.
-      // Se o Pagar.me exigir o campo mesmo que o cliente não tenha, um placeholder pode ser necessário.
-      // Por enquanto, vamos assumir que a validação do CartPage é suficiente.
       console.warn('customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
     }
     // --- Fim da lógica de formatação e validação do número de telefone ---
 
     const transactionPayload = {
-      amount: totalAmount,
+      amount: totalAmountInCents, // Use the calculated total amount in cents
       payment_method: 'checkout',
       customer: customerData, // Use the constructed object
       items: cartItems.map((item: any) => ({
@@ -185,7 +205,7 @@ serve(async (req: Request) => {
       })),
       split_rules: splitRules,
       postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`, // URL da sua Edge Function de webhook
-      async: false, // Set to false for synchronous checkout flow
+      async: true, // Changed to true for hosted checkout flow
     };
 
     console.log('Pagar.me Transaction Payload:', JSON.stringify(transactionPayload, null, 2)); // Log do payload
