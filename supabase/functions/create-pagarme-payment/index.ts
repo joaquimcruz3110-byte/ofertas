@@ -115,6 +115,9 @@ serve(async (req: Request) => {
       .eq('id', buyer_id)
       .single();
 
+    console.log('Buyer Profile Data:', buyerProfile); // Adicionado para depuração
+    console.log('Buyer Profile Error:', profileError); // Adicionado para depuração
+
     if (profileError || !buyerProfile) {
       console.error('Error fetching buyer profile:', profileError?.message);
       if (profileError) {
