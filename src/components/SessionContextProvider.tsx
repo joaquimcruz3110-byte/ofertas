@@ -54,8 +54,8 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
         if (shopError && shopError.code !== 'PGRST116') { // PGRST116 means "no rows found"
           console.error('Erro ao buscar detalhes da loja:', shopError.message);
           setHasShopDetails(false);
-        } else if (shopData) {
-          setHasShopDetails(true); // True if data exists
+        } else if (shopData && shopData.pagarme_recipient_id) {
+          setHasShopDetails(true); // True if data exists AND pagarme_recipient_id is set
         } else {
           setHasShopDetails(false);
         }
