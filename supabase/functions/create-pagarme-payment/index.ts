@@ -11,6 +11,8 @@ const corsHeaders = {
 };
 
 serve(async (req: Request) => {
+  console.log('Edge Function create-pagarme-payment started.'); // Log para depuração
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders, status: 200 });
   }
