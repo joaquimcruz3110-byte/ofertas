@@ -253,7 +253,7 @@ serve(async (req: Request) => {
         street: customer_address_street,
         street_number: customer_address_number,
         zipcode: customer_address_postal_code.replace(/\D/g, ''),
-        complementary_info: customer_address_complement || undefined,
+        complementary_info: customer_address_complement || '', // CORREÇÃO AQUI: Garante que seja uma string vazia se nulo/undefined
       },
     };
     // --- Fim da construção e validação do objeto billing ---
