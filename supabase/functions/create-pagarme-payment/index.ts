@@ -18,6 +18,7 @@ serve(async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('Unauthorized: Missing Authorization header');
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
@@ -30,6 +31,7 @@ serve(async (req: Request) => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
+      console.error('Unauthorized: Invalid user session', userError?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized: Invalid user session' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -39,6 +41,7 @@ serve(async (req: Request) => {
     const { cartItems, buyer_id, commission_rate, app_url } = await req.json();
 
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !commission_rate || !app_url) {
+      console.error('Missing required fields in request body:', { cartItems, buyer_id, commission_rate, app_url });
       return new Response(JSON.stringify({ error: 'Missing required fields: cartItems, buyer_id, commission_rate, app_url' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -63,7 +66,7 @@ serve(async (req: Request) => {
       .in('id', shopkeeperIds);
 
     if (shopError || !shopDetails || shopDetails.length !== shopkeeperIds.length) {
-      console.error('Error fetching shop details or missing Pagar.me recipient IDs:', shopError?.message);
+      console.error('Error fetching shop details or missing Pagar.me recipient IDs:', shopError?.message, 'Shop details:', shopDetails);
       return new Response(JSON.stringify({ error: 'Pagar.me recipient ID not configured for all shopkeepers involved in the cart.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,6 +93,8 @@ serve(async (req: Request) => {
 
       const recipientId = shopkeeperPagarmeRecipients.get(shopkeeperId);
       if (!recipientId) {
+        // This case should ideally be caught by the earlier shopDetails check, but good to have a fallback
+        console.error(`Pagar.me recipient ID not found for shopkeeper ${shopkeeperId} during split rule creation.`);
         throw new Error(`Pagar.me recipient ID not found for shopkeeper ${shopkeeperId}`);
       }
 
@@ -112,6 +117,12 @@ serve(async (req: Request) => {
 
     if (profileError || !buyerProfile) {
       console.error('Error fetching buyer profile:', profileError?.message);
+      if (profileError) {
+        console.error('Supabase profile fetch error details:', profileError);
+      }
+      if (!buyerProfile) {
+        console.error('Buyer profile is null or undefined for buyer_id:', buyer_id);
+      }
       return new Response(JSON.stringify({ error: 'Buyer profile incomplete. Please update your profile with address and phone number.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -120,6 +131,7 @@ serve(async (req: Request) => {
 
     const pagarmeApiKey = Deno.env.get('PAGARME_API_KEY');
     if (!pagarmeApiKey) {
+      console.error('PAGARME_API_KEY not set in environment variables.');
       return new Response(JSON.stringify({ error: 'Pagar.me API Key not configured.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -178,7 +190,11 @@ serve(async (req: Request) => {
       failure_url: `${app_url}/pagarme-return?status=failure`,
     };
 
+    console.log('Pagar.me transactionBody:', JSON.stringify(transactionBody, null, 2)); // Log do corpo da transação
+
     const transaction = await client.transactions.create(transactionBody);
+
+    console.log('Pagar.me transaction response:', JSON.stringify(transaction, null, 2)); // Log da resposta da transação
 
     if (transaction.status === 'pending_review' || transaction.status === 'waiting_payment') {
       return new Response(JSON.stringify({ checkout_url: transaction.checkout_url }), {
@@ -186,6 +202,7 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
+      console.error(`Pagar.me transaction failed or unexpected status: ${transaction.status}`, transaction);
       return new Response(JSON.stringify({ error: `Pagar.me transaction failed or unexpected status: ${transaction.status}` }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -193,7 +210,7 @@ serve(async (req: Request) => {
     }
 
   } catch (error: unknown) {
-    console.error('Error creating Pagar.me payment:', error);
+    console.error('Error creating Pagar.me payment:', error); // Captura erros gerais
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
