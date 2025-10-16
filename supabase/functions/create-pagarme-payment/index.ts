@@ -209,16 +209,26 @@ serve(async (req: Request) => {
       });
     }
 
-  } catch (error: any) { // Alterado para 'any' para acessar 'error.response'
+  } catch (error: any) {
     console.error('Error creating Pagar.me payment:', error); // Captura erros gerais
-    if (error.response && error.response.data) {
-      console.error('Pagar.me API Error Response Data:', JSON.stringify(error.response.data, null, 2));
-      return new Response(JSON.stringify({ error: `Pagar.me API Error: ${JSON.stringify(error.response.data)}` }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let errorMessage = 'An unknown error occurred during Pagar.me payment creation.';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
     }
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
+
+    // Log the entire error.response object if it exists
+    if (error.response) {
+      console.error('Pagar.me API Error Response (full object):', JSON.stringify(error.response, null, 2));
+      if (error.response.data) {
+        console.error('Pagar.me API Error Response Data:', JSON.stringify(error.response.data, null, 2));
+        errorMessage = `Pagar.me API Error: ${JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage = `Pagar.me API Error (no data property): ${JSON.stringify(error.response)}`;
+      }
+    }
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
