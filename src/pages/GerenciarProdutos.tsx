@@ -81,7 +81,7 @@ const productFormSchema = z.object({
   // photo_url: z.string().optional(), // Removido
   discount: z.preprocess(
     (val) => Number(val),
-    z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
+    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -114,7 +114,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       // photo_url: "", // Removido
-      discount: 0.01,
+      discount: 0,
     },
   });
 
@@ -191,7 +191,7 @@ const GerenciarProdutos = () => {
       quantity: 0,
       category: "",
       // photo_url: "", // Removido
-      discount: 0.01,
+      discount: 0,
     });
     setCurrentImages([]);
     setIsDialogOpen(true);
@@ -206,7 +206,7 @@ const GerenciarProdutos = () => {
       quantity: product.quantity,
       category: product.category || "",
       // photo_url: product.photo_url || "", // Removido
-      discount: product.discount || 0.01,
+      discount: product.discount || 0,
     });
     setCurrentImages(product.photo_urls?.map(url => ({ url })) || []);
     // setSelectedFile(null); // Removido
@@ -472,7 +472,7 @@ const GerenciarProdutos = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as Categorias</SelectItem>
-              {CATEGORIES.map(category => (
+              {CATEGORIES.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
                 </SelectItem>

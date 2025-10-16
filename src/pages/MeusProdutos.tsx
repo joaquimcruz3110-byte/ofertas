@@ -71,7 +71,7 @@ const productFormSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."), // Categoria agora é obrigatória
   discount: z.preprocess(
     (val) => Number(val),
-    z.number().min(0.01, "O desconto deve ser maior que zero.").max(100, "O desconto não pode ser maior que 100.")
+    z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
 });
 
@@ -95,7 +95,7 @@ const MeusProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      discount: 0.01, // Alterado para 0.01
+      discount: 0, // Alterado para 0
     },
   });
 
@@ -136,7 +136,7 @@ const MeusProdutos = () => {
       price: 0,
       quantity: 0,
       category: "",
-      discount: 0.01, // Alterado para 0.01
+      discount: 0, // Alterado para 0
     });
     setCurrentImages([]);
     setIsDialogOpen(true);
@@ -150,7 +150,7 @@ const MeusProdutos = () => {
       price: product.price,
       quantity: product.quantity,
       category: product.category || "",
-      discount: product.discount || 0.01, // Alterado para 0.01
+      discount: product.discount || 0, // Alterado para 0
     });
     setCurrentImages(product.photo_urls?.map(url => ({ url })) || []);
     setIsDialogOpen(true);
@@ -328,8 +328,6 @@ const MeusProdutos = () => {
       fetchProducts();
     } catch (error: any) {
       dismissToast(toastId);
-      showError('Erro ao salvar produto: ' + error.message);
-      console.error('Erro ao salvar produto:', error.message);
     } finally {
       setIsSubmitting(false);
     }

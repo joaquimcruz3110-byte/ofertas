@@ -21,13 +21,15 @@ interface ShopDetails {
   shop_name: string;
   shop_description: string | null;
   shop_logo_url: string | null;
-  mercadopago_account_id: string | null; // Adicionado
+  mercadopago_account_id: string | null;
+  pagarme_recipient_id: string | null; // Adicionado
 }
 
 const shopSetupFormSchema = z.object({
   shop_name: z.string().min(1, "O nome da loja é obrigatório."),
   shop_description: z.string().optional(),
-  mercadopago_account_id: z.string().optional(), // Adicionado
+  mercadopago_account_id: z.string().optional(),
+  pagarme_recipient_id: z.string().optional(), // Adicionado
 });
 
 type ShopSetupFormValues = z.infer<typeof shopSetupFormSchema>;
@@ -47,7 +49,8 @@ const ShopSetupPage = () => {
     defaultValues: {
       shop_name: "",
       shop_description: "",
-      mercadopago_account_id: "", // Adicionado
+      mercadopago_account_id: "",
+      pagarme_recipient_id: "", // Adicionado
     },
   });
 
@@ -76,7 +79,8 @@ const ShopSetupPage = () => {
       setShopDetails(shopData as ShopDetails);
       form.setValue('shop_name', shopData.shop_name || "");
       form.setValue('shop_description', shopData.shop_description || "");
-      form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || ""); // Adicionado
+      form.setValue('mercadopago_account_id', shopData.mercadopago_account_id || "");
+      form.setValue('pagarme_recipient_id', shopData.pagarme_recipient_id || ""); // Adicionado
       setLogoPreview(shopData.shop_logo_url);
     }
 
@@ -211,7 +215,8 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            mercadopago_account_id: values.mercadopago_account_id || null, // Adicionado
+            mercadopago_account_id: values.mercadopago_account_id || null,
+            pagarme_recipient_id: values.pagarme_recipient_id || null, // Adicionado
           })
           .eq('id', session?.user?.id);
 
@@ -226,7 +231,8 @@ const ShopSetupPage = () => {
             shop_name: values.shop_name,
             shop_description: values.shop_description,
             shop_logo_url: logoUrlToSave,
-            mercadopago_account_id: values.mercadopago_account_id || null, // Adicionado
+            mercadopago_account_id: values.mercadopago_account_id || null,
+            pagarme_recipient_id: values.pagarme_recipient_id || null, // Adicionado
           });
 
         if (insertError) {
@@ -341,7 +347,7 @@ const ShopSetupPage = () => {
             )}
           />
 
-          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento (Mercado Pago)</h2>
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento</h2>
           <FormField
             control={form.control}
             name="mercadopago_account_id"
@@ -353,6 +359,22 @@ const ShopSetupPage = () => {
                 </FormControl>
                 <FormDescription>
                   Este é o ID da sua conta no Mercado Pago, necessário para receber pagamentos divididos. Você pode encontrá-lo no seu painel do Mercado Pago.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="pagarme_recipient_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>ID do Recebedor Pagar.me</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="Seu ID de Recebedor Pagar.me" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Este é o ID do seu recebedor Pagar.me, necessário para receber pagamentos divididos.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
