@@ -77,7 +77,7 @@ serve(async (req: Request) => {
 
     const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
 
-    // Fetch buyer's profile to get phone_number
+    // Fetch buyer's profile to get first_name, last_name, phone_number
     const { data: buyerProfile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('first_name, last_name, phone_number')
@@ -113,27 +113,30 @@ serve(async (req: Request) => {
       };
     });
 
-    const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0));
+    const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100); // Total amount in cents
+
+    const customerData: any = {
+      external_id: user.id,
+      name: `${buyerProfile?.first_name || ''} ${buyerProfile?.last_name || ''}`.trim() || user.email,
+      email: user.email,
+      type: 'individual',
+      country: 'br',
+      documents: [
+        {
+          type: 'cpf',
+          number: cleanedCpf,
+        },
+      ],
+    };
+
+    if (buyerProfile?.phone_number) {
+      customerData.phone_numbers = [buyerProfile.phone_number.replace(/\D/g, '')];
+    }
 
     const transactionPayload = {
-      amount: totalAmount, // Total amount in cents
-      payment_method: 'checkout', // Use checkout para redirecionar o usuário
-      customer: {
-        external_id: user.id,
-        name: `${buyerProfile?.first_name || ''} ${buyerProfile?.last_name || ''}`.trim() || user.email,
-        email: user.email,
-        type: 'individual',
-        country: 'br',
-        documents: [ // CORREÇÃO AQUI: Adicionado o array documents
-          {
-            type: 'cpf',
-            number: cleanedCpf,
-          },
-        ],
-        ...(buyerProfile?.phone_number && { // Adiciona phone_numbers se disponível
-          phone_numbers: [buyerProfile.phone_number.replace(/\D/g, '')], // Apenas números
-        }),
-      },
+      amount: totalAmount,
+      payment_method: 'checkout',
+      customer: customerData, // Use the constructed object
       items: cartItems.map((item: any) => ({
         id: item.id,
         title: item.name,
