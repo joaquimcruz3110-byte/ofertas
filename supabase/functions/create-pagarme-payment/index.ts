@@ -138,7 +138,8 @@ serve(async (req: Request) => {
       });
     }
 
-    const client = Pagarme(pagarmeApiKey);
+    // CORREÇÃO AQUI: Inicializa o cliente Pagar.me corretamente
+    const client = await Pagarme.client.connect({ api_key: pagarmeApiKey });
 
     const transactionBody = {
       amount: totalAmountCents,
