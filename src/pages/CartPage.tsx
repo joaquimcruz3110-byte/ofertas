@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client'; // Importar supabase
 
 const CartPage = () => {
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading, userProfile } = useSession(); // Obter userProfile
   const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
   const navigate = useNavigate();
 
@@ -27,6 +27,13 @@ const CartPage = () => {
 
     if (cartItems.length === 0) {
       showError('Seu carrinho está vazio.');
+      return;
+    }
+
+    // Verificar se o CPF está disponível no perfil do usuário
+    if (!userProfile?.cpf) {
+      showError('Seu CPF é necessário para finalizar a compra. Por favor, complete seu perfil.');
+      navigate('/profile'); // Redirecionar para a página de perfil
       return;
     }
 
@@ -111,6 +118,7 @@ const CartPage = () => {
             shopkeeper_id: item.shopkeeper_id,
           })),
           buyer_id: refreshedSession.user.id,
+          customer_cpf: userProfile.cpf, // ENVIANDO O CPF AQUI
           commission_rate: commission_rate,
           app_url: import.meta.env.VITE_APP_URL,
         },

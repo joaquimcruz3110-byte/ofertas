@@ -38,10 +38,10 @@ serve(async (req: Request) => {
       });
     }
 
-    const { cartItems, buyer_id, commission_rate, app_url } = await req.json();
+    const { cartItems, buyer_id, customer_cpf, commission_rate, app_url } = await req.json(); // Recebendo customer_cpf
 
-    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || commission_rate === undefined || !app_url) {
-      console.error('Missing required fields for payment creation:', { cartItems, buyer_id, commission_rate, app_url });
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || commission_rate === undefined || !app_url) {
+      console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, commission_rate, app_url });
       return new Response(JSON.stringify({ error: 'Missing required fields for payment creation.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -106,6 +106,8 @@ serve(async (req: Request) => {
         email: user.email,
         type: 'individual',
         country: 'br',
+        document_number: customer_cpf.replace(/\D/g, ''), // Adicionando o CPF (apenas números)
+        document_type: 'cpf', // Tipo de documento
       },
       items: cartItems.map((item: any) => ({
         id: item.id,
