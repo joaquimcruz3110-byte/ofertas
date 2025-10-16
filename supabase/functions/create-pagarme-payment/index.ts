@@ -115,9 +115,20 @@ serve(async (req: Request) => {
 
     const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100); // Total amount in cents
 
+    // Refatorando a construção do nome do cliente para evitar erros de parsing
+    let customerName = user.email; // Fallback padrão
+    if (buyerProfile) {
+      const firstName = buyerProfile.first_name || '';
+      const lastName = buyerProfile.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) {
+        customerName = fullName;
+      }
+    }
+
     const customerData: any = {
       external_id: user.id,
-      name: `${buyerProfile?.first_name || ''} ${buyerProfile?.last_name || ''}`.trim() || user.email,
+      name: customerName, // Usando o nome construído de forma mais robusta
       email: user.email,
       type: 'individual',
       country: 'br',
