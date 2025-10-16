@@ -112,6 +112,7 @@ const CartPage = () => {
       });
 
       if (error) {
+        // Exibir a mensagem de erro da função Edge
         showError('Erro ao iniciar o pagamento: ' + error.message);
         console.error('Erro ao invocar Edge Function create-pagarme-payment:', error);
       } else if (data && data.checkout_url) {

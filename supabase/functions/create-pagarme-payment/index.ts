@@ -126,7 +126,28 @@ serve(async (req: Request) => {
       if (!buyerProfile) {
         console.error('Buyer profile is null or undefined for buyer_id:', buyer_id);
       }
-      return new Response(JSON.stringify({ error: 'Buyer profile incomplete. Please update your profile with address and phone number.' }), {
+      return new Response(JSON.stringify({ error: 'Seu perfil está incompleto. Por favor, preencha seu CPF, telefone e endereço completo (Rua, Número, CEP, Cidade, Estado) antes de finalizar a compra.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Explicitly check for required address and contact fields
+    const missingFields = [
+      buyerProfile.first_name,
+      buyerProfile.last_name,
+      buyerProfile.cpf,
+      buyerProfile.phone_number,
+      buyerProfile.address_street,
+      buyerProfile.address_number,
+      buyerProfile.address_postal_code,
+      buyerProfile.address_city,
+      buyerProfile.address_state,
+    ].some(field => !field || String(field).trim() === '');
+
+    if (missingFields) {
+      console.error('Buyer profile is missing required address or contact details for Pagar.me transaction.');
+      return new Response(JSON.stringify({ error: 'Seu perfil está incompleto. Por favor, preencha seu nome completo, CPF, telefone e endereço completo (Rua, Número, CEP, Cidade, Estado) antes de finalizar a compra.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -149,34 +170,34 @@ serve(async (req: Request) => {
       items: pagarmeItems,
       customer: {
         external_id: buyer_id,
-        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim() || 'Comprador Olímpia Ofertas',
+        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim(),
         email: user.email,
         type: 'individual',
         documents: [{
           type: 'cpf',
-          number: buyerProfile.cpf?.replace(/\D/g, '') || '00000000000', // Remove non-digits
+          number: buyerProfile.cpf?.replace(/\D/g, ''), // Remove non-digits
         }],
-        phone_numbers: [`+55${buyerProfile.phone_number?.replace(/\D/g, '') || '00000000000'}`], // Format for Pagar.me
+        phone_numbers: [`+55${buyerProfile.phone_number?.replace(/\D/g, '')}`], // Format for Pagar.me
       },
       billing: {
-        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim() || 'Comprador Olímpia Ofertas',
+        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim(),
         address: {
           country: 'br',
-          state: buyerProfile.address_state || 'SP',
-          city: buyerProfile.address_city || 'Sao Paulo',
-          zipcode: buyerProfile.address_postal_code?.replace(/\D/g, '') || '00000000',
-          line_1: `${buyerProfile.address_street || 'Rua Desconhecida'}, ${buyerProfile.address_number || '0'}`,
+          state: buyerProfile.address_state,
+          city: buyerProfile.address_city,
+          zipcode: buyerProfile.address_postal_code?.replace(/\D/g, ''),
+          line_1: `${buyerProfile.address_street}, ${buyerProfile.address_number}`,
           line_2: buyerProfile.address_complement || '',
         },
       },
       shipping: {
-        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim() || 'Comprador Olímpia Ofertas',
+        name: `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim(),
         address: {
           country: 'br',
-          state: buyerProfile.address_state || 'SP',
-          city: buyerProfile.address_city || 'Sao Paulo',
-          zipcode: buyerProfile.address_postal_code?.replace(/\D/g, '') || '00000000',
-          line_1: `${buyerProfile.address_street || 'Rua Desconhecida'}, ${buyerProfile.address_number || '0'}`,
+          state: buyerProfile.address_state,
+          city: buyerProfile.address_city,
+          zipcode: buyerProfile.address_postal_code?.replace(/\D/g, ''),
+          line_1: `${buyerProfile.address_street}, ${buyerProfile.address_number}`,
           line_2: buyerProfile.address_complement || '',
         },
       },
