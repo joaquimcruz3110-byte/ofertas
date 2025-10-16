@@ -54,10 +54,29 @@ serve(async (req: Request) => {
       app_url
     } = await req.json();
 
-    // Basic validation for required fields
-    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || !customer_phone_number || commission_rate === undefined || !app_url) {
-      console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, customer_phone_number, commission_rate, app_url });
-      return new Response(JSON.stringify({ error: 'Missing required fields for payment creation.' }), {
+    // --- Validação de campos obrigatórios da requisição ---
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      return new Response(JSON.stringify({ error: 'Carrinho de compras vazio ou inválido.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!buyer_id) {
+      return new Response(JSON.stringify({ error: 'ID do comprador é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!customer_cpf) {
+      return new Response(JSON.stringify({ error: 'CPF do cliente é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!customer_phone_number) {
+      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (commission_rate === undefined || commission_rate < 0 || commission_rate > 100) {
+      return new Response(JSON.stringify({ error: 'Taxa de comissão inválida.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!app_url) {
+      return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // Validação dos campos de endereço para billing
+    if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
+      console.error('Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -66,7 +85,16 @@ serve(async (req: Request) => {
     const pagarmeApiKey = Deno.env.get('PAGARME_API_KEY');
     if (!pagarmeApiKey) {
       console.error('PAGARME_API_KEY not set in environment variables.');
-      return new Response(JSON.stringify({ error: 'Pagar.me API Key not configured.' }), {
+      return new Response(JSON.stringify({ error: 'Pagar.me API Key não configurada.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
+    if (!platformRecipientId) {
+      console.error('PAGARME_PLATFORM_RECIPIENT_ID not set in environment variables.');
+      return new Response(JSON.stringify({ error: 'ID do recebedor da plataforma Pagar.me não configurado.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -84,7 +112,7 @@ serve(async (req: Request) => {
 
     if (shopError) {
       console.error('Error fetching shop details for recipients:', shopError.message);
-      return new Response(JSON.stringify({ error: 'Error fetching shop details for recipients.' }), {
+      return new Response(JSON.stringify({ error: 'Erro ao buscar detalhes das lojas para recebedores.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -93,8 +121,8 @@ serve(async (req: Request) => {
     const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
-    if (!cleanedCpf) {
-      return new Response(JSON.stringify({ error: 'CPF do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
+    if (cleanedCpf.length !== 11) { // Basic CPF length validation
+      return new Response(JSON.stringify({ error: 'CPF inválido. Deve conter 11 dígitos.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -115,7 +143,7 @@ serve(async (req: Request) => {
       const recipientId = shopkeeperPagarmeRecipients.get(item.shopkeeper_id);
 
       if (!recipientId) {
-        throw new Error(`Recipient ID not found for shopkeeper ${item.shopkeeper_id}`);
+        throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${item.shopkeeper_id}.`);
       }
 
       splitRules.push({
@@ -130,11 +158,7 @@ serve(async (req: Request) => {
     const totalCommissionInCents = totalAmountInCents - totalAmountToShopkeepersInCents;
 
     // Add the platform's split rule if there's commission
-    const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
     if (totalCommissionInCents > 0) {
-      if (!platformRecipientId) {
-        throw new Error('PAGARME_PLATFORM_RECIPIENT_ID not configured for commission split. Please set this environment variable.');
-      }
       splitRules.push({
         recipient_id: platformRecipientId,
         amount: totalCommissionInCents,
@@ -211,29 +235,25 @@ serve(async (req: Request) => {
       customerData.phone_numbers = [formattedPhoneNumber];
     } else {
       console.warn('customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
-    }
-    // --- Fim da lógica de formatação e validação do número de telefone ---
-
-    // --- Construção e validação do objeto billing ---
-    if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
-      console.error('Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
-      return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança (billing) ausentes. Por favor, complete seu perfil.' }), {
+      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    // --- Fim da lógica de formatação e validação do número de telefone ---
 
+    // --- Construção e validação do objeto billing ---
     const billingData = {
-      name: customerName, // Usar o mesmo nome do cliente para billing
+      name: customerName,
       address: {
-        country: 'br', // Assumindo Brasil
+        country: 'br',
         state: customer_address_state,
         city: customer_address_city,
         neighborhood: customer_address_district,
         street: customer_address_street,
         street_number: customer_address_number,
-        zipcode: customer_address_postal_code.replace(/\D/g, ''), // Limpar o CEP
-        complementary_info: customer_address_complement || undefined, // Opcional
+        zipcode: customer_address_postal_code.replace(/\D/g, ''),
+        complementary_info: customer_address_complement || undefined,
       },
     };
     // --- Fim da construção e validação do objeto billing ---
@@ -241,7 +261,7 @@ serve(async (req: Request) => {
     const transactionPayload = {
       amount: totalAmountInCents,
       customer: customerData,
-      billing: billingData, // Adicionado o objeto billing
+      billing: billingData,
       items: cartItems.map((item: any) => ({
         id: item.id,
         title: item.name,
@@ -251,7 +271,7 @@ serve(async (req: Request) => {
       })),
       split_rules: splitRules,
       postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`,
-      async: true,
+      async: true, // Mantido como true para o fluxo de checkout hospedado
     };
 
     console.log('Pagar.me Transaction Payload (non-sensitive fields):', JSON.stringify({
@@ -281,7 +301,7 @@ serve(async (req: Request) => {
       });
     } else {
       console.error('Pagar.me transaction creation did not return a checkout_url:', transaction);
-      return new Response(JSON.stringify({ error: 'Failed to get Pagar.me checkout URL.' }), {
+      return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
