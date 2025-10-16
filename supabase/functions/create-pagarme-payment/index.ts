@@ -38,7 +38,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const { cartItems, buyer_id, customer_cpf, commission_rate, app_url } = await req.json(); // Recebendo customer_cpf
+    const { cartItems, buyer_id, customer_cpf, commission_rate, app_url } = await req.json();
 
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || commission_rate === undefined || !app_url) {
       console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, commission_rate, app_url });
@@ -77,6 +77,26 @@ serve(async (req: Request) => {
 
     const shopkeeperPagarmeRecipients = new Map(shopDetails.map(s => [s.id, s.pagarme_recipient_id]));
 
+    // Fetch buyer's profile to get phone_number
+    const { data: buyerProfile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('first_name, last_name, phone_number')
+      .eq('id', buyer_id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching buyer profile:', profileError.message);
+      // Continue without phone number if there's an error, but log it
+    }
+
+    const cleanedCpf = customer_cpf.replace(/\D/g, '');
+    if (!cleanedCpf) {
+      return new Response(JSON.stringify({ error: 'CPF do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const splitRules = cartItems.map((item: any) => {
       const amountToShopkeeper = Math.round(item.price * item.quantity * (1 - commission_rate / 100));
       const recipientId = shopkeeperPagarmeRecipients.get(item.shopkeeper_id);
@@ -94,35 +114,41 @@ serve(async (req: Request) => {
     });
 
     const totalAmount = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0));
-    // The total commission amount is implicitly handled by the split rules.
-    // The main transaction amount is the full amount, and the split rules define how it's distributed.
 
-    const transaction = await client.transactions.create({
+    const transactionPayload = {
       amount: totalAmount, // Total amount in cents
       payment_method: 'checkout', // Use checkout para redirecionar o usuário
       customer: {
         external_id: user.id,
-        name: user.user_metadata.first_name || user.email,
+        name: `${buyerProfile?.first_name || ''} ${buyerProfile?.last_name || ''}`.trim() || user.email,
         email: user.email,
         type: 'individual',
         country: 'br',
-        document_number: customer_cpf.replace(/\D/g, ''), // Adicionando o CPF (apenas números)
-        document_type: 'cpf', // Tipo de documento
+        documents: [ // CORREÇÃO AQUI: Adicionado o array documents
+          {
+            type: 'cpf',
+            number: cleanedCpf,
+          },
+        ],
+        ...(buyerProfile?.phone_number && { // Adiciona phone_numbers se disponível
+          phone_numbers: [buyerProfile.phone_number.replace(/\D/g, '')], // Apenas números
+        }),
       },
       items: cartItems.map((item: any) => ({
         id: item.id,
         title: item.name,
-        unit_price: Math.round(item.price), // Price in cents
+        unit_price: Math.round(item.price * 100), // Price in cents
         quantity: item.quantity,
         tangible: true, // Assuming all products are tangible
       })),
       split_rules: splitRules,
       postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`, // URL da sua Edge Function de webhook
-      // Redirecionar para uma página de retorno após o pagamento
-      // O Pagar.me adiciona o status da transação na URL de retorno
-      // Ex: https://your-app.com/pagarme-return?status=success&id=transaction_id
       async: false, // Set to false for synchronous checkout flow
-    });
+    };
+
+    console.log('Pagar.me Transaction Payload:', JSON.stringify(transactionPayload, null, 2)); // Log do payload
+
+    const transaction = await client.transactions.create(transactionPayload);
 
     // For Pagar.me Checkout, the response will contain a checkout_url
     if (transaction.checkout_url) {
