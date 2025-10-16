@@ -38,8 +38,23 @@ serve(async (req: Request) => {
       });
     }
 
-    const { cartItems, buyer_id, customer_cpf, customer_phone_number, commission_rate, app_url } = await req.json();
+    const {
+      cartItems,
+      buyer_id,
+      customer_cpf,
+      customer_phone_number,
+      customer_address_street,
+      customer_address_number,
+      customer_address_complement,
+      customer_address_district,
+      customer_address_postal_code,
+      customer_address_city,
+      customer_address_state,
+      commission_rate,
+      app_url
+    } = await req.json();
 
+    // Basic validation for required fields
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0 || !buyer_id || !customer_cpf || !customer_phone_number || commission_rate === undefined || !app_url) {
       console.error('Missing required fields for payment creation:', { cartItems, buyer_id, customer_cpf, customer_phone_number, commission_rate, app_url });
       return new Response(JSON.stringify({ error: 'Missing required fields for payment creation.' }), {
@@ -123,14 +138,23 @@ serve(async (req: Request) => {
       splitRules.push({
         recipient_id: platformRecipientId,
         amount: totalCommissionInCents,
-        liable: false, // The platform is not liable for the transaction itself, but receives its share
-        charge_processing_fee: false, // The platform might not pay processing fee on its commission, or it might. This depends on business logic.
+        liable: false,
+        charge_processing_fee: false,
+      });
+    }
+
+    // Validate that the sum of split rules equals the total amount
+    const sumOfSplitAmounts = splitRules.reduce((sum, rule) => sum + rule.amount, 0);
+    if (sumOfSplitAmounts !== totalAmountInCents) {
+      console.error('Split rules total amount does not match transaction total amount.', { sumOfSplitAmounts, totalAmountInCents });
+      return new Response(JSON.stringify({ error: 'Configuração de divisão de pagamento inválida: a soma dos valores de split não corresponde ao total da transação.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     // --- End build split rules ---
 
-    // Refatorando a construção do nome do cliente para evitar erros de parsing
-    // Fetch buyer's profile to get first_name, last_name (phone_number is now passed directly)
+    // Fetch buyer's profile to get first_name, last_name
     const { data: buyerProfile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('first_name, last_name')
@@ -147,26 +171,24 @@ serve(async (req: Request) => {
       }
     }
 
-    // --- Lógica de formatação e validação do número de telefone (agora recebido via body) ---
+    // --- Lógica de formatação e validação do número de telefone ---
     let formattedPhoneNumber: string | null = null;
-    const phoneRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/; // Pagar.me's required pattern
+    const phoneRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/;
 
     if (customer_phone_number) {
       const cleaned = customer_phone_number.replace(/\D/g, '');
-      // Assume que se o número tem 10 ou 11 dígitos e não começa com '+', é um número brasileiro sem DDI
       if (cleaned.length >= 10 && cleaned.length <= 11 && !customer_phone_number.startsWith('+')) {
         formattedPhoneNumber = `+55${cleaned}`;
       } else if (customer_phone_number.startsWith('+')) {
-        formattedPhoneNumber = customer_phone_number; // Já está no formato internacional
+        formattedPhoneNumber = customer_phone_number;
       } else {
-        // Se não se encaixa nos padrões acima, tenta prefixar com '+' e deixa a regex validar
         formattedPhoneNumber = `+${cleaned}`;
       }
     }
 
     const customerData: any = {
       external_id: user.id,
-      name: customerName, // Usando o nome construído de forma mais robusta
+      name: customerName,
       email: user.email,
       type: 'individual',
       country: 'br',
@@ -192,27 +214,66 @@ serve(async (req: Request) => {
     }
     // --- Fim da lógica de formatação e validação do número de telefone ---
 
+    // --- Construção e validação do objeto billing ---
+    if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
+      console.error('Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança (billing) ausentes. Por favor, complete seu perfil.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const billingData = {
+      name: customerName, // Usar o mesmo nome do cliente para billing
+      address: {
+        country: 'br', // Assumindo Brasil
+        state: customer_address_state,
+        city: customer_address_city,
+        neighborhood: customer_address_district,
+        street: customer_address_street,
+        street_number: customer_address_number,
+        zipcode: customer_address_postal_code.replace(/\D/g, ''), // Limpar o CEP
+        complementary_info: customer_address_complement || undefined, // Opcional
+      },
+    };
+    // --- Fim da construção e validação do objeto billing ---
+
     const transactionPayload = {
-      amount: totalAmountInCents, // Use the calculated total amount in cents
-      // payment_method: 'checkout', // Removido para o fluxo de checkout hospedado
-      customer: customerData, // Use the constructed object
+      amount: totalAmountInCents,
+      customer: customerData,
+      billing: billingData, // Adicionado o objeto billing
       items: cartItems.map((item: any) => ({
         id: item.id,
         title: item.name,
-        unit_price: Math.round(item.price * 100), // Price in cents
+        unit_price: Math.round(item.price * 100),
         quantity: item.quantity,
-        tangible: true, // Assuming all products are tangible
+        tangible: true,
       })),
       split_rules: splitRules,
-      postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`, // URL da sua Edge Function de webhook
-      async: true, // Changed to true for hosted checkout flow
+      postback_url: `${app_url}/supabase/functions/v1/pagarme-webhook`,
+      async: true,
     };
 
-    console.log('Pagar.me Transaction Payload:', JSON.stringify(transactionPayload, null, 2)); // Log do payload
+    console.log('Pagar.me Transaction Payload (non-sensitive fields):', JSON.stringify({
+      amount: transactionPayload.amount,
+      customer: {
+        external_id: transactionPayload.customer.external_id,
+        name: transactionPayload.customer.name,
+        email: transactionPayload.customer.email,
+        type: transactionPayload.customer.type,
+        country: transactionPayload.customer.country,
+        documents: transactionPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })), // Censor CPF
+        phone_numbers: transactionPayload.customer.phone_numbers,
+      },
+      billing: transactionPayload.billing,
+      items: transactionPayload.items.map((item: any) => ({ id: item.id, title: item.title, quantity: item.quantity, unit_price: item.unit_price })),
+      split_rules: transactionPayload.split_rules,
+      postback_url: transactionPayload.postback_url,
+      async: transactionPayload.async,
+    }, null, 2));
 
     const transaction = await client.transactions.create(transactionPayload);
 
-    // For Pagar.me Checkout, the response will contain a checkout_url
     if (transaction.checkout_url) {
       return new Response(JSON.stringify({ checkout_url: transaction.checkout_url }), {
         status: 200,
@@ -228,14 +289,13 @@ serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error('Error creating Pagar.me payment:', error);
-    let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.'; // Default message for client
+    let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.';
 
     if (error instanceof Error) {
       clientErrorMessage = error.message;
     }
 
     if (error.response) {
-      // Pagar.me API errors usually have a 'data' field with 'errors' array
       if (error.response.data && error.response.data.errors && Array.isArray(error.response.data.errors)) {
         const pagarmeErrors = error.response.data.errors.map((e: any) => e.message).join('; ');
         clientErrorMessage = `Erro Pagar.me: ${pagarmeErrors}`;

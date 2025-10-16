@@ -37,9 +37,16 @@ const CartPage = () => {
       return;
     }
 
-    // NOVO: Verificar se o número de telefone está disponível no perfil do usuário
+    // Verificar se o número de telefone está disponível no perfil do usuário
     if (!userProfile?.phone_number) {
       showError('Seu número de telefone é necessário para finalizar a compra. Por favor, complete seu perfil.');
+      navigate('/profile'); // Redirecionar para a página de perfil
+      return;
+    }
+
+    // NOVO: Verificar se os campos de endereço estão disponíveis no perfil do usuário
+    if (!userProfile?.address_street || !userProfile?.address_number || !userProfile?.address_district || !userProfile?.address_postal_code || !userProfile?.address_city || !userProfile?.address_state) {
+      showError('Seu endereço completo é necessário para finalizar a compra. Por favor, complete seu perfil.');
       navigate('/profile'); // Redirecionar para a página de perfil
       return;
     }
@@ -125,8 +132,16 @@ const CartPage = () => {
             shopkeeper_id: item.shopkeeper_id,
           })),
           buyer_id: refreshedSession.user.id,
-          customer_cpf: userProfile.cpf, // ENVIANDO O CPF AQUI
-          customer_phone_number: userProfile.phone_number, // NOVO: ENVIANDO O NÚMERO DE TELEFONE AQUI
+          customer_cpf: userProfile.cpf,
+          customer_phone_number: userProfile.phone_number,
+          // NOVO: Passando os dados de endereço para a Edge Function
+          customer_address_street: userProfile.address_street,
+          customer_address_number: userProfile.address_number,
+          customer_address_complement: userProfile.address_complement,
+          customer_address_district: userProfile.address_district,
+          customer_address_postal_code: userProfile.address_postal_code,
+          customer_address_city: userProfile.address_city,
+          customer_address_state: userProfile.address_state,
           commission_rate: commission_rate,
           app_url: import.meta.env.VITE_APP_URL,
         },
