@@ -212,17 +212,28 @@ serve(async (req: Request) => {
     let customerPhones: any = {};
     console.log('create-pagarme-payment: Raw customer_phone_number:', customer_phone_number);
     if (customer_phone_number) {
-      const cleanedPhoneNumber = customer_phone_number.replace(/\D/g, ''); // Remove non-digits
+      let cleanedPhoneNumber = customer_phone_number.replace(/\D/g, ''); // e.g., "5517981062768" or "17981062768"
       console.log('create-pagarme-payment: Cleaned phone number:', cleanedPhoneNumber);
 
       let countryCode = '55'; // Default to Brazil
       let areaCode = '';
       let number = '';
+      let numberToParse = cleanedPhoneNumber;
 
-      // Assuming Brazilian phone numbers (10 or 11 digits after DDD)
-      if (cleanedPhoneNumber.length >= 10 && cleanedPhoneNumber.length <= 11) {
-        areaCode = cleanedPhoneNumber.substring(0, 2);
-        number = cleanedPhoneNumber.substring(2);
+      // If the number starts with '55' and is longer than a typical Brazilian number (10 or 11 digits),
+      // assume '55' is the country code and remove it for parsing DDD+number.
+      if (cleanedPhoneNumber.startsWith('55') && cleanedPhoneNumber.length > 11) {
+        numberToParse = cleanedPhoneNumber.substring(2); // Remove '55', e.g., "17981062768"
+      }
+      // If it's already 10 or 11 digits, or doesn't start with '55', numberToParse remains as is.
+
+      // Now parse numberToParse (should be 10 or 11 digits: DDD + number)
+      if (numberToParse.length === 11) { // Mobile with 9th digit (e.g., 11987654321)
+        areaCode = numberToParse.substring(0, 2);
+        number = numberToParse.substring(2);
+      } else if (numberToParse.length === 10) { // Landline or old mobile (e.g., 1187654321)
+        areaCode = numberToParse.substring(0, 2);
+        number = numberToParse.substring(2);
       } else {
         console.error('create-pagarme-payment: Phone number length is not standard for Brazilian numbers (10 or 11 digits after DDD):', cleanedPhoneNumber);
         return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: DDXXXXXXXXX).' }), {
@@ -233,15 +244,14 @@ serve(async (req: Request) => {
 
       console.log('create-pagarme-payment: Parsed phone components - countryCode:', countryCode, 'areaCode:', areaCode, 'number:', number);
 
-      if (areaCode && number) {
+      if (countryCode && areaCode && number) {
         customerPhones = {
           mobile_phone: {
             country_code: countryCode,
             area_code: areaCode,
             number: number,
           },
-          // Adiciona home_phone, usando os mesmos detalhes se apenas um número for fornecido
-          home_phone: {
+          home_phone: { // Pagar.me often requires both
             country_code: countryCode,
             area_code: areaCode,
             number: number,
