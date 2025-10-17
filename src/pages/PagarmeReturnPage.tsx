@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { showSuccess, showError } from '@/utils/toast';
@@ -12,9 +12,11 @@ const PagarmeReturnPage = () => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
+  // Usa useMemo para analisar os parâmetros da query uma vez por renderização
+  const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const status = queryParams.get('status');
+
   useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    const status = queryParams.get('status');
     console.log('PagarmeReturnPage useEffect - Status from URL:', status); // DEBUG LOG
 
     if (status === 'success') {
@@ -27,11 +29,9 @@ const PagarmeReturnPage = () => {
     } else {
       showError('Status de pagamento desconhecido ou erro na transação.');
     }
-  }, [location.search, navigate, clearCart]);
+  }, [status, navigate, clearCart]); // Depende diretamente do status
 
-  const queryParams = new URLSearchParams(location.search);
-  const status = queryParams.get('status');
-  console.log('PagarmeReturnPage Render - Status from URL:', status); // DEBUG LOG
+  console.log('PagarmeReturnPage Render - Status for switch:', status); // DEBUG LOG
 
   let title = '';
   let message = '';
