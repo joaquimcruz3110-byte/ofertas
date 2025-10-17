@@ -406,8 +406,8 @@ serve(async (req: Request) => {
     });
 
     const responseData = await pagarmeResponse.json();
-    console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData));
-    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges));
+    console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData, null, 2)); // Log com pretty print
+    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges, null, 2)); // Log com pretty print
 
     if (!pagarmeResponse.ok) {
       console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
@@ -426,12 +426,24 @@ serve(async (req: Request) => {
     // Verificar se charges[0].last_transaction existe e se a transação foi bem-sucedida
     if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction) {
       const lastTransaction = responseData.charges[0].last_transaction;
-      console.log('create-pagarme-payment: Pagar.me last_transaction details:', JSON.stringify(lastTransaction));
+      console.log('create-pagarme-payment: Pagar.me last_transaction details:', JSON.stringify(lastTransaction, null, 2)); // Log detalhado da transação com pretty print
 
       // Se a transação falhou, extrair e retornar os erros do gateway
       if (lastTransaction.status === 'failed' && lastTransaction.gateway_response && lastTransaction.gateway_response.errors) {
-        console.error('create-pagarme-payment: Pagar.me Gateway Errors:', JSON.stringify(lastTransaction.gateway_response.errors));
-        const gatewayErrors = lastTransaction.gateway_response.errors.map((err: any) => err.message || JSON.stringify(err)).join('; ');
+        console.error('create-pagarme-payment: Pagar.me Gateway Errors:', JSON.stringify(lastTransaction.gateway_response.errors, null, 2)); // Log com pretty print
+        
+        const gatewayErrors = lastTransaction.gateway_response.errors
+            .map((err: any) => {
+                if (typeof err === 'string') {
+                    return err;
+                } else if (err && typeof err === 'object' && err.message) {
+                    return err.message;
+                } else {
+                    return JSON.stringify(err); // Fallback para stringify o objeto completo
+                }
+            })
+            .join('; ');
+
         return new Response(JSON.stringify({ error: `Erro no gateway de pagamento: ${gatewayErrors}` }), {
           status: 400, // Retorna 400 porque é um erro de validação do Pagar.me
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -442,7 +454,7 @@ serve(async (req: Request) => {
       if (lastTransaction.qr_code_url && (lastTransaction.qr_code_base64 || lastTransaction.payload)) {
         return new Response(JSON.stringify({
           pix_qr_code_url: lastTransaction.qr_code_url,
-          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload,
+          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload, // Prioriza qr_code_base64, fallback para payload
           order_id: responseData.id,
         }), {
           status: 200,
@@ -452,7 +464,7 @@ serve(async (req: Request) => {
     }
     
     // Se chegarmos aqui, significa que os dados esperados não foram encontrados na resposta ou a transação não foi bem-sucedida e não houve erros específicos do gateway
-    console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key as expected, or transaction failed without specific gateway errors:', responseData);
+    console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key as expected, or transaction failed without specific gateway errors:', JSON.stringify(responseData, null, 2));
     return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me ou transação não concluída. Verifique os logs da função para mais detalhes.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
