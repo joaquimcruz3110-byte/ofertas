@@ -15,7 +15,7 @@ const PagarmeReturnPage = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const status = queryParams.get('status');
-    // const transactionId = queryParams.get('id'); // ID da transação no Pagar.me
+    console.log('PagarmeReturnPage useEffect - Status from URL:', status); // DEBUG LOG
 
     if (status === 'success') {
       showSuccess('Pagamento aprovado! Seu pedido foi realizado com sucesso.');
@@ -31,6 +31,7 @@ const PagarmeReturnPage = () => {
 
   const queryParams = new URLSearchParams(location.search);
   const status = queryParams.get('status');
+  console.log('PagarmeReturnPage Render - Status from URL:', status); // DEBUG LOG
 
   let title = '';
   let message = '';
