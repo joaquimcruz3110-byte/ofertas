@@ -142,7 +142,7 @@ serve(async (req: Request) => {
 
     // --- Calculate total amount in cents ---
     const totalAmountInCents = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100);
-    console.log('create-pagarme-payment: Total amount in cents:', totalAmountInCents);
+    console.log('create-pagarme-payment: Calculated totalAmountInCents:', totalAmountInCents);
 
     // --- Build split rules ---
     const splitRules = [];
@@ -163,10 +163,10 @@ serve(async (req: Request) => {
       splitRules.push({
         recipient_id: recipientId,
         amount: amountToShopkeeperForThisItem,
-        options: { // Adicionado o objeto options
+        options: {
           liable: true,
           charge_processing_fee: true,
-          charge_remainder_fee: false, // Lojista recebe o valor exato
+          charge_remainder_fee: false,
         },
         type: 'flat',
       });
@@ -174,16 +174,18 @@ serve(async (req: Request) => {
 
     // Calculate the total commission for the platform
     const totalCommissionInCents = totalAmountInCents - totalAmountToShopkeepersInCents;
+    console.log('create-pagarme-payment: Calculated totalAmountToShopkeepersInCents:', totalAmountToShopkeepersInCents);
+    console.log('create-pagarme-payment: Calculated totalCommissionInCents (platform share):', totalCommissionInCents);
 
     // Add the platform's split rule if there's commission
     if (totalCommissionInCents > 0) {
       splitRules.push({
         recipient_id: platformRecipientId,
         amount: totalCommissionInCents,
-        options: { // Adicionado o objeto options
+        options: {
           liable: false,
           charge_processing_fee: false,
-          charge_remainder_fee: true, // Plataforma absorve o restante
+          charge_remainder_fee: true,
         },
         type: 'flat',
       });
@@ -198,7 +200,7 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('create-pagarme-payment: Split Rules:', JSON.stringify(splitRules));
+    console.log('create-pagarme-payment: Final Split Rules Array:', JSON.stringify(splitRules));
     // --- End build split rules ---
 
     // Fetch buyer's profile to get first_name, last_name
@@ -406,6 +408,9 @@ serve(async (req: Request) => {
       shipping: orderPayload.shipping,
       metadata: orderPayload.metadata,
     }, null, 2));
+
+    console.log('create-pagarme-payment: Pagar.me API Key for request:', pagarmeApiKey ? pagarmeApiKey.substring(0, 5) + '...' : 'N/A');
+    console.log('create-pagarme-payment: Platform Recipient ID for request:', platformRecipientId);
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
