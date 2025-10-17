@@ -324,7 +324,7 @@ serve(async (req: Request) => {
         {
           payment_method: 'checkout', // Usar checkout hospedado
           checkout: {
-            customer_editable: false,
+            customer_editable: true, // ALTERADO PARA TRUE
             billing_address_editable: false,
             accepted_payment_methods: ['credit_card', 'pix'], // Aceitar cartão de crédito e Pix
             success_url: `${app_url}/pagarme-return?status=success`,
