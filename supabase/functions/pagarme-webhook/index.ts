@@ -25,18 +25,24 @@ serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    // const signature = req.headers.get('x-hub-signature'); // Pagar.me v5 usa 'x-hub-signature' para webhooks
-
-    // CORREÇÃO: Extrair eventType do campo 'type' e order do campo 'data'
     const eventType = body.type;
-    const order = body.data;
+    const order = body.data; // Este 'order' é o objeto dentro de 'data'
 
     console.log('pagarme-webhook: Webhook received. Event Type:', eventType, 'Order ID:', order?.id);
     console.log('pagarme-webhook: Full Webhook Body:', JSON.stringify(body));
 
-    if (!order || !order.id || !eventType) {
-      console.log('pagarme-webhook: Not a valid Pagar.me order notification (missing order data or event type).');
-      return new Response(JSON.stringify({ message: 'Not a valid Pagar.me order notification' }), {
+    // Apenas processar eventos 'order.paid' para registro de vendas
+    if (eventType !== 'order.paid') {
+      console.log(`pagarme-webhook: Ignorando evento do tipo ${eventType}. Apenas eventos 'order.paid' são processados para registro de vendas.`);
+      return new Response(JSON.stringify({ message: `Evento do tipo ${eventType} reconhecido, mas não processado para registro de vendas.` }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!order || !order.id) {
+      console.log('pagarme-webhook: Notificação de pedido Pagar.me inválida (dados do pedido ou ID ausentes).');
+      return new Response(JSON.stringify({ message: 'Notificação de pedido Pagar.me inválida' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -44,13 +50,13 @@ serve(async (req: Request) => {
 
     const orderId = order.id;
     const orderStatus = order.status;
-    const metadata = order.metadata; // Metadata agora está dentro de order
+    const metadata = order.metadata;
 
-    console.log(`pagarme-webhook: Processing order ${orderId} with status ${orderStatus}. Metadata:`, JSON.stringify(metadata));
+    console.log(`pagarme-webhook: Processando pedido ${orderId} com status ${orderStatus}. Metadados:`, JSON.stringify(metadata));
 
     if (!metadata || !metadata.buyer_id || !metadata.commission_rate || !metadata.cartItems) {
-      console.warn(`pagarme-webhook: Pagar.me order ${orderId} has no required metadata. Cannot process sale.`);
-      return new Response(JSON.stringify({ message: 'Order has no required metadata' }), {
+      console.warn(`pagarme-webhook: O pedido Pagar.me ${orderId} não possui os metadados necessários. Não é possível processar a venda.`);
+      return new Response(JSON.stringify({ message: 'O pedido não possui os metadados necessários' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -60,20 +66,20 @@ serve(async (req: Request) => {
     const commission_rate = parseFloat(metadata.commission_rate);
     const saleItems = JSON.parse(metadata.cartItems);
 
-    // Use the service role key for database operations
+    // Usar a chave de serviço (service role key) para operações de banco de dados
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    if (orderStatus === 'paid') { // Pagar.me v5 usa 'paid' para pedidos aprovados
-      console.log(`pagarme-webhook: Order ${orderId} is 'paid'. Proceeding to record sales.`);
+    if (orderStatus === 'paid') {
+      console.log(`pagarme-webhook: Pedido ${orderId} está 'paid'. Prosseguindo para registrar as vendas.`);
 
-      // Fetch buyer's email
+      // Buscar o e-mail do comprador
       const { data: buyerUser, error: buyerUserError } = await supabaseAdmin.auth.admin.getUserById(buyer_id);
       const buyerEmail = buyerUserError ? null : buyerUser?.user?.email;
       if (buyerUserError) {
-        console.error('pagarme-webhook: Error fetching buyer user for email:', buyerUserError?.message);
+        console.error('pagarme-webhook: Erro ao buscar usuário comprador para e-mail:', buyerUserError?.message);
       }
 
       const productsSoldDetails: {
@@ -113,14 +119,14 @@ serve(async (req: Request) => {
             const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productDetail.shopkeeper_id);
             const shopkeeperEmail = shopkeeperUserError ? null : shopkeeperUser?.user?.email;
             if (shopkeeperUserError) {
-              console.error(`pagarme-webhook: Error fetching shopkeeper user ${productDetail.shopkeeper_id} for email:`, shopkeeperUserError?.message);
+              console.error(`pagarme-webhook: Erro ao buscar usuário lojista ${productDetail.shopkeeper_id} para e-mail:`, shopkeeperUserError?.message);
             }
             shopkeeperSalesMap.set(productDetail.shopkeeper_id, { email: shopkeeperEmail, products: [] });
           }
           shopkeeperSalesMap.get(productDetail.shopkeeper_id)?.products.push(productDetail);
         }
 
-        // Perform the purchase RPC call for each item
+        // Chamar a função RPC perform_purchase para cada item
         const { error: saleError } = await supabaseAdmin.rpc('perform_purchase', {
           p_product_id: item.id,
           p_buyer_id: buyer_id,
@@ -132,13 +138,13 @@ serve(async (req: Request) => {
         });
 
         if (saleError) {
-          console.error(`pagarme-webhook: Error performing purchase for product ${item.id}:`, saleError.message);
+          console.error(`pagarme-webhook: Erro ao realizar compra para o produto ${item.id}:`, saleError.message);
         } else {
-          console.log(`pagarme-webhook: Purchase recorded for product ${item.id}.`);
+          console.log(`pagarme-webhook: Compra registrada para o produto ${item.id}.`);
         }
       }
 
-      // Send consolidated shopkeeper notification emails
+      // Enviar e-mails de notificação consolidados para os lojistas
       for (const [shopkeeperId, salesInfo] of shopkeeperSalesMap.entries()) {
         if (salesInfo.email) {
           const shopkeeperSubject = `Nova Venda(s) no Olímpia Ofertas!`;
@@ -186,13 +192,13 @@ serve(async (req: Request) => {
             </html>
           `;
           await invokeSendEmail(salesInfo.email, shopkeeperSubject, shopkeeperHtml);
-          console.log(`pagarme-webhook: Shopkeeper email sent to ${salesInfo.email}.`);
+          console.log(`pagarme-webhook: E-mail do lojista enviado para ${salesInfo.email}.`);
         } else {
-          console.warn(`pagarme-webhook: No email found for shopkeeper ID ${shopkeeperId}. Skipping notification.`);
+          console.warn(`pagarme-webhook: Nenhum e-mail encontrado para o ID do lojista ${shopkeeperId}. Pulando notificação.`);
         }
       }
 
-      // Send buyer receipt email (already consolidated for all items)
+      // Enviar e-mail de recibo para o comprador (já consolidado para todos os itens)
       if (buyerEmail) {
         const buyerSubject = 'Seu Comprovante de Compra no Olímpia Ofertas';
         const buyerHtml = `
@@ -242,21 +248,21 @@ serve(async (req: Request) => {
           </html>
         `;
         await invokeSendEmail(buyerEmail, buyerSubject, buyerHtml);
-        console.log(`pagarme-webhook: Buyer email sent to ${buyerEmail}.`);
+        console.log(`pagarme-webhook: E-mail do comprador enviado para ${buyerEmail}.`);
       } else {
-        console.warn(`pagarme-webhook: No email found for buyer ID ${buyer_id}. Skipping notification.`);
+        console.warn(`pagarme-webhook: Nenhum e-mail encontrado para o ID do comprador ${buyer_id}. Pulando notificação.`);
       }
 
     } else {
-      console.log(`pagarme-webhook: Pagar.me order ${orderId} status is ${orderStatus}. No stock update performed.`);
+      console.log(`pagarme-webhook: Pedido Pagar.me ${orderId} status é ${orderStatus}. Nenhuma atualização de estoque realizada.`);
     }
 
-    return new Response(JSON.stringify({ message: 'Webhook processed successfully' }), {
+    return new Response(JSON.stringify({ message: 'Webhook processado com sucesso' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: unknown) {
-    console.error('pagarme-webhook: Error processing Pagar.me webhook:', error);
+    console.error('pagarme-webhook: Erro ao processar webhook do Pagar.me:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -264,13 +270,13 @@ serve(async (req: Request) => {
   }
 });
 
-// Helper function to invoke the send-email Edge Function
+// Função auxiliar para invocar a Edge Function send-email
 async function invokeSendEmail(to: string, subject: string, htmlContent: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!supabaseUrl || !serviceRoleKey) {
-    console.error('pagarme-webhook: Supabase URL or Service Role Key not set for invoking send-email.');
+    console.error('pagarme-webhook: URL do Supabase ou Service Role Key não configurados para invocar send-email.');
     return;
   }
 
@@ -281,18 +287,18 @@ async function invokeSendEmail(to: string, subject: string, htmlContent: string)
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceRoleKey}`, // Use service role key for internal function invocation
+        'Authorization': `Bearer ${serviceRoleKey}`, // Usar service role key para invocação interna da função
       },
       body: JSON.stringify({ to, subject, htmlContent }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`pagarme-webhook: Failed to invoke send-email function: ${response.status} - ${errorBody}`);
+      console.error(`pagarme-webhook: Falha ao invocar a função send-email: ${response.status} - ${errorBody}`);
     } else {
-      console.log(`pagarme-webhook: Email invocation successful for ${to}.`);
+      console.log(`pagarme-webhook: Invocação de e-mail bem-sucedida para ${to}.`);
     }
   } catch (error) {
-    console.error('pagarme-webhook: Error invoking send-email function:', error);
+    console.error('pagarme-webhook: Erro ao invocar a função send-email:', error);
   }
 }
