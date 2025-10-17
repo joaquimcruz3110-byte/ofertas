@@ -128,9 +128,11 @@ serve(async (req: Request) => {
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
     console.log('create-pagarme-payment: Cleaned CPF for document:', cleanedCpf); // NOVO LOG
+    
+    // NOVO: Validação de comprimento do CPF após a limpeza
     if (cleanedCpf.length !== 11) {
-      console.error('create-pagarme-payment: Invalid CPF length:', cleanedCpf);
-      return new Response(JSON.stringify({ error: 'CPF inválido. Deve conter 11 dígitos.' }), {
+      console.error('create-pagarme-payment: Invalid CPF length after cleaning:', cleanedCpf);
+      return new Response(JSON.stringify({ error: 'CPF inválido. Por favor, verifique seu perfil e insira um CPF com 11 dígitos.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
