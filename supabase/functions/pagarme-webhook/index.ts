@@ -165,10 +165,18 @@ serve(async (req: Request) => {
             const profile = shop.profiles as any; // Cast para acessar campos de endereço
             let addressString = 'Endereço não disponível';
             if (profile) {
-              addressString = `${profile.address_street || ''}, ${profile.address_number || ''}`;
-              if (profile.address_complement) addressString += ` - ${profile.address_complement}`;
-              addressString += `, ${profile.address_district || ''}, ${profile.address_city || ''} - ${profile.address_state || ''}, CEP ${profile.address_postal_code || ''}`;
-              addressString = addressString.replace(/,\s*,/g, ',').replace(/,\s*CEP/g, ', CEP').trim(); // Limpa vírgulas duplas
+              const addressParts = [];
+              if (profile.address_street) addressParts.push(profile.address_street);
+              if (profile.address_number) addressParts.push(profile.address_number);
+              if (profile.address_complement) addressParts.push(`Complemento: ${profile.address_complement}`);
+              if (profile.address_district) addressParts.push(profile.address_district);
+              if (profile.address_city) addressParts.push(profile.address_city);
+              if (profile.address_state) addressParts.push(profile.address_state);
+              if (profile.address_postal_code) addressParts.push(`CEP: ${profile.address_postal_code}`);
+
+              if (addressParts.length > 0) {
+                addressString = addressParts.join(', ');
+              }
             }
             shopkeeperDetailsMap.set(shop.id, {
               shop_name: shop.shop_name || 'Loja Desconhecida',
