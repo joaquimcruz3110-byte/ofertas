@@ -359,6 +359,8 @@ serve(async (req: Request) => {
             options: rule.options,
             type: rule.type,
           })),
+          // Adicionando redirect_url para garantir que o Pagar.me retorne o status
+          redirect_url: `${app_url}/pagarme-return?status=success`, // Pagar.me pode sobrescrever o status
         },
       ],
       billing: billingData,
@@ -405,6 +407,7 @@ serve(async (req: Request) => {
 
     const responseData = await pagarmeResponse.json();
     console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData));
+    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges)); // NOVO LOG
 
     if (!pagarmeResponse.ok) {
       console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
