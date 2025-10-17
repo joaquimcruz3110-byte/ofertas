@@ -189,6 +189,7 @@ serve(async (req: Request) => {
         options: {
           liable: false,
           charge_processing_fee: false,
+          charge_remainder_fee: true, // Adicionado para resolver o erro do Pagar.me
         },
       });
       totalCalculatedPercentage += commission_rate;
@@ -215,6 +216,7 @@ serve(async (req: Request) => {
           options: {
             liable: false,
             charge_processing_fee: false,
+            charge_remainder_fee: true, // Adicionado também aqui para o caso de ser uma nova regra
           },
         });
       }
