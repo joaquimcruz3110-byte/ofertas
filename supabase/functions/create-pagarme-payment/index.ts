@@ -155,50 +155,56 @@ serve(async (req: Request) => {
     }
 
     // 2. Add rules for each shopkeeper
-    for (const [shopkeeperId, grossShareInCents] of shopkeeperGrossShares.entries()) {
+    for (const shopkeeperId of uniqueShopkeeperIds) {
       const recipientId = shopkeeperPagarmeRecipients.get(shopkeeperId);
       if (!recipientId) {
         console.error(`create-pagarme-payment: Pagar.me recipient ID not found for shopkeeper ${shopkeeperId}.`);
         throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${shopkeeperId}.`);
       }
 
-      // Amount the shopkeeper *should* receive after commission for their items
-      const netShareForShopkeeperInCents = Math.round(grossShareInCents * (1 - commission_rate / 100));
+      // Calculate this specific shopkeeper's gross share of the total order
+      const shopkeeperGrossShareInCents = cartItems
+        .filter((item: any) => item.shopkeeper_id === shopkeeperId)
+        .reduce((sum: number, item: any) => sum + Math.round(item.price * item.quantity * 100), 0);
+
+      // Calculate the percentage this shopkeeper gets from the *net* amount (after platform commission)
+      // This is their proportion of the total shopkeeper gross, applied to the total net percentage (100 - commission_rate)
+      let percentageForShopkeeper = 0;
+      if (totalOrderGrossAmountInCents > 0) {
+        const proportionOfTotalShopkeeperGross = shopkeeperGrossShareInCents / totalOrderGrossAmountInCents;
+        percentageForShopkeeper = proportionOfTotalShopkeeperGross * (100 - commission_rate);
+      }
       
-      // Calculate this as a percentage of the TOTAL order amount
-      // Ensure totalOrderGrossAmountInCents is not zero to avoid division by zero
-      const percentageForShopkeeper = totalOrderGrossAmountInCents > 0 ? (netShareForShopkeeperInCents / totalOrderGrossAmountInCents) * 100 : 0;
-      
+      // Round to nearest integer for percentage
+      const roundedPercentageForShopkeeper = Math.round(percentageForShopkeeper);
+
       splitRules.push({
         recipient_id: recipientId,
-        amount: Math.round(percentageForShopkeeper), // Arredonda para o inteiro mais próximo
+        amount: roundedPercentageForShopkeeper,
         type: 'percentage',
         options: {
           liable: true,
           charge_processing_fee: true,
-          // charge_remainder_fee: false, // Removido para corresponder ao exemplo do Pagar.me
+          // charge_remainder_fee: false, // Removido conforme exemplo do Pagar.me
         },
       });
-      totalCalculatedPercentage += percentageForShopkeeper; // Soma original para ajuste
+      totalCalculatedPercentage += percentageForShopkeeper; // Use original for sum check
     }
 
-    // 3. Calculate platform's total commission in cents
-    const platformTotalCommissionInCents = Math.round(totalOrderGrossAmountInCents * (commission_rate / 100));
-
-    // 4. Add rule for the platform
-    if (platformTotalCommissionInCents > 0) {
-      const percentageForPlatform = totalOrderGrossAmountInCents > 0 ? (platformTotalCommissionInCents / totalOrderGrossAmountInCents) * 100 : 0;
+    // 3. Add rule for the platform (commission)
+    const platformCommissionPercentage = Math.round(commission_rate); // Arredonda a comissão da plataforma
+    if (platformCommissionPercentage > 0) {
       splitRules.push({
         recipient_id: platformRecipientId,
-        amount: Math.round(percentageForPlatform), // Arredonda para o inteiro mais próximo
+        amount: platformCommissionPercentage,
         type: 'percentage',
         options: {
           liable: false,
           charge_processing_fee: false,
-          // charge_remainder_fee: true, // Removido para corresponder ao exemplo do Pagar.me
+          // charge_remainder_fee: true, // Removido conforme exemplo do Pagar.me
         },
       });
-      totalCalculatedPercentage += percentageForPlatform; // Soma original para ajuste
+      totalCalculatedPercentage += commission_rate; // Use original for sum check
     }
 
     // Ajustar a porcentagem da plataforma para garantir que a soma seja exatamente 100%
@@ -397,31 +403,9 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
-      customer: {
-        external_id: orderPayload.customer.external_id,
-        name: orderPayload.customer.name,
-        email: orderPayload.customer.email,
-        type: orderPayload.customer.type,
-        country: orderPayload.customer.country,
-        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
-        phones: orderPayload.customer.phones,
-      },
-      items: orderPayload.items,
-      payments: orderPayload.payments.map((p: any) => ({
-        payment_method: p.payment_method,
-        checkout: {
-          accepted_payment_methods: p.checkout.accepted_payment_methods,
-          success_url: p.checkout.success_url,
-          cancel_url: p.checkout.cancel_url,
-          pix: p.checkout.pix,
-        },
-        split: p.split,
-      })),
-      billing: orderPayload.billing,
-      shipping: orderPayload.shipping,
-      metadata: orderPayload.metadata,
-    }, null, 2));
+    // ⚠️ TEMPORARY LOG: This will print the full payload including sensitive data.
+    // Please remove this line after debugging with Pagar.me support.
+    console.log('create-pagarme-payment: FULL PAGAR.ME ORDER PAYLOAD (FOR DEBUGGING):', JSON.stringify(orderPayload, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
