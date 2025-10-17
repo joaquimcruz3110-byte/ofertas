@@ -407,7 +407,7 @@ serve(async (req: Request) => {
 
     const responseData = await pagarmeResponse.json();
     console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData));
-    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges)); // NOVO LOG
+    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges));
 
     if (!pagarmeResponse.ok) {
       console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
@@ -423,16 +423,26 @@ serve(async (req: Request) => {
       });
     }
 
-    // NOVO: Verificar se charges[0].last_transaction existe antes de tentar acessá-lo
+    // Verificar se charges[0].last_transaction existe e se a transação foi bem-sucedida
     if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction) {
       const lastTransaction = responseData.charges[0].last_transaction;
-      console.log('create-pagarme-payment: Pagar.me last_transaction details:', JSON.stringify(lastTransaction)); // Log detalhado da transação
+      console.log('create-pagarme-payment: Pagar.me last_transaction details:', JSON.stringify(lastTransaction));
 
-      // Corrigido: Usar qr_code_base64 ou payload para a chave copia e cola
+      // Se a transação falhou, extrair e retornar os erros do gateway
+      if (lastTransaction.status === 'failed' && lastTransaction.gateway_response && lastTransaction.gateway_response.errors) {
+        console.error('create-pagarme-payment: Pagar.me Gateway Errors:', JSON.stringify(lastTransaction.gateway_response.errors));
+        const gatewayErrors = lastTransaction.gateway_response.errors.map((err: any) => err.message || JSON.stringify(err)).join('; ');
+        return new Response(JSON.stringify({ error: `Erro no gateway de pagamento: ${gatewayErrors}` }), {
+          status: 400, // Retorna 400 porque é um erro de validação do Pagar.me
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Se a transação foi bem-sucedida, retornar o QR code e a chave copia e cola
       if (lastTransaction.qr_code_url && (lastTransaction.qr_code_base64 || lastTransaction.payload)) {
         return new Response(JSON.stringify({
           pix_qr_code_url: lastTransaction.qr_code_url,
-          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload, // Prioriza qr_code_base64, fallback para payload
+          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload,
           order_id: responseData.id,
         }), {
           status: 200,
@@ -441,9 +451,9 @@ serve(async (req: Request) => {
       }
     }
     
-    // Se chegarmos aqui, significa que os dados esperados não foram encontrados na resposta
-    console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key as expected:', responseData);
-    return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me. Verifique os logs da função para mais detalhes.' }), {
+    // Se chegarmos aqui, significa que os dados esperados não foram encontrados na resposta ou a transação não foi bem-sucedida e não houve erros específicos do gateway
+    console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key as expected, or transaction failed without specific gateway errors:', responseData);
+    return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me ou transação não concluída. Verifique os logs da função para mais detalhes.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
