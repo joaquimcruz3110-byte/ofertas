@@ -340,31 +340,7 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
-      customer: {
-        external_id: orderPayload.customer.external_id,
-        name: orderPayload.customer.name,
-        email: orderPayload.customer.email,
-        type: orderPayload.customer.type,
-        country: orderPayload.customer.country,
-        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
-        phone_numbers: orderPayload.customer.phone_numbers,
-      },
-      items: orderPayload.items,
-      payments: orderPayload.payments.map((p: any) => ({
-        payment_method: p.payment_method,
-        checkout: {
-          accepted_payment_methods: p.checkout.accepted_payment_methods,
-          success_url: p.checkout.success_url,
-          cancel_url: p.checkout.cancel_url,
-          pix: p.checkout.pix,
-        },
-        split: p.split,
-      })),
-      billing: orderPayload.billing,
-      shipping: orderPayload.shipping,
-      metadata: orderPayload.metadata,
-    }, null, 2));
+    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify(orderPayload, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
@@ -392,13 +368,14 @@ serve(async (req: Request) => {
       });
     }
 
-    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].checkout_url) {
-      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].checkout_url }), {
+    // CORREÇÃO AQUI: Usar responseData.checkouts[0].payment_url
+    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].payment_url) {
+      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].payment_url }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('create-pagarme-payment: Pagar.me order creation did not return a checkout_url:', responseData);
+      console.error('create-pagarme-payment: Pagar.me order creation did not return a payment_url:', responseData);
       return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
