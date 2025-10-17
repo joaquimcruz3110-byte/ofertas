@@ -90,6 +90,7 @@ serve(async (req: Request) => {
     }
 
     const pagarmeApiKey = Deno.env.get('PAGARME_API_KEY');
+    console.log('create-pagarme-payment: PAGARME_API_KEY (first 5 chars):', pagarmeApiKey ? pagarmeApiKey.substring(0, 5) : 'N/A');
     if (!pagarmeApiKey) {
       console.error('create-pagarme-payment: PAGARME_API_KEY not set.');
       return new Response(JSON.stringify({ error: 'Pagar.me API Key não configurada.' }), {
@@ -99,6 +100,7 @@ serve(async (req: Request) => {
     }
 
     const platformRecipientId = Deno.env.get('PAGARME_PLATFORM_RECIPIENT_ID');
+    console.log('create-pagarme-payment: PAGARME_PLATFORM_RECIPIENT_ID:', platformRecipientId);
     if (!platformRecipientId) {
       console.error('create-pagarme-payment: PAGARME_PLATFORM_RECIPIENT_ID not set.');
       return new Response(JSON.stringify({ error: 'ID do recebedor da plataforma Pagar.me não configurado.' }), {
@@ -127,7 +129,7 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Shopkeeper Pagar.me Recipients Map:', shopkeeperPagarmeRecipients);
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
-    console.log('create-pagarme-payment: Cleaned CPF for document:', cleanedCpf); // NOVO LOG
+    console.log('create-pagarme-payment: Cleaned CPF for document:', cleanedCpf);
     
     // NOVO: Validação de comprimento do CPF após a limpeza
     if (cleanedCpf.length !== 11) {
@@ -161,9 +163,12 @@ serve(async (req: Request) => {
       splitRules.push({
         recipient_id: recipientId,
         amount: amountToShopkeeperForThisItem,
-        liable: true,
-        charge_processing_fee: true,
-        type: 'flat', // Adicionado o campo 'type'
+        options: { // Adicionado o objeto options
+          liable: true,
+          charge_processing_fee: true,
+          charge_remainder_fee: false, // Lojista recebe o valor exato
+        },
+        type: 'flat',
       });
     }
 
@@ -175,9 +180,12 @@ serve(async (req: Request) => {
       splitRules.push({
         recipient_id: platformRecipientId,
         amount: totalCommissionInCents,
-        liable: false,
-        charge_processing_fee: false,
-        type: 'flat', // Adicionado o campo 'type'
+        options: { // Adicionado o objeto options
+          liable: false,
+          charge_processing_fee: false,
+          charge_remainder_fee: true, // Plataforma absorve o restante
+        },
+        type: 'flat',
       });
     }
 
@@ -337,12 +345,8 @@ serve(async (req: Request) => {
           split: splitRules.map(rule => ({
             recipient_id: rule.recipient_id,
             amount: rule.amount,
-            options: {
-              charge_processing_fee: rule.charge_processing_fee,
-              charge_remainder_fee: rule.charge_remainder_fee,
-              liable: rule.liable,
-            },
-            type: rule.type, // Adicionado o campo 'type' aqui também
+            options: rule.options, // Agora usa o objeto options completo
+            type: rule.type,
           })),
         },
       ],
