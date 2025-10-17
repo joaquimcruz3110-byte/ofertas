@@ -32,17 +32,17 @@ interface Profile {
 }
 
 const profileFormSchema = z.object({
-  first_name: z.string().min(1, "O primeiro nome é obrigatório.").optional().or(z.literal('')),
-  last_name: z.string().min(1, "O sobrenome é obrigatório.").optional().or(z.literal('')),
-  cpf: z.string().optional().or(z.literal('')),
-  phone_number: z.string().optional().or(z.literal('')),
-  address_street: z.string().optional().or(z.literal('')),
-  address_number: z.string().optional().or(z.literal('')),
+  first_name: z.string().min(1, "O primeiro nome é obrigatório."),
+  last_name: z.string().min(1, "O sobrenome é obrigatório."),
+  cpf: z.string().min(1, "O CPF é obrigatório.").regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "Formato de CPF inválido (ex: 000.000.000-00)"),
+  phone_number: z.string().min(1, "O telefone é obrigatório.").regex(/^\(\d{2}\)\s\d{4,5}-\d{4}$/, "Formato de telefone inválido (ex: (DD) 9XXXX-XXXX)"),
+  address_street: z.string().min(1, "A rua é obrigatória."),
+  address_number: z.string().min(1, "O número é obrigatório."),
   address_complement: z.string().optional().or(z.literal('')),
-  address_district: z.string().optional().or(z.literal('')),
-  address_postal_code: z.string().optional().or(z.literal('')),
-  address_city: z.string().optional().or(z.literal('')),
-  address_state: z.string().optional().or(z.literal('')),
+  address_district: z.string().min(1, "O bairro é obrigatório."),
+  address_postal_code: z.string().min(1, "O CEP é obrigatório.").regex(/^\d{5}-\d{3}$/, "Formato de CEP inválido (ex: 00000-000)"),
+  address_city: z.string().min(1, "A cidade é obrigatória."),
+  address_state: z.string().min(1, "O estado é obrigatório.").length(2, "O estado deve ter 2 letras (UF)."),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
