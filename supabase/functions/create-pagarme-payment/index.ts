@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       customer_address_city,
       customer_address_state,
       commission_rate,
-      app_url,
+      app_url, // app_url ainda é útil para logs ou futuras referências, mas não para success_url/cancel_url diretos no Pix
     } = await req.json();
 
     console.log('create-pagarme-payment: Received request with buyer_id:', buyer_id);
@@ -77,10 +77,11 @@ serve(async (req: Request) => {
       console.error('create-pagarme-payment: Invalid commission rate:', commission_rate);
       return new Response(JSON.stringify({ error: 'Taxa de comissão inválida.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    if (!app_url) {
-      console.error('create-pagarme-payment: App URL is missing.');
-      return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    // app_url não é mais estritamente necessário para success_url/cancel_url no Pix direto, mas pode ser útil para outros fins
+    // if (!app_url) {
+    //   console.error('create-pagarme-payment: App URL is missing.');
+    //   return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // }
     if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
       console.error('create-pagarme-payment: Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
       return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
@@ -148,30 +149,26 @@ serve(async (req: Request) => {
     const splitRules = [];
     let totalCalculatedPercentage = 0; // Para verificar a soma final
 
-    // 1. Calculate total gross amount for all shopkeepers combined
-    let totalShopkeeperGrossAmountInCents = 0;
+    // Calculate gross share for each shopkeeper
+    const shopkeeperGrossShares = new Map<string, number>(); // shopkeeperId -> gross amount in cents
     for (const item of cartItems) {
-      totalShopkeeperGrossAmountInCents += Math.round(item.price * item.quantity * 100);
+      const currentGross = shopkeeperGrossShares.get(item.shopkeeper_id) || 0;
+      shopkeeperGrossShares.set(item.shopkeeper_id, currentGross + Math.round(item.price * item.quantity * 100));
     }
 
-    // 2. Add rules for each shopkeeper
-    for (const shopkeeperId of uniqueShopkeeperIds) {
+    // 1. Add rules for each shopkeeper
+    for (const [shopkeeperId, grossShareInCents] of shopkeeperGrossShares.entries()) {
       const recipientId = shopkeeperPagarmeRecipients.get(shopkeeperId);
       if (!recipientId) {
         console.error(`create-pagarme-payment: Pagar.me recipient ID not found for shopkeeper ${shopkeeperId}.`);
         throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${shopkeeperId}.`);
       }
 
-      // Calculate this specific shopkeeper's gross share of the total order
-      const shopkeeperGrossShareInCents = cartItems
-        .filter((item: any) => item.shopkeeper_id === shopkeeperId)
-        .reduce((sum: number, item: any) => sum + Math.round(item.price * item.quantity * 100), 0);
-
       // Calculate the percentage this shopkeeper gets from the *net* amount (after platform commission)
       // This is their proportion of the total shopkeeper gross, applied to the total net percentage (100 - commission_rate)
       let percentageForShopkeeper = 0;
       if (totalOrderGrossAmountInCents > 0) {
-        const proportionOfTotalShopkeeperGross = shopkeeperGrossShareInCents / totalOrderGrossAmountInCents;
+        const proportionOfTotalShopkeeperGross = grossShareInCents / totalOrderGrossAmountInCents;
         percentageForShopkeeper = proportionOfTotalShopkeeperGross * (100 - commission_rate);
       }
       
@@ -185,13 +182,12 @@ serve(async (req: Request) => {
         options: {
           liable: true,
           charge_processing_fee: true,
-          // charge_remainder_fee: false, // Removido conforme exemplo do Pagar.me
         },
       });
       totalCalculatedPercentage += percentageForShopkeeper; // Use original for sum check
     }
 
-    // 3. Add rule for the platform (commission)
+    // 2. Add rule for the platform (commission)
     const platformCommissionPercentage = Math.round(commission_rate); // Arredonda a comissão da plataforma
     if (platformCommissionPercentage > 0) {
       splitRules.push({
@@ -201,7 +197,6 @@ serve(async (req: Request) => {
         options: {
           liable: false,
           charge_processing_fee: false,
-          // charge_remainder_fee: true, // Removido conforme exemplo do Pagar.me
         },
       });
       totalCalculatedPercentage += commission_rate; // Use original for sum check
@@ -352,24 +347,17 @@ serve(async (req: Request) => {
       })),
       payments: [
         {
-          payment_method: 'checkout', // Usar checkout hospedado
-          checkout: {
-            customer_editable: true, // ALTERADO PARA TRUE
-            billing_address_editable: false,
-            accepted_payment_methods: ['credit_card', 'pix'], // Aceitar cartão de crédito e Pix
-            success_url: `${app_url}/pagarme-return?status=success`,
-            cancel_url: `${app_url}/pagarme-return?status=failure`,
-            pix: { // Adicionado o objeto pix
-              expires_in: 3600, // Expira em 1 hora (em segundos)
-              qr_code_expiration_seconds: 3600, // Adicionado este campo
-            },
+          payment_method: 'pix', // Alterado para Pix
+          pix: {
+            expires_in: 3600, // Expira em 1 hora (em segundos)
+            qr_code_expiration_seconds: 3600,
+            split: splitRules.map(rule => ({ // Split agora dentro do objeto Pix
+              recipient_id: rule.recipient_id,
+              amount: rule.amount,
+              options: rule.options,
+              type: rule.type,
+            })),
           },
-          split: splitRules.map(rule => ({
-            recipient_id: rule.recipient_id,
-            amount: rule.amount,
-            options: rule.options, // Agora usa o objeto options completo
-            type: rule.type,
-          })),
         },
       ],
       billing: billingData,
@@ -403,9 +391,29 @@ serve(async (req: Request) => {
       },
     };
 
-    // ⚠️ TEMPORARY LOG: This will print the full payload including sensitive data.
-    // Please remove this line after debugging with Pagar.me support.
-    console.log('create-pagarme-payment: FULL PAGAR.ME ORDER PAYLOAD (FOR DEBUGGING):', JSON.stringify(orderPayload, null, 2));
+    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
+      customer: {
+        external_id: orderPayload.customer.external_id,
+        name: orderPayload.customer.name,
+        email: orderPayload.customer.email,
+        type: orderPayload.customer.type,
+        country: orderPayload.customer.country,
+        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
+        phones: orderPayload.customer.phones,
+      },
+      items: orderPayload.items,
+      payments: orderPayload.payments.map((p: any) => ({
+        payment_method: p.payment_method,
+        pix: p.pix ? {
+          expires_in: p.pix.expires_in,
+          qr_code_expiration_seconds: p.pix.qr_code_expiration_seconds,
+          split: p.pix.split,
+        } : undefined,
+      })),
+      billing: orderPayload.billing,
+      shipping: orderPayload.shipping,
+      metadata: orderPayload.metadata,
+    }, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
@@ -433,14 +441,19 @@ serve(async (req: Request) => {
       });
     }
 
-    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].payment_url) {
-      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].payment_url }), {
+    // Retornar os dados do Pix para o frontend
+    if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction.qr_code_url && responseData.charges[0].last_transaction.qr_code_url) {
+      return new Response(JSON.stringify({
+        pix_qr_code_url: responseData.charges[0].last_transaction.qr_code_url,
+        pix_copy_paste_key: responseData.charges[0].last_transaction.qr_code_url, // O Pagar.me usa o mesmo campo para o código copia-e-cola
+        order_id: responseData.id, // Retorna o ID do pedido Pagar.me
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('create-pagarme-payment: Pagar.me order creation did not return a payment_url:', responseData);
-      return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
+      console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key:', responseData);
+      return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

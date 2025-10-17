@@ -4,12 +4,13 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/utils/toast';
 import { useState } from 'react';
 import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client'; // Importar supabase
+import { Label } from '@/components/ui/label'; // Importar o componente Label
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userProfile } = useSession(); // Obter userProfile
@@ -17,6 +18,9 @@ const CartPage = () => {
   const navigate = useNavigate();
 
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string | null>(null);
+  const [pixCopyPasteKey, setPixCopyPasteKey] = useState<string | null>(null);
+  // const [pagarmeOrderId, setPagarmeOrderId] = useState<string | null>(null); // Removido: 'pagarmeOrderId' não está sendo lido
 
   const handleCheckout = async () => {
     if (!session?.user?.id) {
@@ -159,9 +163,12 @@ const CartPage = () => {
         // Exibir a mensagem de erro da função Edge
         showError('Erro ao iniciar o pagamento: ' + error.message);
         console.error('Erro ao invocar Edge Function create-pagarme-payment:', error);
-      } else if (data && data.checkout_url) {
-        showSuccess('Redirecionando para o Pagar.me...');
-        window.location.href = data.checkout_url;
+      } else if (data && data.pix_qr_code_url && data.pix_copy_paste_key) {
+        showSuccess('Pagamento Pix gerado com sucesso! Escaneie o QR code ou copie o código.');
+        setPixQrCodeUrl(data.pix_qr_code_url);
+        setPixCopyPasteKey(data.pix_copy_paste_key);
+        // setPagarmeOrderId(data.order_id); // Removido: 'pagarmeOrderId' não está sendo lido
+        clearCart(); // Limpa o carrinho após gerar o Pix
       } else {
         showError('Resposta inesperada da função de pagamento Pagar.me.');
       }
@@ -171,6 +178,13 @@ const CartPage = () => {
     } finally {
       setIsProcessingCheckout(false);
       console.log('Processo de checkout finalizado.'); // Log 9
+    }
+  };
+
+  const handleCopyPixKey = () => {
+    if (pixCopyPasteKey) {
+      navigator.clipboard.writeText(pixCopyPasteKey);
+      showSuccess('Código Pix copiado para a área de transferência!');
     }
   };
 
@@ -185,6 +199,43 @@ const CartPage = () => {
           <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
           <p className="text-xl text-gray-600">Você precisa estar logado para acessar esta página.</p>
         </div>
+      </div>
+    );
+  }
+
+  if (pixQrCodeUrl && pixCopyPasteKey) {
+    return (
+      <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-md mx-auto text-center">
+        <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">Pagamento via Pix</h1>
+        <p className="text-lg text-gray-600 mb-4">
+          Escaneie o QR code abaixo com o aplicativo do seu banco ou copie o código Pix para finalizar o pagamento.
+        </p>
+        <div className="flex justify-center mb-6">
+          <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-64 h-64 border rounded-lg p-2" />
+        </div>
+        <div className="mb-6">
+          <Label htmlFor="pix-copy-paste" className="block text-left text-sm font-medium text-gray-700 mb-2">
+            Código Pix Copia e Cola:
+          </Label>
+          <div className="flex items-center space-x-2">
+            <Input
+              id="pix-copy-paste"
+              type="text"
+              value={pixCopyPasteKey}
+              readOnly
+              className="flex-grow bg-gray-100"
+            />
+            <Button onClick={handleCopyPixKey} variant="outline" size="icon">
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">
+          O pagamento será automaticamente detectado. Você pode verificar o status do seu pedido em "Meus Pedidos".
+        </p>
+        <Button onClick={() => navigate('/meus-pedidos')} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
+          Ver Meus Pedidos
+        </Button>
       </div>
     );
   }
@@ -277,7 +328,7 @@ const CartPage = () => {
               className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white"
               disabled={cartItems.length === 0 || isProcessingCheckout}
             >
-              Finalizar Compra (Pagar.me)
+              Finalizar Compra (Pix)
             </Button>
           </div>
         </div>
