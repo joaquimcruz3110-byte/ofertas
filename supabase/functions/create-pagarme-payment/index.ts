@@ -353,7 +353,6 @@ serve(async (req: Request) => {
             expires_in: 3600,
             qr_code_expiration_seconds: 3600,
           },
-          // O array 'split' foi movido para este nível, irmão do objeto 'pix'
           split: splitRules.map(rule => ({
             recipient_id: rule.recipient_id,
             amount: rule.amount,
@@ -393,26 +392,7 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
-      customer: {
-        external_id: orderPayload.customer.external_id,
-        name: orderPayload.customer.name,
-        email: orderPayload.customer.email,
-        type: orderPayload.customer.type,
-        country: orderPayload.customer.country,
-        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
-        phones: orderPayload.customer.phones,
-      },
-      items: orderPayload.items,
-      payments: orderPayload.payments.map((p: any) => ({
-        payment_method: p.payment_method,
-        pix: p.pix, // Agora o pix não contém o split
-        split: p.split, // O split está aqui, no mesmo nível do pix
-      })),
-      billing: orderPayload.billing,
-      shipping: orderPayload.shipping,
-      metadata: orderPayload.metadata,
-    }, null, 2));
+    console.log('create-pagarme-payment: Sending Pagar.me Order Payload:', JSON.stringify(orderPayload, null, 2)); // NOVO LOG
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
@@ -457,12 +437,18 @@ serve(async (req: Request) => {
       });
     }
 
-  } catch (error: any) {
-    console.error('create-pagarme-payment: Error creating Pagar.me payment:', error);
+  } catch (error: any) { // Captura qualquer erro e tenta logar o máximo possível
+    console.error('create-pagarme-payment: Unhandled error during Pagar.me payment creation:', error);
     let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.';
 
     if (error instanceof Error) {
       clientErrorMessage = error.message;
+    } else if (typeof error === 'string') {
+      clientErrorMessage = error;
+    } else if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+      clientErrorMessage = error.message;
+    } else {
+      clientErrorMessage = JSON.stringify(error); // Tenta serializar o erro se não for um objeto Error
     }
 
     return new Response(JSON.stringify({ error: clientErrorMessage }), {
