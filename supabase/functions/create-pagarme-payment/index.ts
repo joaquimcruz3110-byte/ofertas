@@ -214,6 +214,7 @@ serve(async (req: Request) => {
 
     if (customer_phone_number) {
       const cleaned = customer_phone_number.replace(/\D/g, '');
+      // Assuming Brazilian numbers for now (+55)
       if (cleaned.length >= 10 && cleaned.length <= 11 && !customer_phone_number.startsWith('+')) {
         formattedPhoneNumber = `+55${cleaned}`;
       } else if (customer_phone_number.startsWith('+')) {
@@ -222,6 +223,58 @@ serve(async (req: Request) => {
         formattedPhoneNumber = `+${cleaned}`;
       }
     }
+
+    let customerPhones: any = {};
+    if (formattedPhoneNumber && phoneRegex.test(formattedPhoneNumber)) {
+      const numberWithoutPlus = formattedPhoneNumber.substring(1); // e.g., "5511999999999"
+      
+      let countryCode = '';
+      let areaCode = '';
+      let number = '';
+
+      if (numberWithoutPlus.startsWith('55')) {
+        countryCode = '55';
+        const rest = numberWithoutPlus.substring(2); // e.g., "11999999999"
+        if (rest.length >= 10) { // 2 digits for area code + 8 or 9 for number
+          areaCode = rest.substring(0, 2); // e.g., "11"
+          number = rest.substring(2); // e.g., "999999999"
+        } else {
+          console.warn('create-pagarme-payment: Could not parse area code and number from Brazilian phone:', rest);
+        }
+      } else {
+        // Fallback for non-Brazilian numbers, very basic and might need refinement
+        if (numberWithoutPlus.length > 9) {
+          number = numberWithoutPlus.slice(-9);
+          areaCode = numberWithoutPlus.slice(-11, -9);
+          countryCode = numberWithoutPlus.slice(0, -11);
+        } else {
+          console.error('create-pagarme-payment: Phone number too short for generic parsing:', formattedPhoneNumber);
+        }
+      }
+
+      if (countryCode && areaCode && number) {
+        customerPhones = {
+          mobile_phone: {
+            country_code: countryCode,
+            area_code: areaCode,
+            number: number,
+          },
+        };
+      } else {
+        console.error('create-pagarme-payment: Failed to fully parse phone number components:', { formattedPhoneNumber, countryCode, areaCode, number });
+        return new Response(JSON.stringify({ error: 'Não foi possível formatar o número de telefone para o Pagar.me. Verifique o formato no seu perfil.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.warn('create-pagarme-payment: customer_phone_number was null, empty or failed regex test. This should not happen if it is mandatory.');
+      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // --- Fim da lógica de formatação e validação do número de telefone ---
 
     const customerData: any = {
       external_id: user.id,
@@ -235,27 +288,10 @@ serve(async (req: Request) => {
           number: cleanedCpf,
         },
       ],
+      phones: customerPhones, // Adicionado o objeto phones aqui
     };
-
-    if (formattedPhoneNumber) {
-      if (!phoneRegex.test(formattedPhoneNumber)) {
-        console.error('create-pagarme-payment: Invalid phone number format after formatting:', formattedPhoneNumber);
-        return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: +5511999999999).' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      customerData.phone_numbers = [formattedPhoneNumber];
-    } else {
-      console.warn('create-pagarme-payment: customer_phone_number was null or empty after CartPage validation. This should not happen if it is mandatory.');
-      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
     console.log('create-pagarme-payment: Customer Data:', JSON.stringify(customerData));
-    // --- Fim da lógica de formatação e validação do número de telefone ---
-
+    
     // --- Construção e validação do objeto billing ---
     const billingData = {
       name: customerName,
@@ -340,7 +376,31 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify(orderPayload, null, 2));
+    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
+      customer: {
+        external_id: orderPayload.customer.external_id,
+        name: orderPayload.customer.name,
+        email: orderPayload.customer.email,
+        type: orderPayload.customer.type,
+        country: orderPayload.customer.country,
+        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })), // Censor CPF for logs
+        phones: orderPayload.customer.phones, // Ensure phones are logged
+      },
+      items: orderPayload.items,
+      payments: orderPayload.payments.map((p: any) => ({
+        payment_method: p.payment_method,
+        checkout: {
+          accepted_payment_methods: p.checkout.accepted_payment_methods,
+          success_url: p.checkout.success_url,
+          cancel_url: p.checkout.cancel_url,
+          pix: p.checkout.pix,
+        },
+        split: p.split,
+      })),
+      billing: orderPayload.billing,
+      shipping: orderPayload.shipping,
+      metadata: orderPayload.metadata,
+    }, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
@@ -368,7 +428,6 @@ serve(async (req: Request) => {
       });
     }
 
-    // CORREÇÃO AQUI: Usar responseData.checkouts[0].payment_url
     if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].payment_url) {
       return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].payment_url }), {
         status: 200,
