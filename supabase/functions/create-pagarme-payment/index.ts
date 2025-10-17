@@ -222,7 +222,7 @@ serve(async (req: Request) => {
       }
     }
 
-    console.log('create-pagarme-payment: Final Split Rules Array (after adjustment):', JSON.stringify(splitRules));
+    console.log('create-pagarme-payment: Final Split Rules Array (before sending to Pagar.me):', JSON.stringify(splitRules, null, 2));
     // --- End build split rules ---
 
     // Fetch buyer's profile to get first_name, last_name
@@ -409,7 +409,13 @@ serve(async (req: Request) => {
 
     const responseData = await pagarmeResponse.json();
     console.log('create-pagarme-payment: Pagar.me API Response:', JSON.stringify(responseData, null, 2)); // Log com pretty print
-    console.log('create-pagarme-payment: Pagar.me API Response - Charges:', JSON.stringify(responseData.charges, null, 2)); // Log com pretty print
+    
+    // Adicionando log específico para as regras de split na resposta do Pagar.me
+    if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].split) {
+      console.log('create-pagarme-payment: Pagar.me Response - Charges[0].split:', JSON.stringify(responseData.charges[0].split, null, 2));
+    } else {
+      console.log('create-pagarme-payment: Pagar.me Response - No split rules found in charges[0].split.');
+    }
 
     if (!pagarmeResponse.ok) {
       console.error('create-pagarme-payment: Pagar.me API Error:', responseData);
@@ -453,11 +459,10 @@ serve(async (req: Request) => {
       }
 
       // Se a transação foi bem-sucedida, retornar o QR code e a chave copia e cola
-      // CORREÇÃO AQUI: Usar lastTransaction.qr_code para a chave copia e cola
       if (lastTransaction.qr_code_url && lastTransaction.qr_code) {
         return new Response(JSON.stringify({
           pix_qr_code_url: lastTransaction.qr_code_url,
-          pix_copy_paste_key: lastTransaction.qr_code, // Usar lastTransaction.qr_code
+          pix_copy_paste_key: lastTransaction.qr_code,
           order_id: responseData.id,
         }), {
           status: 200,
