@@ -209,71 +209,59 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Customer Name:', customerName);
 
     // --- Lógica de formatação e validação do número de telefone ---
-    let formattedPhoneNumber: string | null = null;
-    const phoneRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/;
-
-    if (customer_phone_number) {
-      const cleaned = customer_phone_number.replace(/\D/g, '');
-      // Assuming Brazilian numbers for now (+55)
-      if (cleaned.length >= 10 && cleaned.length <= 11 && !customer_phone_number.startsWith('+')) {
-        formattedPhoneNumber = `+55${cleaned}`;
-      } else if (customer_phone_number.startsWith('+')) {
-        formattedPhoneNumber = customer_phone_number;
-      } else {
-        formattedPhoneNumber = `+${cleaned}`;
-      }
-    }
-
     let customerPhones: any = {};
-    if (formattedPhoneNumber && phoneRegex.test(formattedPhoneNumber)) {
-      const numberWithoutPlus = formattedPhoneNumber.substring(1); // e.g., "5511999999999"
-      
-      let countryCode = '';
+    console.log('create-pagarme-payment: Raw customer_phone_number:', customer_phone_number);
+    if (customer_phone_number) {
+      const cleanedPhoneNumber = customer_phone_number.replace(/\D/g, ''); // Remove non-digits
+      console.log('create-pagarme-payment: Cleaned phone number:', cleanedPhoneNumber);
+
+      let countryCode = '55'; // Default to Brazil
       let areaCode = '';
       let number = '';
 
-      if (numberWithoutPlus.startsWith('55')) {
-        countryCode = '55';
-        const rest = numberWithoutPlus.substring(2); // e.g., "11999999999"
-        if (rest.length >= 10) { // 2 digits for area code + 8 or 9 for number
-          areaCode = rest.substring(0, 2); // e.g., "11"
-          number = rest.substring(2); // e.g., "999999999"
-        } else {
-          console.warn('create-pagarme-payment: Could not parse area code and number from Brazilian phone:', rest);
-        }
+      // Assuming Brazilian phone numbers (10 or 11 digits after DDD)
+      if (cleanedPhoneNumber.length >= 10 && cleanedPhoneNumber.length <= 11) {
+        areaCode = cleanedPhoneNumber.substring(0, 2);
+        number = cleanedPhoneNumber.substring(2);
       } else {
-        // Fallback for non-Brazilian numbers, very basic and might need refinement
-        if (numberWithoutPlus.length > 9) {
-          number = numberWithoutPlus.slice(-9);
-          areaCode = numberWithoutPlus.slice(-11, -9);
-          countryCode = numberWithoutPlus.slice(0, -11);
-        } else {
-          console.error('create-pagarme-payment: Phone number too short for generic parsing:', formattedPhoneNumber);
-        }
+        console.error('create-pagarme-payment: Phone number length is not standard for Brazilian numbers (10 or 11 digits after DDD):', cleanedPhoneNumber);
+        return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: DDXXXXXXXXX).' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      if (countryCode && areaCode && number) {
+      console.log('create-pagarme-payment: Parsed phone components - countryCode:', countryCode, 'areaCode:', areaCode, 'number:', number);
+
+      if (areaCode && number) {
         customerPhones = {
           mobile_phone: {
             country_code: countryCode,
             area_code: areaCode,
             number: number,
           },
+          // Adiciona home_phone, usando os mesmos detalhes se apenas um número for fornecido
+          home_phone: {
+            country_code: countryCode,
+            area_code: areaCode,
+            number: number,
+          }
         };
       } else {
-        console.error('create-pagarme-payment: Failed to fully parse phone number components:', { formattedPhoneNumber, countryCode, areaCode, number });
+        console.error('create-pagarme-payment: Failed to parse phone number components (areaCode or number missing):', { cleanedPhoneNumber, countryCode, areaCode, number });
         return new Response(JSON.stringify({ error: 'Não foi possível formatar o número de telefone para o Pagar.me. Verifique o formato no seu perfil.' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     } else {
-      console.warn('create-pagarme-payment: customer_phone_number was null, empty or failed regex test. This should not happen if it is mandatory.');
-      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório e não foi fornecido ou é inválido.' }), {
+      console.error('create-pagarme-payment: Customer phone number is missing or empty.');
+      return new Response(JSON.stringify({ error: 'Número de telefone do cliente é obrigatório.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('create-pagarme-payment: Constructed customerPhones object:', JSON.stringify(customerPhones));
     // --- Fim da lógica de formatação e validação do número de telefone ---
 
     const customerData: any = {
@@ -290,7 +278,7 @@ serve(async (req: Request) => {
       ],
       phones: customerPhones, // Adicionado o objeto phones aqui
     };
-    console.log('create-pagarme-payment: Customer Data:', JSON.stringify(customerData));
+    console.log('create-pagarme-payment: Final Customer Data before Pagar.me API call:', JSON.stringify(customerData));
     
     // --- Construção e validação do objeto billing ---
     const billingData = {
@@ -302,7 +290,7 @@ serve(async (req: Request) => {
         neighborhood: customer_address_district,
         street: customer_address_street,
         street_number: customer_address_number,
-        zip_code: customer_address_postal_code.replace(/\D/g, ''), // CORRIGIDO: zip_code
+        zip_code: customer_address_postal_code.replace(/\D/g, ''),
         complementary_info: customer_address_complement || '', 
       },
     };
@@ -354,7 +342,7 @@ serve(async (req: Request) => {
           neighborhood: customer_address_district,
           street: customer_address_street,
           street_number: customer_address_number,
-          zip_code: customer_address_postal_code.replace(/\D/g, ''), // CORRIGIDO: zip_code
+          zip_code: customer_address_postal_code.replace(/\D/g, ''),
           complementary_info: customer_address_complement || '', 
         },
         description: "Entrega padrão",
@@ -383,8 +371,8 @@ serve(async (req: Request) => {
         email: orderPayload.customer.email,
         type: orderPayload.customer.type,
         country: orderPayload.customer.country,
-        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })), // Censor CPF for logs
-        phones: orderPayload.customer.phones, // Ensure phones are logged
+        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
+        phones: orderPayload.customer.phones,
       },
       items: orderPayload.items,
       payments: orderPayload.payments.map((p: any) => ({
