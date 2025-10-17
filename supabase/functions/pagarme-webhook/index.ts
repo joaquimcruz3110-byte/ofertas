@@ -27,15 +27,15 @@ serve(async (req: Request) => {
     const body = await req.json();
     // const signature = req.headers.get('x-hub-signature'); // Pagar.me v5 usa 'x-hub-signature' para webhooks
 
-    console.log('pagarme-webhook: Webhook received. Event Type:', body.event, 'Order ID:', body.id);
+    // CORREÇÃO: Extrair eventType do campo 'type' e order do campo 'data'
+    const eventType = body.type;
+    const order = body.data;
+
+    console.log('pagarme-webhook: Webhook received. Event Type:', eventType, 'Order ID:', order?.id);
     console.log('pagarme-webhook: Full Webhook Body:', JSON.stringify(body));
 
-    // Para Pagar.me v5, o evento principal é 'order.paid' ou 'order.status_changed'
-    const eventType = body.event;
-    const order = body; // O corpo do webhook para orders é o próprio objeto Order
-
     if (!order || !order.id || !eventType) {
-      console.log('pagarme-webhook: Received Pagar.me webhook with missing order data or event type:', body);
+      console.log('pagarme-webhook: Not a valid Pagar.me order notification (missing order data or event type).');
       return new Response(JSON.stringify({ message: 'Not a valid Pagar.me order notification' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -44,7 +44,7 @@ serve(async (req: Request) => {
 
     const orderId = order.id;
     const orderStatus = order.status;
-    const metadata = order.metadata;
+    const metadata = order.metadata; // Metadata agora está dentro de order
 
     console.log(`pagarme-webhook: Processing order ${orderId} with status ${orderStatus}. Metadata:`, JSON.stringify(metadata));
 
