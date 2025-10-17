@@ -141,39 +141,46 @@ serve(async (req: Request) => {
     }
 
     // --- Calculate total amount for the entire order in cents ---
-    const totalAmountInCents = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100);
-    console.log('create-pagarme-payment: Total amount in cents:', totalAmountInCents);
+    const totalOrderGrossAmountInCents = Math.round(cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) * 100);
+    console.log('create-pagarme-payment: Total order gross amount in cents:', totalOrderGrossAmountInCents);
 
     // --- Build split rules using percentages ---
     const splitRules = [];
-    let sumOfPercentages = 0;
+    let totalCalculatedPercentage = 0;
 
-    // 1. Group items by shopkeeper and calculate their gross share
-    const shopkeeperGrossShares = new Map<string, number>(); // shopkeeper_id -> total_gross_amount_in_cents_for_this_shopkeeper
+    // 1. Calculate total gross amount for all shopkeepers combined
+    let totalShopkeeperGrossAmountInCents = 0;
     for (const item of cartItems) {
-      const itemTotalPriceInCents = Math.round(item.price * item.quantity * 100);
-      const currentGrossShare = shopkeeperGrossShares.get(item.shopkeeper_id) || 0;
-      shopkeeperGrossShares.set(item.shopkeeper_id, currentGrossShare + itemTotalPriceInCents);
+      totalShopkeeperGrossAmountInCents += Math.round(item.price * item.quantity * 100);
     }
 
     // 2. Add rules for each shopkeeper
-    for (const [shopkeeperId, grossShareInCents] of shopkeeperGrossShares.entries()) {
+    for (const shopkeeperId of uniqueShopkeeperIds) {
       const recipientId = shopkeeperPagarmeRecipients.get(shopkeeperId);
       if (!recipientId) {
         console.error(`create-pagarme-payment: Pagar.me recipient ID not found for shopkeeper ${shopkeeperId}.`);
         throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${shopkeeperId}.`);
       }
 
-      // Amount the shopkeeper *should* receive after commission for their items
-      const netShareForShopkeeperInCents = Math.round(grossShareInCents * (1 - commission_rate / 100));
+      // Calculate this specific shopkeeper's gross share of the total order
+      const shopkeeperGrossShareInCents = cartItems
+        .filter((item: any) => item.shopkeeper_id === shopkeeperId)
+        .reduce((sum: number, item: any) => sum + Math.round(item.price * item.quantity * 100), 0);
+
+      // Calculate the percentage this shopkeeper gets from the *net* amount (after platform commission)
+      // This is their proportion of the total shopkeeper gross, applied to the total net percentage (100 - commission_rate)
+      let percentageForShopkeeper = 0;
+      if (totalShopkeeperGrossAmountInCents > 0) {
+        const proportionOfTotalShopkeeperGross = shopkeeperGrossShareInCents / totalOrderGrossAmountInCents;
+        percentageForShopkeeper = proportionOfTotalShopkeeperGross * (100 - commission_rate);
+      }
       
-      // Calculate this as a percentage of the TOTAL order amount
-      // Ensure totalAmountInCents is not zero to avoid division by zero
-      const percentageForShopkeeper = totalAmountInCents > 0 ? (netShareForShopkeeperInCents / totalAmountInCents) * 100 : 0;
-      
+      // Round to 2 decimal places for percentage
+      const roundedPercentageForShopkeeper = parseFloat(percentageForShopkeeper.toFixed(2));
+
       splitRules.push({
         recipient_id: recipientId,
-        amount: parseFloat(percentageForShopkeeper.toFixed(2)), // Round to 2 decimal places for percentage
+        amount: roundedPercentageForShopkeeper,
         type: 'percentage',
         options: {
           liable: true,
@@ -181,18 +188,15 @@ serve(async (req: Request) => {
           charge_remainder_fee: false, // Lojista não absorve o restante
         },
       });
-      sumOfPercentages += percentageForShopkeeper;
+      totalCalculatedPercentage += roundedPercentageForShopkeeper;
     }
 
-    // 3. Calculate platform's total commission in cents
-    const platformTotalCommissionInCents = Math.round(totalAmountInCents * (commission_rate / 100));
-
-    // 4. Add rule for the platform
-    if (platformTotalCommissionInCents > 0) {
-      const percentageForPlatform = totalAmountInCents > 0 ? (platformTotalCommissionInCents / totalAmountInCents) * 100 : 0;
+    // 3. Add rule for the platform (commission)
+    const platformCommissionPercentage = parseFloat(commission_rate.toFixed(2));
+    if (platformCommissionPercentage > 0) {
       splitRules.push({
         recipient_id: platformRecipientId,
-        amount: parseFloat(percentageForPlatform.toFixed(2)), // Round to 2 decimal places for percentage
+        amount: platformCommissionPercentage,
         type: 'percentage',
         options: {
           liable: false,
@@ -200,13 +204,13 @@ serve(async (req: Request) => {
           charge_remainder_fee: true, // Plataforma absorve o restante
         },
       });
-      sumOfPercentages += percentageForPlatform;
+      totalCalculatedPercentage += platformCommissionPercentage;
     }
 
     // Final check for sum of percentages (should be close to 100)
     // Allow for small floating point inaccuracies, e.g., 99.99% or 100.01%
-    if (totalAmountInCents > 0 && Math.abs(sumOfPercentages - 100) > 0.05) { 
-      console.warn('create-pagarme-payment: Sum of split percentages is not 100%:', sumOfPercentages);
+    if (totalOrderGrossAmountInCents > 0 && Math.abs(totalCalculatedPercentage - 100) > 0.05) { 
+      console.warn('create-pagarme-payment: Sum of split percentages is not 100%:', totalCalculatedPercentage);
       // This warning is okay if charge_remainder_fee is true for one recipient, as it handles the remainder.
     }
     console.log('create-pagarme-payment: Final Split Rules Array (Percentage):', JSON.stringify(splitRules));
