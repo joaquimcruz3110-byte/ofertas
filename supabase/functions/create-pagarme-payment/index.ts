@@ -266,7 +266,7 @@ serve(async (req: Request) => {
         neighborhood: customer_address_district,
         street: customer_address_street,
         street_number: customer_address_number,
-        zipcode: customer_address_postal_code.replace(/\D/g, ''),
+        zip_code: customer_address_postal_code.replace(/\D/g, ''), // CORRIGIDO: zip_code
         complementary_info: customer_address_complement || '', 
       },
     };
@@ -311,14 +311,14 @@ serve(async (req: Request) => {
       ],
       billing: billingData,
       shipping: { // Pagar.me exige shipping mesmo que não seja físico
-        address: { // O endereço de shipping precisa de todos os campos, incluindo zipcode
+        address: { // O endereço de shipping precisa de todos os campos, incluindo zip_code
           country: 'br',
           state: customer_address_state,
           city: customer_address_city,
           neighborhood: customer_address_district,
           street: customer_address_street,
           street_number: customer_address_number,
-          zipcode: customer_address_postal_code.replace(/\D/g, ''), // Adicionado zipcode
+          zip_code: customer_address_postal_code.replace(/\D/g, ''), // CORRIGIDO: zip_code
           complementary_info: customer_address_complement || '', 
         },
         description: "Entrega padrão",
@@ -340,7 +340,31 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify(orderPayload, null, 2));
+    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify({
+      customer: {
+        external_id: orderPayload.customer.external_id,
+        name: orderPayload.customer.name,
+        email: orderPayload.customer.email,
+        type: orderPayload.customer.type,
+        country: orderPayload.customer.country,
+        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
+        phone_numbers: orderPayload.customer.phone_numbers,
+      },
+      items: orderPayload.items,
+      payments: orderPayload.payments.map((p: any) => ({
+        payment_method: p.payment_method,
+        checkout: {
+          accepted_payment_methods: p.checkout.accepted_payment_methods,
+          success_url: p.checkout.success_url,
+          cancel_url: p.checkout.cancel_url,
+          pix: p.checkout.pix,
+        },
+        split: p.split,
+      })),
+      billing: orderPayload.billing,
+      shipping: orderPayload.shipping,
+      metadata: orderPayload.metadata,
+    }, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
