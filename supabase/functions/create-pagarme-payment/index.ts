@@ -50,7 +50,8 @@ serve(async (req: Request) => {
       customer_address_city,
       customer_address_state,
       commission_rate,
-      app_url, // app_url ainda é útil para logs ou futuras referências, mas não para success_url/cancel_url diretos no Pix
+      // app_url não é mais estritamente necessário para success_url/cancel_url diretos no Pix
+      // mas é usado no webhook para links de e-mail, então é bom que exista no .env
     } = await req.json();
 
     console.log('create-pagarme-payment: Received request with buyer_id:', buyer_id);
@@ -77,11 +78,7 @@ serve(async (req: Request) => {
       console.error('create-pagarme-payment: Invalid commission rate:', commission_rate);
       return new Response(JSON.stringify({ error: 'Taxa de comissão inválida.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    // app_url não é mais estritamente necessário para success_url/cancel_url no Pix direto, mas pode ser útil para outros fins
-    // if (!app_url) {
-    //   console.error('create-pagarme-payment: App URL is missing.');
-    //   return new Response(JSON.stringify({ error: 'URL da aplicação é obrigatória para postback.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    // }
+    // Removida a validação de app_url, pois não é diretamente usada na requisição Pix do Pagar.me
     if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
       console.error('create-pagarme-payment: Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
       return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
@@ -189,6 +186,7 @@ serve(async (req: Request) => {
 
     // 2. Add rule for the platform (commission)
     const platformCommissionPercentage = Math.round(commission_rate); // Arredonda a comissão da plataforma
+    console.log('create-pagarme-payment: Platform Commission Rate (rounded):', platformCommissionPercentage); // NEW LOG
     if (platformCommissionPercentage > 0) {
       splitRules.push({
         recipient_id: platformRecipientId,
@@ -200,22 +198,36 @@ serve(async (req: Request) => {
         },
       });
       totalCalculatedPercentage += commission_rate; // Use original for sum check
+      console.log('create-pagarme-payment: Platform rule added to splitRules.'); // NEW LOG
+    } else {
+      console.log('create-pagarme-payment: Platform commission is 0, no platform rule added.'); // NEW LOG
     }
 
     // Ajustar a porcentagem da plataforma para garantir que a soma seja exatamente 100%
     const roundedSum = splitRules.reduce((sum, rule) => sum + rule.amount, 0);
     if (roundedSum !== 100) {
       const difference = 100 - roundedSum;
-      const platformRule = splitRules.find(rule => rule.recipient_id === platformRecipientId);
+      let platformRule = splitRules.find(rule => rule.recipient_id === platformRecipientId);
+      
       if (platformRule) {
         platformRule.amount += difference;
         console.warn(`create-pagarme-payment: Adjusted platform percentage by ${difference} to ensure sum is 100.`);
       } else {
-        console.error('create-pagarme-payment: Platform recipient rule not found for adjustment!');
+        // Fallback: if platform rule is somehow missing, add it here
+        console.error('create-pagarme-payment: Platform recipient rule not found for adjustment! Adding a new rule for platform.');
+        splitRules.push({
+          recipient_id: platformRecipientId,
+          amount: platformCommissionPercentage + difference, // Add the difference to the original platform percentage
+          type: 'percentage',
+          options: {
+            liable: false,
+            charge_processing_fee: false,
+          },
+        });
       }
     }
 
-    console.log('create-pagarme-payment: Final Split Rules Array (Percentage):', JSON.stringify(splitRules));
+    console.log('create-pagarme-payment: Final Split Rules Array (after adjustment):', JSON.stringify(splitRules)); // Modified log
     // --- End build split rules ---
 
     // Fetch buyer's profile to get first_name, last_name
