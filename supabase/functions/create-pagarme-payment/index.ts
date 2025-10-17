@@ -266,7 +266,7 @@ serve(async (req: Request) => {
         neighborhood: customer_address_district,
         street: customer_address_street,
         street_number: customer_address_number,
-        zip_code: customer_address_postal_code.replace(/\D/g, ''), // Corrigido para zip_code
+        zipcode: customer_address_postal_code.replace(/\D/g, ''),
         complementary_info: customer_address_complement || '', 
       },
     };
@@ -310,14 +310,14 @@ serve(async (req: Request) => {
       ],
       billing: billingData,
       shipping: { // Pagar.me exige shipping mesmo que não seja físico
-        address: { // O endereço de shipping precisa de todos os campos, incluindo zip_code
+        address: { // O endereço de shipping precisa de todos os campos, incluindo zipcode
           country: 'br',
           state: customer_address_state,
           city: customer_address_city,
           neighborhood: customer_address_district,
           street: customer_address_street,
           street_number: customer_address_number,
-          zip_code: customer_address_postal_code.replace(/\D/g, ''), // Corrigido para zip_code
+          zipcode: customer_address_postal_code.replace(/\D/g, ''), // Adicionado zipcode
           complementary_info: customer_address_complement || '', 
         },
         description: "Entrega padrão",
@@ -353,8 +353,6 @@ serve(async (req: Request) => {
       payments: orderPayload.payments.map((p: any) => ({
         payment_method: p.payment_method,
         checkout: {
-          customer_editable: p.checkout.customer_editable,
-          billing_address_editable: p.checkout.billing_address_editable,
           accepted_payment_methods: p.checkout.accepted_payment_methods,
           success_url: p.checkout.success_url,
           cancel_url: p.checkout.cancel_url,
@@ -393,14 +391,13 @@ serve(async (req: Request) => {
       });
     }
 
-    // CORREÇÃO AQUI: Acessar payment_url em vez de checkout_url
-    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].payment_url) {
-      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].payment_url }), {
+    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].checkout_url) {
+      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].checkout_url }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('create-pagarme-payment: Pagar.me order creation did not return a payment_url:', responseData);
+      console.error('create-pagarme-payment: Pagar.me order creation did not return a checkout_url:', responseData);
       return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
