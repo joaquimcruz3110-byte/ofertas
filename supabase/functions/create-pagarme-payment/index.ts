@@ -453,10 +453,11 @@ serve(async (req: Request) => {
       }
 
       // Se a transação foi bem-sucedida, retornar o QR code e a chave copia e cola
-      if (lastTransaction.qr_code_url && (lastTransaction.qr_code_base64 || lastTransaction.payload)) {
+      // CORREÇÃO AQUI: Usar lastTransaction.qr_code para a chave copia e cola
+      if (lastTransaction.qr_code_url && lastTransaction.qr_code) {
         return new Response(JSON.stringify({
           pix_qr_code_url: lastTransaction.qr_code_url,
-          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload, // Prioriza qr_code_base64, fallback para payload
+          pix_copy_paste_key: lastTransaction.qr_code, // Usar lastTransaction.qr_code
           order_id: responseData.id,
         }), {
           status: 200,
