@@ -127,6 +127,7 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Shopkeeper Pagar.me Recipients Map:', shopkeeperPagarmeRecipients);
 
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
+    console.log('create-pagarme-payment: Cleaned CPF for document:', cleanedCpf); // NOVO LOG
     if (cleanedCpf.length !== 11) {
       console.error('create-pagarme-payment: Invalid CPF length:', cleanedCpf);
       return new Response(JSON.stringify({ error: 'CPF inválido. Deve conter 11 dígitos.' }), {

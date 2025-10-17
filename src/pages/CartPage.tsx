@@ -30,22 +30,27 @@ const CartPage = () => {
       return;
     }
 
-    // Verificar se o CPF está disponível no perfil do usuário
-    if (!userProfile?.cpf) {
+    // Verificar se o CPF está disponível no perfil do usuário e não é uma string vazia
+    if (!userProfile?.cpf || userProfile.cpf.trim() === '') {
       showError('Seu CPF é necessário para finalizar a compra. Por favor, complete seu perfil.');
       navigate('/profile'); // Redirecionar para a página de perfil
       return;
     }
 
-    // Verificar se o número de telefone está disponível no perfil do usuário
-    if (!userProfile?.phone_number) {
+    // Verificar se o número de telefone está disponível no perfil do usuário e não é uma string vazia
+    if (!userProfile?.phone_number || userProfile.phone_number.trim() === '') {
       showError('Seu número de telefone é necessário para finalizar a compra. Por favor, complete seu perfil.');
       navigate('/profile'); // Redirecionar para a página de perfil
       return;
     }
 
-    // NOVO: Verificar se os campos de endereço estão disponíveis no perfil do usuário
-    if (!userProfile?.address_street || !userProfile?.address_number || !userProfile?.address_district || !userProfile?.address_postal_code || !userProfile?.address_city || !userProfile?.address_state) {
+    // NOVO: Verificar se os campos de endereço estão disponíveis no perfil do usuário e não são strings vazias
+    if (!userProfile?.address_street || userProfile.address_street.trim() === '' ||
+        !userProfile?.address_number || userProfile.address_number.trim() === '' ||
+        !userProfile?.address_district || userProfile.address_district.trim() === '' ||
+        !userProfile?.address_postal_code || userProfile.address_postal_code.trim() === '' ||
+        !userProfile?.address_city || userProfile.address_city.trim() === '' ||
+        !userProfile?.address_state || userProfile.address_state.trim() === '') {
       showError('Seu endereço completo é necessário para finalizar a compra. Por favor, complete seu perfil.');
       navigate('/profile'); // Redirecionar para a página de perfil
       return;
