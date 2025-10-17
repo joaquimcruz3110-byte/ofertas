@@ -393,13 +393,14 @@ serve(async (req: Request) => {
       });
     }
 
-    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].checkout_url) {
-      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].checkout_url }), {
+    // CORREÇÃO AQUI: Acessar payment_url em vez de checkout_url
+    if (responseData.checkouts && responseData.checkouts.length > 0 && responseData.checkouts[0].payment_url) {
+      return new Response(JSON.stringify({ checkout_url: responseData.checkouts[0].payment_url }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('create-pagarme-payment: Pagar.me order creation did not return a checkout_url:', responseData);
+      console.error('create-pagarme-payment: Pagar.me order creation did not return a payment_url:', responseData);
       return new Response(JSON.stringify({ error: 'Falha ao obter URL de checkout do Pagar.me.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
