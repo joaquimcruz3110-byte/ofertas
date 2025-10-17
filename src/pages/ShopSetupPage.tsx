@@ -9,12 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, Store, Camera, Trash2 } from 'lucide-react';
+import { Loader2, Store, Camera, Trash2, MapPin } from 'lucide-react'; // Adicionado MapPin
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // Importado Link
 
 interface ShopDetails {
   id: string;
@@ -33,7 +33,7 @@ const shopSetupFormSchema = z.object({
 type ShopSetupFormValues = z.infer<typeof shopSetupFormSchema>;
 
 const ShopSetupPage = () => {
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session, isLoading: isSessionLoading, userRole, userProfile } = useSession(); // Obter userProfile
   const navigate = useNavigate();
   const [shopDetails, setShopDetails] = useState<ShopDetails | null>(null);
   const [isLoadingShopDetails, setIsLoadingShopDetails] = useState(true);
@@ -262,6 +262,14 @@ const ShopSetupPage = () => {
     );
   }
 
+  const formatAddress = (profile: any) => {
+    if (!profile || !profile.address_street) return "Endereço não cadastrado.";
+    let address = `${profile.address_street}, ${profile.address_number}`;
+    if (profile.address_complement) address += ` - ${profile.address_complement}`;
+    address += `, ${profile.address_district}, ${profile.address_city} - ${profile.address_state}, CEP ${profile.address_postal_code}`;
+    return address;
+  };
+
   return (
     <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-dyad-dark-blue">
@@ -340,6 +348,22 @@ const ShopSetupPage = () => {
               </FormItem>
             )}
           />
+
+          <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Endereço da Loja</h2>
+          <div className="border p-4 rounded-md bg-gray-50 flex items-start space-x-3">
+            <MapPin className="h-5 w-5 text-dyad-dark-blue mt-1" />
+            <div>
+              <p className="text-gray-700 font-medium">
+                {formatAddress(userProfile)}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                O endereço da sua loja é o mesmo do seu perfil pessoal.
+              </p>
+              <Link to="/profile" className="text-dyad-vibrant-orange hover:underline text-sm mt-2 inline-block">
+                Clique aqui para gerenciar seu endereço no perfil.
+              </Link>
+            </div>
+          </div>
 
           <h2 className="text-2xl font-bold mt-8 mb-4 text-dyad-dark-blue">Configuração de Pagamento</h2>
           <FormField
