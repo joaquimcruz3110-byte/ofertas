@@ -50,8 +50,7 @@ serve(async (req: Request) => {
       customer_address_city,
       customer_address_state,
       commission_rate,
-      // app_url não é mais estritamente necessário para success_url/cancel_url diretos no Pix
-      // mas é usado no webhook para links de e-mail, então é bom que exista no .env
+      app_url,
     } = await req.json();
 
     console.log('create-pagarme-payment: Received request with buyer_id:', buyer_id);
@@ -78,7 +77,6 @@ serve(async (req: Request) => {
       console.error('create-pagarme-payment: Invalid commission rate:', commission_rate);
       return new Response(JSON.stringify({ error: 'Taxa de comissão inválida.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    // Removida a validação de app_url, pois não é diretamente usada na requisição Pix do Pagar.me
     if (!customer_address_street || !customer_address_number || !customer_address_district || !customer_address_postal_code || !customer_address_city || !customer_address_state) {
       console.error('create-pagarme-payment: Missing required billing address fields.', { customer_address_street, customer_address_number, customer_address_district, customer_address_postal_code, customer_address_city, customer_address_state });
       return new Response(JSON.stringify({ error: 'Campos obrigatórios do endereço de cobrança ausentes. Por favor, complete seu perfil.' }), {
@@ -129,7 +127,6 @@ serve(async (req: Request) => {
     const cleanedCpf = customer_cpf.replace(/\D/g, '');
     console.log('create-pagarme-payment: Cleaned CPF for document:', cleanedCpf);
     
-    // NOVO: Validação de comprimento do CPF após a limpeza
     if (cleanedCpf.length !== 11) {
       console.error('create-pagarme-payment: Invalid CPF length after cleaning:', cleanedCpf);
       return new Response(JSON.stringify({ error: 'CPF inválido. Por favor, verifique seu perfil e insira um CPF com 11 dígitos.' }), {
@@ -161,15 +158,12 @@ serve(async (req: Request) => {
         throw new Error(`ID do recebedor Pagar.me não encontrado para o lojista ${shopkeeperId}.`);
       }
 
-      // Calculate the percentage this shopkeeper gets from the *net* amount (after platform commission)
-      // This is their proportion of the total shopkeeper gross, applied to the total net percentage (100 - commission_rate)
       let percentageForShopkeeper = 0;
       if (totalOrderGrossAmountInCents > 0) {
         const proportionOfTotalShopkeeperGross = grossShareInCents / totalOrderGrossAmountInCents;
         percentageForShopkeeper = proportionOfTotalShopkeeperGross * (100 - commission_rate);
       }
       
-      // Round to nearest integer for percentage
       const roundedPercentageForShopkeeper = Math.round(percentageForShopkeeper);
 
       splitRules.push({
@@ -181,12 +175,12 @@ serve(async (req: Request) => {
           charge_processing_fee: true,
         },
       });
-      totalCalculatedPercentage += percentageForShopkeeper; // Use original for sum check
+      totalCalculatedPercentage += percentageForShopkeeper;
     }
 
     // 2. Add rule for the platform (commission)
-    const platformCommissionPercentage = Math.round(commission_rate); // Arredonda a comissão da plataforma
-    console.log('create-pagarme-payment: Platform Commission Rate (rounded):', platformCommissionPercentage); // NEW LOG
+    const platformCommissionPercentage = Math.round(commission_rate);
+    console.log('create-pagarme-payment: Platform Commission Rate (rounded):', platformCommissionPercentage);
     if (platformCommissionPercentage > 0) {
       splitRules.push({
         recipient_id: platformRecipientId,
@@ -197,10 +191,10 @@ serve(async (req: Request) => {
           charge_processing_fee: false,
         },
       });
-      totalCalculatedPercentage += commission_rate; // Use original for sum check
-      console.log('create-pagarme-payment: Platform rule added to splitRules.'); // NEW LOG
+      totalCalculatedPercentage += commission_rate;
+      console.log('create-pagarme-payment: Platform rule added to splitRules.');
     } else {
-      console.log('create-pagarme-payment: Platform commission is 0, no platform rule added.'); // NEW LOG
+      console.log('create-pagarme-payment: Platform commission is 0, no platform rule added.');
     }
 
     // Ajustar a porcentagem da plataforma para garantir que a soma seja exatamente 100%
@@ -213,11 +207,10 @@ serve(async (req: Request) => {
         platformRule.amount += difference;
         console.warn(`create-pagarme-payment: Adjusted platform percentage by ${difference} to ensure sum is 100.`);
       } else {
-        // Fallback: if platform rule is somehow missing, add it here
         console.error('create-pagarme-payment: Platform recipient rule not found for adjustment! Adding a new rule for platform.');
         splitRules.push({
           recipient_id: platformRecipientId,
-          amount: platformCommissionPercentage + difference, // Add the difference to the original platform percentage
+          amount: platformCommissionPercentage + difference,
           type: 'percentage',
           options: {
             liable: false,
@@ -227,7 +220,7 @@ serve(async (req: Request) => {
       }
     }
 
-    console.log('create-pagarme-payment: Final Split Rules Array (after adjustment):', JSON.stringify(splitRules)); // Modified log
+    console.log('create-pagarme-payment: Final Split Rules Array (after adjustment):', JSON.stringify(splitRules));
     // --- End build split rules ---
 
     // Fetch buyer's profile to get first_name, last_name
@@ -237,7 +230,7 @@ serve(async (req: Request) => {
       .eq('id', buyer_id)
       .single();
 
-    let customerName = user.email; // Fallback padrão
+    let customerName = user.email;
     if (buyerProfile) {
       const firstName = buyerProfile.first_name || '';
       const lastName = buyerProfile.last_name || '';
@@ -252,26 +245,22 @@ serve(async (req: Request) => {
     let customerPhones: any = {};
     console.log('create-pagarme-payment: Raw customer_phone_number:', customer_phone_number);
     if (customer_phone_number) {
-      let cleanedPhoneNumber = customer_phone_number.replace(/\D/g, ''); // e.g., "5517981062768" or "17981062768"
+      let cleanedPhoneNumber = customer_phone_number.replace(/\D/g, '');
       console.log('create-pagarme-payment: Cleaned phone number:', cleanedPhoneNumber);
 
-      let countryCode = '55'; // Default to Brazil
+      let countryCode = '55';
       let areaCode = '';
       let number = '';
       let numberToParse = cleanedPhoneNumber;
 
-      // If the number starts with '55' and is longer than a typical Brazilian number (10 or 11 digits),
-      // assume '55' is the country code and remove it for parsing DDD+number.
       if (cleanedPhoneNumber.startsWith('55') && cleanedPhoneNumber.length > 11) {
-        numberToParse = cleanedPhoneNumber.substring(2); // Remove '55', e.g., "17981062768"
+        numberToParse = cleanedPhoneNumber.substring(2);
       }
-      // If it's already 10 or 11 digits, or doesn't start with '55', numberToParse remains as is.
 
-      // Now parse numberToParse (should be 10 or 11 digits: DDD + number)
-      if (numberToParse.length === 11) { // Mobile with 9th digit (e.g., 11987654321)
+      if (numberToParse.length === 11) {
         areaCode = numberToParse.substring(0, 2);
         number = numberToParse.substring(2);
-      } else if (numberToParse.length === 10) { // Landline or old mobile (e.g., 1187654321)
+      } else if (numberToParse.length === 10) {
         areaCode = numberToParse.substring(0, 2);
         number = numberToParse.substring(2);
       } else {
@@ -291,7 +280,7 @@ serve(async (req: Request) => {
             area_code: areaCode,
             number: number,
           },
-          home_phone: { // Pagar.me often requires both
+          home_phone: {
             country_code: countryCode,
             area_code: areaCode,
             number: number,
@@ -326,7 +315,7 @@ serve(async (req: Request) => {
           number: cleanedCpf,
         },
       ],
-      phones: customerPhones, // Adicionado o objeto phones aqui
+      phones: customerPhones,
     };
     console.log('create-pagarme-payment: Final Customer Data before Pagar.me API call:', JSON.stringify(customerData));
     
@@ -347,34 +336,35 @@ serve(async (req: Request) => {
     console.log('create-pagarme-payment: Billing Data:', JSON.stringify(billingData));
     // --- Fim da construção e validação do objeto billing ---
 
-    const pagarmeApiUrl = 'https://api.pagar.me/core/v5/orders'; // API v5 para Orders
+    const pagarmeApiUrl = 'https://api.pagar.me/core/v5/orders';
 
     const orderPayload = {
       customer: customerData,
       items: cartItems.map((item: any) => ({
-        amount: Math.round(item.price * 100), // Preço unitário em centavos
+        amount: Math.round(item.price * 100),
         description: item.name,
         quantity: item.quantity,
-        code: item.id, // Usar ID do produto como código
+        code: item.id,
       })),
       payments: [
         {
-          payment_method: 'pix', // Alterado para Pix
+          payment_method: 'pix',
           pix: {
-            expires_in: 3600, // Expira em 1 hora (em segundos)
+            expires_in: 3600,
             qr_code_expiration_seconds: 3600,
-            split: splitRules.map(rule => ({ // Split agora dentro do objeto Pix
-              recipient_id: rule.recipient_id,
-              amount: rule.amount,
-              options: rule.options,
-              type: rule.type,
-            })),
           },
+          // O array 'split' foi movido para este nível, irmão do objeto 'pix'
+          split: splitRules.map(rule => ({
+            recipient_id: rule.recipient_id,
+            amount: rule.amount,
+            options: rule.options,
+            type: rule.type,
+          })),
         },
       ],
       billing: billingData,
-      shipping: { // Pagar.me exige shipping mesmo que não seja físico
-        address: { // O endereço de shipping precisa de todos os campos, incluindo zip_code
+      shipping: {
+        address: {
           country: 'br',
           state: customer_address_state,
           city: customer_address_city,
@@ -385,12 +375,12 @@ serve(async (req: Request) => {
           complementary_info: customer_address_complement || '', 
         },
         description: "Entrega padrão",
-        amount: 0, // Custo de frete, se houver
+        amount: 0,
         recipient_name: customerName,
         service_code: "STANDARD", 
-        delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Data de entrega futura (ex: 7 dias)
+        delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       },
-      metadata: { // Adicionando metadata para o webhook
+      metadata: {
         buyer_id: buyer_id,
         commission_rate: commission_rate.toString(),
         cartItems: JSON.stringify(cartItems.map((item: any) => ({
@@ -416,11 +406,8 @@ serve(async (req: Request) => {
       items: orderPayload.items,
       payments: orderPayload.payments.map((p: any) => ({
         payment_method: p.payment_method,
-        pix: p.pix ? {
-          expires_in: p.pix.expires_in,
-          qr_code_expiration_seconds: p.pix.qr_code_expiration_seconds,
-          split: p.pix.split,
-        } : undefined,
+        pix: p.pix, // Agora o pix não contém o split
+        split: p.split, // O split está aqui, no mesmo nível do pix
       })),
       billing: orderPayload.billing,
       shipping: orderPayload.shipping,
@@ -431,7 +418,7 @@ serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(pagarmeApiKey + ':')}`, // API Key no formato Basic Auth
+        'Authorization': `Basic ${btoa(pagarmeApiKey + ':')}`,
       },
       body: JSON.stringify(orderPayload),
     });
@@ -453,12 +440,11 @@ serve(async (req: Request) => {
       });
     }
 
-    // Retornar os dados do Pix para o frontend
     if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction.qr_code_url && responseData.charges[0].last_transaction.qr_code_url) {
       return new Response(JSON.stringify({
         pix_qr_code_url: responseData.charges[0].last_transaction.qr_code_url,
-        pix_copy_paste_key: responseData.charges[0].last_transaction.qr_code_url, // O Pagar.me usa o mesmo campo para o código copia-e-cola
-        order_id: responseData.id, // Retorna o ID do pedido Pagar.me
+        pix_copy_paste_key: responseData.charges[0].last_transaction.qr_code_url,
+        order_id: responseData.id,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
