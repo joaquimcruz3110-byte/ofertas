@@ -89,10 +89,13 @@ serve(async (req: Request) => {
         price: number;
         total: number;
         shopkeeper_id: string | null;
+        shop_name: string | null;
+        shop_address: string | null;
       }[] = [];
       let totalPurchasePrice = 0;
 
       const shopkeeperSalesMap = new Map<string, { email: string | null; products: typeof productsSoldDetails }>();
+      const uniqueShopkeeperIdsInCart = new Set<string>(); // Para coletar IDs de lojistas únicos para busca de endereço
 
       for (const item of saleItems) {
         const total_price = item.quantity * item.price;
@@ -111,10 +114,13 @@ serve(async (req: Request) => {
           price: productData?.price || item.price,
           total: total_price,
           shopkeeper_id: productData?.shopkeeper_id || item.shopkeeper_id,
+          shop_name: null, // Será preenchido depois
+          shop_address: null, // Será preenchido depois
         };
         productsSoldDetails.push(productDetail);
 
         if (productDetail.shopkeeper_id) {
+          uniqueShopkeeperIdsInCart.add(productDetail.shopkeeper_id);
           if (!shopkeeperSalesMap.has(productDetail.shopkeeper_id)) {
             const { data: shopkeeperUser, error: shopkeeperUserError } = await supabaseAdmin.auth.admin.getUserById(productDetail.shopkeeper_id);
             const shopkeeperEmail = shopkeeperUserError ? null : shopkeeperUser?.user?.email;
@@ -143,6 +149,43 @@ serve(async (req: Request) => {
           console.log(`pagarme-webhook: Compra registrada para o produto ${item.id}.`);
         }
       }
+
+      // Buscar nomes das lojas e endereços para todos os lojistas únicos
+      const shopkeeperDetailsMap = new Map<string, { shop_name: string; address: string }>();
+      if (uniqueShopkeeperIdsInCart.size > 0) {
+        const { data: shopDetailsData, error: shopDetailsError } = await supabaseAdmin
+          .from('shop_details')
+          .select('id, shop_name, profiles(address_street, address_number, address_complement, address_district, address_postal_code, address_city, address_state)')
+          .in('id', Array.from(uniqueShopkeeperIdsInCart));
+
+        if (shopDetailsError) {
+          console.error('pagarme-webhook: Erro ao buscar detalhes das lojas para endereços:', shopDetailsError.message);
+        } else {
+          shopDetailsData?.forEach(shop => {
+            const profile = shop.profiles as any; // Cast para acessar campos de endereço
+            let addressString = 'Endereço não disponível';
+            if (profile) {
+              addressString = `${profile.address_street || ''}, ${profile.address_number || ''}`;
+              if (profile.address_complement) addressString += ` - ${profile.address_complement}`;
+              addressString += `, ${profile.address_district || ''}, ${profile.address_city || ''} - ${profile.address_state || ''}, CEP ${profile.address_postal_code || ''}`;
+              addressString = addressString.replace(/,\s*,/g, ',').replace(/,\s*CEP/g, ', CEP').trim(); // Limpa vírgulas duplas
+            }
+            shopkeeperDetailsMap.set(shop.id, {
+              shop_name: shop.shop_name || 'Loja Desconhecida',
+              address: addressString,
+            });
+          });
+        }
+      }
+
+      // Atualizar productsSoldDetails com nome da loja e endereço
+      productsSoldDetails.forEach(product => {
+        if (product.shopkeeper_id && shopkeeperDetailsMap.has(product.shopkeeper_id)) {
+          const details = shopkeeperDetailsMap.get(product.shopkeeper_id);
+          product.shop_name = details?.shop_name || null;
+          product.shop_address = details?.address || null;
+        }
+      });
 
       // Enviar e-mails de notificação consolidados para os lojistas
       for (const [shopkeeperId, salesInfo] of shopkeeperSalesMap.entries()) {
@@ -229,10 +272,16 @@ serve(async (req: Request) => {
                   </div>
                   <div class="content">
                       <p>Olá Comprador,</p>
-                      <p>Obrigado por sua compra no Olímpia Ofertas! Seu pagamento foi aprovado e seu pedido está a caminho.</p>
-                      <p><strong>Detalhes do Pedido:</strong></p>
+                      <p>Obrigado por sua compra no Olímpia Ofertas! Seu pagamento foi aprovado.</p>
+                      <p>Seu(s) produto(s) estão prontos para retirada na(s) loja(s) abaixo:</p>
                       <ul class="product-list">
-                          ${productsSoldDetails.map(p => `<li>${p.name} - ${p.quantity}x - R$ ${p.price.toFixed(2)} cada (Total: R$ ${p.total.toFixed(2)})</li>`).join('')}
+                          ${productsSoldDetails.map(p => `
+                            <li>
+                              <strong>Produto:</strong> ${p.name} - ${p.quantity}x - R$ ${p.price.toFixed(2)} cada (Total: R$ ${p.total.toFixed(2)})<br>
+                              <strong>Loja:</strong> ${p.shop_name || 'Loja Desconhecida'}<br>
+                              <strong>Endereço para Retirada:</strong> ${p.shop_address || 'Endereço não disponível'}
+                            </li>
+                          `).join('')}
                       </ul>
                       <p class="total">Total da Compra: R$ ${totalPurchasePrice.toFixed(2)}</p>
                       <p><strong>ID do Pagamento:</strong> ${orderId}</p>
