@@ -392,7 +392,7 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Sending Pagar.me Order Payload:', JSON.stringify(orderPayload, null, 2)); // NOVO LOG
+    console.log('create-pagarme-payment: Sending Pagar.me Order Payload:', JSON.stringify(orderPayload, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
@@ -420,24 +420,32 @@ serve(async (req: Request) => {
       });
     }
 
-    if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction.qr_code_url && responseData.charges[0].last_transaction.qr_code_url) {
-      return new Response(JSON.stringify({
-        pix_qr_code_url: responseData.charges[0].last_transaction.qr_code_url,
-        pix_copy_paste_key: responseData.charges[0].last_transaction.qr_code_url,
-        order_id: responseData.id,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    } else {
-      console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key:', responseData);
-      return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me.' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // NOVO: Verificar se charges[0].last_transaction existe antes de tentar acessá-lo
+    if (responseData.charges && responseData.charges.length > 0 && responseData.charges[0].last_transaction) {
+      const lastTransaction = responseData.charges[0].last_transaction;
+      console.log('create-pagarme-payment: Pagar.me last_transaction details:', JSON.stringify(lastTransaction)); // Log detalhado da transação
 
-  } catch (error: any) { // Captura qualquer erro e tenta logar o máximo possível
+      // Corrigido: Usar qr_code_base64 ou payload para a chave copia e cola
+      if (lastTransaction.qr_code_url && (lastTransaction.qr_code_base64 || lastTransaction.payload)) {
+        return new Response(JSON.stringify({
+          pix_qr_code_url: lastTransaction.qr_code_url,
+          pix_copy_paste_key: lastTransaction.qr_code_base64 || lastTransaction.payload, // Prioriza qr_code_base64, fallback para payload
+          order_id: responseData.id,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    
+    // Se chegarmos aqui, significa que os dados esperados não foram encontrados na resposta
+    console.error('create-pagarme-payment: Pagar.me Pix payment creation did not return QR code or copy-paste key as expected:', responseData);
+    return new Response(JSON.stringify({ error: 'Falha ao obter dados do Pix do Pagar.me. Verifique os logs da função para mais detalhes.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error: any) {
     console.error('create-pagarme-payment: Unhandled error during Pagar.me payment creation:', error);
     let clientErrorMessage = 'Ocorreu um erro inesperado ao processar seu pagamento.';
 
@@ -448,7 +456,7 @@ serve(async (req: Request) => {
     } else if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
       clientErrorMessage = error.message;
     } else {
-      clientErrorMessage = JSON.stringify(error); // Tenta serializar o erro se não for um objeto Error
+      clientErrorMessage = JSON.stringify(error);
     }
 
     return new Response(JSON.stringify({ error: clientErrorMessage }), {
