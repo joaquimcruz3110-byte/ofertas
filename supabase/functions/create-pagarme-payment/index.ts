@@ -294,6 +294,7 @@ serve(async (req: Request) => {
             cancel_url: `${app_url}/pagarme-return?status=failure`,
             pix: { // Adicionado o objeto pix
               expires_in: 3600, // Expira em 1 hora (em segundos)
+              qr_code_expiration_seconds: 3600, // Adicionado este campo
             },
           },
           split: splitRules.map(rule => ({
@@ -339,31 +340,7 @@ serve(async (req: Request) => {
       },
     };
 
-    console.log('create-pagarme-payment: Pagar.me Order Payload (non-sensitive fields):', JSON.stringify({
-      customer: {
-        external_id: orderPayload.customer.external_id,
-        name: orderPayload.customer.name,
-        email: orderPayload.customer.email,
-        type: orderPayload.customer.type,
-        country: orderPayload.customer.country,
-        documents: orderPayload.customer.documents.map((doc: any) => ({ type: doc.type, number: '***' })),
-        phone_numbers: orderPayload.customer.phone_numbers,
-      },
-      items: orderPayload.items,
-      payments: orderPayload.payments.map((p: any) => ({
-        payment_method: p.payment_method,
-        checkout: {
-          accepted_payment_methods: p.checkout.accepted_payment_methods,
-          success_url: p.checkout.success_url,
-          cancel_url: p.checkout.cancel_url,
-          pix: p.checkout.pix,
-        },
-        split: p.split,
-      })),
-      billing: orderPayload.billing,
-      shipping: orderPayload.shipping,
-      metadata: orderPayload.metadata,
-    }, null, 2));
+    console.log('create-pagarme-payment: Pagar.me Order Payload (full, non-sensitive fields):', JSON.stringify(orderPayload, null, 2));
 
     const pagarmeResponse = await fetch(pagarmeApiUrl, {
       method: 'POST',
