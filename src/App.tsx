@@ -29,6 +29,7 @@ import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de
 import PagarmeReturnPage from "./pages/PagarmeReturnPage"; // Importar a nova página de retorno do Pagar.me
 import AdminSales from "./pages/AdminSales"; // Importar a página AdminSales
 import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect"; // Importar o novo componente de redirecionamento
+import HelpPage from "./pages/Help"; // Importar a nova página de ajuda
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
               <Route element={<MainLayout />}>
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="/help" element={<HelpPage />} /> {/* Nova rota de ajuda */}
               </Route>
 
               {/* Rotas protegidas */}
