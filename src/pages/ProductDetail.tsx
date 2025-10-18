@@ -6,7 +6,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Truck, RefreshCcw, Facebook, Twitter, Mail } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Facebook, Twitter, Mail } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 import {
@@ -236,9 +236,9 @@ const ProductDetail = () => {
             <div className="flex items-center text-green-600 font-medium">
               <ShieldCheck className="h-5 w-5 mr-2" /> Compra garantida
             </div>
-            <div className="flex items-center text-blue-600 font-medium">
+            {/* Removido: <div className="flex items-center text-blue-600 font-medium">
               <Truck className="h-5 w-5 mr-2" /> FULL da Peça, o envio mais rápido de São Paulo.
-            </div>
+            </div> */}
           </div>
 
           <Button
@@ -266,7 +266,7 @@ const ProductDetail = () => {
             Vendido e enviado por: <Link to={`/shop/${product.shopkeeper_id}`} className="text-dyad-vibrant-orange hover:underline">{product.shop_details?.shop_name || 'Loja Desconhecida'}</Link>
           </p>
 
-          <div className="grid grid-cols-3 gap-4 text-center text-gray-600 text-sm mt-6 border-t pt-4">
+          {/* Removido: <div className="grid grid-cols-3 gap-4 text-center text-gray-600 text-sm mt-6 border-t pt-4">
             <div className="flex flex-col items-center">
               <Truck className="h-6 w-6 mb-1 text-dyad-dark-blue" />
               <span>Pedidos em até 24 horas</span>
@@ -279,7 +279,7 @@ const ProductDetail = () => {
               <ShieldCheck className="h-6 w-6 mb-1 text-dyad-dark-blue" />
               <span>Compra 100% segura</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
