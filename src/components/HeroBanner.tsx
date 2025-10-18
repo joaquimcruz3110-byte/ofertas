@@ -107,7 +107,7 @@ const HeroBanner = () => {
 
   if (isLoading) {
     return (
-      <section className="w-full h-[300px] md:h-[500px] bg-dyad-dark-blue text-dyad-white flex items-center justify-center">
+      <section className="w-full h-[300px] md:h-[600px] bg-dyad-dark-blue text-dyad-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-3">Carregando banners...</span>
       </section>
@@ -116,7 +116,7 @@ const HeroBanner = () => {
 
   if (banners.length === 0) {
     return (
-      <section className="w-full h-[300px] md:h-[500px] bg-dyad-dark-blue text-dyad-white flex items-center justify-center">
+      <section className="w-full h-[300px] md:h-[600px] bg-dyad-dark-blue text-dyad-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl md:text-4xl font-bold mb-2">
             Bem-vindo ao <span className="text-dyad-vibrant-orange">Olímpia Ofertas</span>
@@ -137,7 +137,7 @@ const HeroBanner = () => {
   return (
     <section className="w-full relative overflow-hidden">
       <div className="embla__viewport" ref={emblaRef}>
-        <div className="embla__container flex h-[300px] md:h-[500px]">
+        <div className="embla__container flex h-[300px] md:h-[600px]">
           {banners.map((banner) => (
             <div key={banner.id} className="embla__slide flex-[0_0_100%] min-w-0 relative">
               {banner.cta_link ? (
@@ -145,14 +145,14 @@ const HeroBanner = () => {
                   <img
                     src={banner.image_url}
                     alt={banner.title}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                   />
                 </Link>
               ) : (
                 <img
                   src={banner.image_url}
                   alt={banner.title}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               )}
             </div>
