@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, User, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, User, ReceiptText, Tag, HelpCircle, Mail, Image } from 'lucide-react'; // Importar o ícone Image
 
 interface NavItem {
   name: string;
@@ -31,7 +31,8 @@ export const navItems: NavItem[] = [
 
   // Itens específicos para Administrador
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
-  { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Package, roles: ['administrador'] }, // Usando Package para produtos
+  { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Package, roles: ['administrador'] },
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
   { name: 'Gerenciar Vendas', href: '/admin-sales', icon: ReceiptText, roles: ['administrador'] },
+  { name: 'Gerenciar Banners', href: '/admin-banners', icon: Image, roles: ['administrador'] }, // Novo item
 ];

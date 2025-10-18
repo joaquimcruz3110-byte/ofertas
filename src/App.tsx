@@ -31,6 +31,7 @@ import AdminSales from "./pages/AdminSales";
 import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect";
 import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
+import AdminBanners from "./pages/AdminBanners"; // Importar a nova página de administração de banners
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
                 <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
                 <Route path="/admin-sales" element={<AdminSales />} />
+                <Route path="/admin-banners" element={<AdminBanners />} /> {/* Nova rota */}
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
