@@ -31,7 +31,7 @@ import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect";
 import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
 import AdminBanners from "./pages/AdminBanners";
-import LandingPageContent from "./pages/LandingPageContent"; // Importar o novo componente
+// import LandingPageContent from "./pages/LandingPageContent"; // Importar o novo componente
 
 const queryClient = new QueryClient();
 
