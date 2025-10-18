@@ -7,14 +7,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Importar cn para utilitários de classe
+import { useIsMobile } from '@/hooks/use-mobile'; // Importar o hook useIsMobile
 
 interface Banner {
   id: string;
   title: string;
-  description: string | null;
+  // description: string | null; // Removido
   image_url: string;
-  cta_text: string | null;
-  cta_link: string | null;
+  image_url_mobile: string | null; // Adicionado
+  // cta_text: string | null; // Removido
+  // cta_link: string | null; // Removido
   is_active: boolean;
   order_index: number;
 }
@@ -47,6 +49,7 @@ const HeroBanner = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+  const isMobile = useIsMobile(); // Usar o hook para detectar mobile
 
   const fetchActiveBanners = useCallback(async () => {
     setIsLoading(true);
@@ -138,25 +141,19 @@ const HeroBanner = () => {
     <section className="w-full relative overflow-hidden">
       <div className="embla__viewport" ref={emblaRef}>
         <div className="embla__container flex h-[300px] md:h-[600px]">
-          {banners.map((banner) => (
-            <div key={banner.id} className="embla__slide flex-[0_0_100%] min-w-0 relative">
-              {banner.cta_link ? (
-                <Link to={banner.cta_link} className="block w-full h-full">
-                  <img
-                    src={banner.image_url}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                  />
-                </Link>
-              ) : (
+          {banners.map((banner) => {
+            const imageUrl = isMobile && banner.image_url_mobile ? banner.image_url_mobile : banner.image_url;
+            return (
+              <div key={banner.id} className="embla__slide flex-[0_0_100%] min-w-0 relative">
+                {/* Removido cta_link para simplificar, como os campos foram removidos do admin */}
                 <img
-                  src={banner.image_url}
+                  src={imageUrl}
                   alt={banner.title}
                   className="w-full h-full object-cover"
                 />
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
 

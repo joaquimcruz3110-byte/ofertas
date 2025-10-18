@@ -23,7 +23,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+// import { Textarea } from "@/components/ui/textarea"; // Removido
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,10 +33,11 @@ import { Switch } from "@/components/ui/switch";
 interface Banner {
   id: string;
   title: string;
-  description: string | null;
+  // description: string | null; // Removido
   image_url: string;
-  cta_text: string | null;
-  cta_link: string | null;
+  image_url_mobile: string | null; // Adicionado
+  // cta_text: string | null; // Removido
+  // cta_link: string | null; // Removido
   is_active: boolean;
   order_index: number;
   created_at: string;
@@ -45,9 +46,9 @@ interface Banner {
 
 const bannerFormSchema = z.object({
   title: z.string().min(1, "O título é obrigatório."),
-  description: z.string().optional(),
-  cta_text: z.string().optional(),
-  cta_link: z.string().url("O link deve ser uma URL válida.").optional().or(z.literal('')),
+  // description: z.string().optional(), // Removido
+  // cta_text: z.string().optional(), // Removido
+  // cta_link: z.string().url("O link deve ser uma URL válida.").optional().or(z.literal('')), // Removido
   is_active: z.boolean().default(true),
   order_index: z.preprocess(
     (val) => Number(val),
@@ -64,16 +65,20 @@ const AdminBanners = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  const [selectedDesktopImageFile, setSelectedDesktopImageFile] = useState<File | null>(null);
+  const [desktopImagePreview, setDesktopImagePreview] = useState<string | null>(null);
+  
+  const [selectedMobileImageFile, setSelectedMobileImageFile] = useState<File | null>(null);
+  const [mobileImagePreview, setMobileImagePreview] = useState<string | null>(null);
 
   const form = useForm<BannerFormValues>({
     resolver: zodResolver(bannerFormSchema),
     defaultValues: {
       title: "",
-      description: "",
-      cta_text: "",
-      cta_link: "",
+      // description: "", // Removido
+      // cta_text: "", // Removido
+      // cta_link: "", // Removido
       is_active: true,
       order_index: 0,
     },
@@ -106,14 +111,16 @@ const AdminBanners = () => {
     setEditingBanner(null);
     form.reset({
       title: "",
-      description: "",
-      cta_text: "",
-      cta_link: "",
+      // description: "", // Removido
+      // cta_text: "", // Removido
+      // cta_link: "", // Removido
       is_active: true,
       order_index: 0,
     });
-    setSelectedImageFile(null);
-    setImagePreview(null);
+    setSelectedDesktopImageFile(null);
+    setDesktopImagePreview(null);
+    setSelectedMobileImageFile(null);
+    setMobileImagePreview(null);
     setIsDialogOpen(true);
   };
 
@@ -121,28 +128,30 @@ const AdminBanners = () => {
     setEditingBanner(banner);
     form.reset({
       title: banner.title,
-      description: banner.description || "",
-      cta_text: banner.cta_text || "",
-      cta_link: banner.cta_link || "",
+      // description: banner.description || "", // Removido
+      // cta_text: banner.cta_text || "", // Removido
+      // cta_link: banner.cta_link || "", // Removido
       is_active: banner.is_active,
       order_index: banner.order_index,
     });
-    setSelectedImageFile(null);
-    setImagePreview(banner.image_url);
+    setSelectedDesktopImageFile(null);
+    setDesktopImagePreview(banner.image_url);
+    setSelectedMobileImageFile(null);
+    setMobileImagePreview(banner.image_url_mobile);
     setIsDialogOpen(true);
   };
 
-  const handleDeleteBanner = async (bannerId: string, imageUrl: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir este banner? Isso removerá a imagem também.")) {
+  const handleDeleteBanner = async (bannerId: string, desktopImageUrl: string, mobileImageUrl: string | null) => {
+    if (!window.confirm("Tem certeza que deseja excluir este banner? Isso removerá as imagens também.")) {
       return;
     }
 
     const toastId = showLoading('Excluindo banner...');
     
     try {
-      // Deletar imagem do storage
-      if (imageUrl) {
-        const urlParts = imageUrl.split('banner_images/');
+      // Deletar imagem desktop do storage
+      if (desktopImageUrl) {
+        const urlParts = desktopImageUrl.split('banner_images/');
         const filePathInStorage = urlParts.length > 1 ? `banner_images/${urlParts[1]}` : null;
 
         if (filePathInStorage) {
@@ -151,7 +160,23 @@ const AdminBanners = () => {
             .remove([filePathInStorage]);
 
           if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
-            console.warn('Erro ao remover imagem do storage (pode não existir):', deleteStorageError.message);
+            console.warn('Erro ao remover imagem desktop do storage (pode não existir):', deleteStorageError.message);
+          }
+        }
+      }
+
+      // Deletar imagem mobile do storage
+      if (mobileImageUrl) {
+        const urlParts = mobileImageUrl.split('banner_images/');
+        const filePathInStorage = urlParts.length > 1 ? `banner_images/${urlParts[1]}` : null;
+
+        if (filePathInStorage) {
+          const { error: deleteStorageError } = await supabase.storage
+            .from('banner_images')
+            .remove([filePathInStorage]);
+
+          if (deleteStorageError && deleteStorageError.message !== 'The resource was not found') {
+            console.warn('Erro ao remover imagem mobile do storage (pode não existir):', deleteStorageError.message);
           }
         }
       }
@@ -176,21 +201,32 @@ const AdminBanners = () => {
     }
   };
 
-  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDesktopImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      setSelectedDesktopImageFile(file);
+      setDesktopImagePreview(URL.createObjectURL(file));
     } else {
-      setSelectedImageFile(null);
-      setImagePreview(editingBanner?.image_url || null);
+      setSelectedDesktopImageFile(null);
+      setDesktopImagePreview(editingBanner?.image_url || null);
     }
   };
 
-  const uploadImage = async (file: File) => {
+  const handleMobileImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedMobileImageFile(file);
+      setMobileImagePreview(URL.createObjectURL(file));
+    } else {
+      setSelectedMobileImageFile(null);
+      setMobileImagePreview(editingBanner?.image_url_mobile || null);
+    }
+  };
+
+  const uploadImage = async (file: File, type: 'desktop' | 'mobile') => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-    const filePath = `banners/${fileName}`; // Subpasta 'banners' dentro de 'banner_images'
+    const filePath = `banners/${type}/${fileName}`; // Subpastas 'desktop' ou 'mobile'
 
     const { error: uploadError } = await supabase.storage
       .from('banner_images')
@@ -200,7 +236,7 @@ const AdminBanners = () => {
       });
 
     if (uploadError) {
-      throw new Error('Erro ao fazer upload da imagem: ' + uploadError.message);
+      throw new Error(`Erro ao fazer upload da imagem ${type}: ` + uploadError.message);
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -214,20 +250,26 @@ const AdminBanners = () => {
     setIsSubmitting(true);
     const toastId = showLoading(editingBanner ? 'Atualizando banner...' : 'Adicionando banner...');
 
-    let imageUrlToSave = editingBanner?.image_url || null;
+    let desktopImageUrlToSave = editingBanner?.image_url || null;
+    let mobileImageUrlToSave = editingBanner?.image_url_mobile || null;
 
     try {
-      if (selectedImageFile) {
-        imageUrlToSave = await uploadImage(selectedImageFile);
+      if (selectedDesktopImageFile) {
+        desktopImageUrlToSave = await uploadImage(selectedDesktopImageFile, 'desktop');
       } else if (!editingBanner?.image_url) {
-        // Se não há imagem existente e nenhuma nova foi selecionada, é um erro para novos banners
+        // Se não há imagem desktop existente e nenhuma nova foi selecionada, é um erro para novos banners
         if (!editingBanner) {
-          throw new Error('Uma imagem é obrigatória para o banner.');
+          throw new Error('Uma imagem para desktop é obrigatória para o banner.');
         }
       }
 
-      if (!imageUrlToSave) {
-        throw new Error('URL da imagem não pode ser nula.');
+      if (selectedMobileImageFile) {
+        mobileImageUrlToSave = await uploadImage(selectedMobileImageFile, 'mobile');
+      }
+      // A imagem mobile pode ser opcional, então não lançamos erro se não houver.
+
+      if (!desktopImageUrlToSave) {
+        throw new Error('URL da imagem desktop não pode ser nula.');
       }
 
       if (editingBanner) {
@@ -235,10 +277,11 @@ const AdminBanners = () => {
           .from('banners')
           .update({
             title: values.title,
-            description: values.description,
-            image_url: imageUrlToSave,
-            cta_text: values.cta_text,
-            cta_link: values.cta_link,
+            // description: values.description, // Removido
+            image_url: desktopImageUrlToSave,
+            image_url_mobile: mobileImageUrlToSave, // Salva a URL da imagem mobile
+            // cta_text: values.cta_text, // Removido
+            // cta_link: values.cta_link, // Removido
             is_active: values.is_active,
             order_index: values.order_index,
             updated_at: new Date().toISOString(),
@@ -253,10 +296,11 @@ const AdminBanners = () => {
           .from('banners')
           .insert({
             title: values.title,
-            description: values.description,
-            image_url: imageUrlToSave,
-            cta_text: values.cta_text,
-            cta_link: values.cta_link,
+            // description: values.description, // Removido
+            image_url: desktopImageUrlToSave,
+            image_url_mobile: mobileImageUrlToSave, // Salva a URL da imagem mobile
+            // cta_text: values.cta_text, // Removido
+            // cta_link: values.cta_link, // Removido
             is_active: values.is_active,
             order_index: values.order_index,
           });
@@ -315,9 +359,9 @@ const AdminBanners = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Ordem</TableHead>
-                <TableHead>Imagem</TableHead>
+                <TableHead>Imagem Desktop</TableHead>
+                <TableHead>Imagem Mobile</TableHead>
                 <TableHead>Título</TableHead>
-                <TableHead>Link CTA</TableHead>
                 <TableHead>Ativo</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -339,14 +383,20 @@ const AdminBanners = () => {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="font-medium">{banner.title}</TableCell>
                   <TableCell>
-                    {banner.cta_link ? (
-                      <a href={banner.cta_link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                        {banner.cta_text || 'Ver Link'}
-                      </a>
-                    ) : 'N/A'}
+                    {banner.image_url_mobile ? (
+                      <img
+                        src={banner.image_url_mobile}
+                        alt={`${banner.title} (Mobile)`}
+                        className="w-16 h-16 object-cover rounded-md"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                        <ImageIcon className="h-6 w-6" />
+                      </div>
+                    )}
                   </TableCell>
+                  <TableCell className="font-medium">{banner.title}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${banner.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {banner.is_active ? 'Sim' : 'Não'}
@@ -364,7 +414,7 @@ const AdminBanners = () => {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteBanner(banner.id, banner.image_url)}
+                      onClick={() => handleDeleteBanner(banner.id, banner.image_url, banner.image_url_mobile)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -387,24 +437,45 @@ const AdminBanners = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormItem>
-                <FormLabel>Imagem do Banner</FormLabel>
+                <FormLabel>Imagem do Banner (Desktop)</FormLabel>
                 <FormControl>
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={handleImageFileChange}
+                    onChange={handleDesktopImageFileChange}
                   />
                 </FormControl>
                 <FormDescription>
-                  Recomendado: Imagem larga e de alta qualidade.
+                  Recomendado: Imagem larga e de alta qualidade (ex: 1920x600px).
                 </FormDescription>
                 <FormMessage />
               </FormItem>
-              {imagePreview && (
+              {desktopImagePreview && (
                 <div className="mt-2">
-                  <img src={imagePreview} alt="Pré-visualização do Banner" className="w-full h-48 object-contain rounded-md border" />
+                  <img src={desktopImagePreview} alt="Pré-visualização do Banner Desktop" className="w-full h-48 object-contain rounded-md border" />
                 </div>
               )}
+
+              <FormItem>
+                <FormLabel>Imagem do Banner (Mobile)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleMobileImageFileChange}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Opcional: Imagem otimizada para celular (ex: 700x300px). Se não for fornecida, a imagem desktop será usada.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+              {mobileImagePreview && (
+                <div className="mt-2">
+                  <img src={mobileImagePreview} alt="Pré-visualização do Banner Mobile" className="w-full h-32 object-contain rounded-md border" />
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="title"
@@ -418,45 +489,7 @@ const AdminBanners = () => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Breve descrição do banner" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cta_text"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Texto do Botão (CTA)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Comprar Agora" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cta_link"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link do Botão (URL)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://seusite.com/oferta" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Campos removidos: Description, CTA Text, CTA Link */}
               <FormField
                 control={form.control}
                 name="order_index"
