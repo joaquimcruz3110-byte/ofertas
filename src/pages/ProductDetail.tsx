@@ -109,6 +109,32 @@ const ProductDetail = () => {
     setIsImageDialogOpen(true);
   };
 
+  const shareProduct = (platform: 'facebook' | 'twitter' | 'email') => {
+    if (!product) return;
+
+    const productUrl = `${window.location.origin}/product/${product.id}`;
+    const productTitle = product.name;
+    const productDescription = product.description || "Confira este produto incrível no Olímpia Ofertas!";
+
+    let shareUrl = '';
+
+    switch (platform) {
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(productUrl)}&text=${encodeURIComponent(productTitle)}`;
+        break;
+      case 'email':
+        shareUrl = `mailto:?subject=${encodeURIComponent(`Confira: ${productTitle} no Olímpia Ofertas`)}&body=${encodeURIComponent(`${productDescription}\n\nLink: ${productUrl}`)}`;
+        break;
+      default:
+        return;
+    }
+
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+  };
+
   if (isLoadingProduct) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
@@ -248,13 +274,13 @@ const ProductDetail = () => {
           </Button>
 
           <div className="flex space-x-4 mb-6 justify-center">
-            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray" onClick={() => shareProduct('facebook')}>
               <Facebook className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray" onClick={() => shareProduct('twitter')}>
               <Twitter className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray" onClick={() => shareProduct('email')}>
               <Mail className="h-5 w-5" />
             </Button>
           </div>
