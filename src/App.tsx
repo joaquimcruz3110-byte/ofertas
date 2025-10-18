@@ -31,7 +31,7 @@ import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect";
 import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
 import AdminBanners from "./pages/AdminBanners";
-// import LandingPageContent from "./pages/LandingPageContent"; // Importar o novo componente
+import ShopDetailPage from "./pages/ShopDetailPage"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -72,6 +72,7 @@ const App = () => (
                 <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora renderiza o redirecionamento/landing */}
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="/shop/:id" element={<ShopDetailPage />} /> {/* Nova rota para detalhes da loja */}
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/contact" element={<ContactPage />} />
               </Route>
