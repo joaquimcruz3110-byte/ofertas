@@ -342,6 +342,8 @@ const MeusProdutos = () => {
       fetchProducts();
     } catch (error: any) {
       dismissToast(toastId);
+      showError('Erro ao salvar produto: ' + error.message);
+      console.error('Erro ao salvar produto:', error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -370,7 +372,7 @@ const MeusProdutos = () => {
       </p>
 
       <div className="flex justify-end mb-4">
-        <Button onClick={handleAddProductClick}>
+        <Button onClick={handleAddProductClick} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Produto
         </Button>
       </div>
@@ -477,67 +479,67 @@ const MeusProdutos = () => {
                   control={form.control}
                   name="price"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Preço (R$)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormItem>
+                    <FormLabel>Preço (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                 <FormField
                   control={form.control}
                   name="quantity"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantidade</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="0" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormItem>
+                    <FormLabel>Quantidade</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="1" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="category"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categoria</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione uma categoria" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                 <FormField
                   control={form.control}
                   name="discount"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Desconto (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormItem>
+                    <FormLabel>Desconto (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </div>
               <FormItem>
                 <FormLabel>Fotos do Produto (até {MAX_IMAGES})</FormLabel>
@@ -573,7 +575,7 @@ const MeusProdutos = () => {
                 </div>
               )}
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingProduct ? "Salvar Alterações" : "Adicionar Produto"}
                 </Button>

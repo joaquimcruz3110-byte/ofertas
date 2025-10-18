@@ -186,7 +186,7 @@ const GerenciarComissoes = () => {
       </p>
 
       <div className="flex justify-end mb-4">
-        <Button onClick={handleAddRateClick}>
+        <Button onClick={handleAddRateClick} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
         </Button>
       </div>
@@ -282,7 +282,7 @@ const GerenciarComissoes = () => {
                 )}
               />
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting} className="bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingRate ? "Salvar Alterações" : "Adicionar Taxa"}
                 </Button>
