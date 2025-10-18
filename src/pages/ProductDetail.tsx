@@ -286,9 +286,10 @@ const ProductDetail = () => {
       {/* Seção de Detalhes do Produto (Descrição) */}
       <section className="mt-12 border-t pt-8">
         <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Detalhes do Produto</h2>
-        <p className="text-gray-700 leading-relaxed">
-          {product.description || 'Nenhuma descrição detalhada disponível para este produto.'}
-        </p>
+        <div 
+          className="text-gray-700 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: product.description || 'Nenhuma descrição detalhada disponível para este produto.' }}
+        />
       </section>
 
       {/* Seções de Produtos Relacionados */}
