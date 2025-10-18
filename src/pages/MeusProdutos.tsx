@@ -99,7 +99,7 @@ const MeusProdutos = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentImages, setCurrentImages] = useState<{ url: string; file?: File }[]>([]); // Gerencia imagens existentes e novas
-  const MAX_IMAGES = 3;
+  const MAX_IMAGES = 5; // Alterado para 5
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),

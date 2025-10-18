@@ -30,7 +30,7 @@ const ContactPage = () => {
       }
 
       // Invocando a Edge Function para enviar o e-mail
-      const { data, error } = await supabase.functions.invoke('send-email', {
+      const { data: _data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: 'empregocerto@olimpiamais.com.br', // E-mail de destino para o contato
           subject: `Contato Olímpia Ofertas: ${subject} (de ${name})`,

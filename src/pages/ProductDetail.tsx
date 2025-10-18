@@ -30,10 +30,11 @@ interface Product {
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { session } = useSession(); // Removido isLoading: isSessionLoading
+  const { session } = useSession();
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const [mainImage, setMainImage] = useState<string | null>(null); // Estado para a imagem principal
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -57,6 +58,12 @@ const ProductDetail = () => {
         navigate('/explorar-produtos');
       } else {
         setProduct(data as Product);
+        // Define a primeira imagem como principal ao carregar o produto
+        if (data?.photo_urls && data.photo_urls.length > 0) {
+          setMainImage(data.photo_urls[0]);
+        } else {
+          setMainImage(null);
+        }
       }
       setIsLoadingProduct(false);
     };
@@ -121,16 +128,33 @@ const ProductDetail = () => {
       </Button>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="relative">
-          {product.photo_urls && product.photo_urls.length > 0 ? (
-            <img
-              src={product.photo_urls[0]}
-              alt={`${product.name} - Imagem principal`}
-              className="w-full max-h-96 object-contain rounded-md shadow-sm"
-            />
-          ) : (
-            <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
-              <ImageIcon className="h-12 w-12" /> Sem Imagem
+        <div>
+          <div className="relative mb-4">
+            {mainImage ? (
+              <img
+                src={mainImage}
+                alt={`${product.name} - Imagem principal`}
+                className="w-full max-h-96 object-contain rounded-md shadow-sm"
+              />
+            ) : (
+              <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+                <ImageIcon className="h-12 w-12" /> Sem Imagem
+              </div>
+            )}
+          </div>
+          {product.photo_urls && product.photo_urls.length > 1 && (
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+              {product.photo_urls.map((url, index) => (
+                <img
+                  key={index}
+                  src={url}
+                  alt={`${product.name} - Miniatura ${index + 1}`}
+                  className={`w-20 h-20 object-cover rounded-md cursor-pointer border-2 ${
+                    url === mainImage ? 'border-dyad-vibrant-orange' : 'border-transparent'
+                  }`}
+                  onClick={() => setMainImage(url)}
+                />
+              ))}
             </div>
           )}
         </div>
