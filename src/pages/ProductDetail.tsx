@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Truck, RefreshCcw, Facebook, Twitter, Mail } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 import {
@@ -14,12 +14,9 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"; // Importar componentes do Accordion
+import RelatedProductsCarousel from '@/components/RelatedProductsCarousel';
+import DiscountedProductsCarousel from '@/components/DiscountedProductsCarousel';
+import NewArrivalsCarousel from '@/components/NewArrivalsCarousel';
 
 interface Product {
   id: string;
@@ -130,12 +127,13 @@ const ProductDetail = () => {
     );
   }
 
+  const originalPrice = Number(product.price);
   const finalPrice = product.discount
-    ? product.price * (1 - product.discount / 100)
-    : product.price;
+    ? originalPrice * (1 - Number(product.discount) / 100)
+    : originalPrice;
 
   return (
-    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-4xl mx-auto">
+    <div className="bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft max-w-6xl mx-auto">
       <Button
         variant="ghost"
         onClick={() => navigate('/explorar-produtos')}
@@ -144,8 +142,30 @@ const ProductDetail = () => {
         <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Explorar Produtos
       </Button>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-[100px_1fr] lg:grid-cols-[100px_1fr_1fr] gap-8">
+        {/* Coluna 1: Miniaturas (visível em telas maiores) */}
+        <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[500px]">
+          {product.photo_urls && product.photo_urls.length > 0 ? (
+            product.photo_urls.map((url, index) => (
+              <img
+                key={index}
+                src={url}
+                alt={`${product.name} - Miniatura ${index + 1}`}
+                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 ${
+                  url === mainImage ? 'border-dyad-vibrant-orange' : 'border-transparent'
+                }`}
+                onClick={() => setMainImage(url)}
+              />
+            ))
+          ) : (
+            <div className="w-24 h-24 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
+              <ImageIcon className="h-12 w-12" />
+            </div>
+          )}
+        </div>
+
+        {/* Coluna 2 (ou 1 em mobile): Imagem Principal */}
+        <div className="md:col-span-1">
           <div className="relative mb-4">
             {mainImage ? (
               <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
@@ -153,7 +173,7 @@ const ProductDetail = () => {
                   <img
                     src={mainImage}
                     alt={`${product.name} - Imagem principal`}
-                    className="w-full max-h-96 object-contain rounded-md shadow-sm cursor-pointer"
+                    className="w-full max-h-[500px] object-contain rounded-md shadow-sm cursor-pointer"
                     onClick={() => openImageDialog(mainImage)}
                   />
                 </DialogTrigger>
@@ -169,8 +189,9 @@ const ProductDetail = () => {
               </div>
             )}
           </div>
+          {/* Miniaturas para mobile (visível em telas menores) */}
           {product.photo_urls && product.photo_urls.length > 1 && (
-            <div className="flex space-x-2 overflow-x-auto pb-2">
+            <div className="flex md:hidden space-x-2 overflow-x-auto pb-2">
               {product.photo_urls.map((url, index) => (
                 <img
                   key={index}
@@ -185,6 +206,8 @@ const ProductDetail = () => {
             </div>
           )}
         </div>
+
+        {/* Coluna 3 (ou 2 em mobile): Detalhes do Produto */}
         <div>
           <h1 className="text-4xl font-bold mb-2 text-dyad-dark-blue">{product.name}</h1>
           <p className="text-lg text-gray-600 mb-2 flex items-center gap-2">
@@ -204,37 +227,85 @@ const ProductDetail = () => {
             {formatCurrency(finalPrice)}
             {product.discount && product.discount > 0 && (
               <span className="ml-3 text-lg text-gray-500 line-through">
-                {formatCurrency(product.price)}
+                {formatCurrency(originalPrice)}
               </span>
             )}
           </p>
           
-          {/* Descrição do produto agora dentro do Accordion */}
-          <Accordion type="single" collapsible className="w-full mb-6">
-            <AccordionItem value="product-description">
-              <AccordionTrigger className="text-lg font-semibold text-dyad-dark-blue hover:no-underline">
-                Detalhes do Produto
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                {product.description || 'Nenhuma descrição disponível.'}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <p className="text-md text-gray-500 mb-6">
-            Disponível: <span className="font-semibold">{product.quantity}</span> unidades
-          </p>
+          <div className="space-y-2 mb-6">
+            <div className="flex items-center text-green-600 font-medium">
+              <ShieldCheck className="h-5 w-5 mr-2" /> Compra garantida
+            </div>
+            <div className="flex items-center text-blue-600 font-medium">
+              <Truck className="h-5 w-5 mr-2" /> FULL da Peça, o envio mais rápido de São Paulo.
+            </div>
+          </div>
 
           <Button
-            className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg"
+            className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg mb-6"
             onClick={handleAddToCart}
             disabled={product.quantity <= 0}
           >
             <ShoppingCart className="mr-2 h-5 w-5" />
             {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
           </Button>
+
+          <div className="flex space-x-4 mb-6 justify-center">
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+              <Facebook className="h-5 w-5" />
+            </Button>
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+              <Twitter className="h-5 w-5" />
+            </Button>
+            <Button variant="outline" size="icon" className="text-dyad-dark-blue hover:bg-dyad-light-gray">
+              <Mail className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <p className="text-sm text-gray-500 mb-4 text-center">
+            Vendido e enviado por: <Link to={`/shop/${product.shopkeeper_id}`} className="text-dyad-vibrant-orange hover:underline">{product.shop_details?.shop_name || 'Loja Desconhecida'}</Link>
+          </p>
+
+          <div className="grid grid-cols-3 gap-4 text-center text-gray-600 text-sm mt-6 border-t pt-4">
+            <div className="flex flex-col items-center">
+              <Truck className="h-6 w-6 mb-1 text-dyad-dark-blue" />
+              <span>Pedidos em até 24 horas</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <RefreshCcw className="h-6 w-6 mb-1 text-dyad-dark-blue" />
+              <span>Rastreamento</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <ShieldCheck className="h-6 w-6 mb-1 text-dyad-dark-blue" />
+              <span>Compra 100% segura</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Seção de Detalhes do Produto (Descrição) */}
+      <section className="mt-12 border-t pt-8">
+        <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Detalhes do Produto</h2>
+        <p className="text-gray-700 leading-relaxed">
+          {product.description || 'Nenhuma descrição detalhada disponível para este produto.'}
+        </p>
+      </section>
+
+      {/* Seções de Produtos Relacionados */}
+      <section className="mt-12 border-t pt-8">
+        <h2 className="text-2xl font-bold mb-6 text-dyad-dark-blue">Outros revendedores também compraram</h2>
+        <RelatedProductsCarousel currentProductId={product.id} currentProductCategory={product.category || ''} />
+      </section>
+
+      <section className="mt-12 border-t pt-8">
+        <h2 className="text-2xl font-bold mb-6 text-dyad-dark-blue">Descontos Imperdíveis</h2>
+        <DiscountedProductsCarousel />
+      </section>
+
+      <section className="mt-12 border-t pt-8">
+        <h2 className="text-2xl font-bold mb-6 text-dyad-dark-blue">Novidades da Semana</h2>
+        <NewArrivalsCarousel />
+      </section>
     </div>
   );
 };
