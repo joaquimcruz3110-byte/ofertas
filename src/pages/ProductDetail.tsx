@@ -13,7 +13,13 @@ import {
   Dialog,
   DialogContent,
   DialogTrigger,
-} from "@/components/ui/dialog"; // Importar componentes do Dialog
+} from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"; // Importar componentes do Accordion
 
 interface Product {
   id: string;
@@ -39,9 +45,9 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-  const [mainImage, setMainImage] = useState<string | null>(null); // Estado para a imagem principal
-  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false); // Estado para controlar o Dialog
-  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null); // Estado para a URL da imagem expandida
+  const [mainImage, setMainImage] = useState<string | null>(null);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -65,7 +71,6 @@ const ProductDetail = () => {
         navigate('/explorar-produtos');
       } else {
         setProduct(data as Product);
-        // Define a primeira imagem como principal ao carregar o produto
         if (data?.photo_urls && data.photo_urls.length > 0) {
           setMainImage(data.photo_urls[0]);
         } else {
@@ -203,7 +208,19 @@ const ProductDetail = () => {
               </span>
             )}
           </p>
-          <p className="text-gray-700 mb-6">{product.description || 'Nenhuma descrição disponível.'}</p>
+          
+          {/* Descrição do produto agora dentro do Accordion */}
+          <Accordion type="single" collapsible className="w-full mb-6">
+            <AccordionItem value="product-description">
+              <AccordionTrigger className="text-lg font-semibold text-dyad-dark-blue hover:no-underline">
+                Detalhes do Produto
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700">
+                {product.description || 'Nenhuma descrição disponível.'}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
           <p className="text-md text-gray-500 mb-6">
             Disponível: <span className="font-semibold">{product.quantity}</span> unidades
           </p>
