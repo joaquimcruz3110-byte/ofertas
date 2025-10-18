@@ -80,6 +80,83 @@ const ProductDetail = () => {
     fetchProduct();
   }, [id, navigate]);
 
+  // Efeito para atualizar as meta tags para compartilhamento social
+  useEffect(() => {
+    const originalMetaTags: { [key: string]: string | null } = {};
+
+    const saveOriginalMeta = (property: string, isNameTag = false) => {
+      const selector = `meta[${isNameTag ? 'name' : 'property'}="${property}"]`;
+      const tag = document.querySelector(selector);
+      if (tag) {
+        originalMetaTags[property] = tag.getAttribute('content');
+      }
+    };
+
+    const updateMetaTag = (property: string, content: string, isNameTag = false) => {
+      let tag = document.querySelector(`meta[${isNameTag ? 'name' : 'property'}="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(isNameTag ? 'name' : 'property', property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    // Salvar as meta tags originais do index.html
+    saveOriginalMeta('og:title');
+    saveOriginalMeta('og:description');
+    saveOriginalMeta('og:image');
+    saveOriginalMeta('og:url');
+    saveOriginalMeta('og:type');
+    saveOriginalMeta('twitter:card', true);
+    saveOriginalMeta('twitter:title', true);
+    saveOriginalMeta('twitter:description', true);
+    saveOriginalMeta('twitter:image', true);
+    saveOriginalMeta('twitter:url', true);
+
+    if (product) {
+      const productUrl = `${window.location.origin}/product/${product.id}`;
+      const productTitle = product.name;
+      const productDescription = product.description || "Confira este produto incrível no Olímpia Ofertas!";
+      const productImage = product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : `${window.location.origin}/ofertas_olimpia.png`; // Fallback para imagem padrão
+
+      // Atualizar meta tags Open Graph
+      updateMetaTag('og:title', productTitle);
+      updateMetaTag('og:description', productDescription);
+      updateMetaTag('og:image', productImage);
+      updateMetaTag('og:url', productUrl);
+      updateMetaTag('og:type', 'product'); // Tipo mais específico para produtos
+
+      // Atualizar meta tags Twitter Card
+      updateMetaTag('twitter:title', productTitle, true);
+      updateMetaTag('twitter:description', productDescription, true);
+      updateMetaTag('twitter:image', productImage, true);
+      updateMetaTag('twitter:url', productUrl, true);
+      updateMetaTag('twitter:card', 'summary_large_image', true); // Garantir que o tipo de card esteja correto
+    }
+
+    // Função de limpeza para restaurar as meta tags originais
+    return () => {
+      const defaultOgTitle = "Olímpia Ofertas";
+      const defaultOgDescription = "Olímpia Ofertas: compre mais, gaste menos! Descubra uma nova forma de comprar e vender produtos online. Conecte-se com lojistas e encontre tudo o que você precisa, ou comece a vender seus próprios produtos hoje mesmo!";
+      const defaultOgImage = `${window.location.origin}/ofertas_olimpia.png`;
+      const defaultOgUrl = `${window.location.origin}`;
+      const defaultOgType = "website";
+
+      updateMetaTag('og:title', originalMetaTags['og:title'] || defaultOgTitle);
+      updateMetaTag('og:description', originalMetaTags['og:description'] || defaultOgDescription);
+      updateMetaTag('og:image', originalMetaTags['og:image'] || defaultOgImage);
+      updateMetaTag('og:url', originalMetaTags['og:url'] || defaultOgUrl);
+      updateMetaTag('og:type', originalMetaTags['og:type'] || defaultOgType);
+
+      updateMetaTag('twitter:card', originalMetaTags['twitter:card'] || 'summary_large_image', true);
+      updateMetaTag('twitter:title', originalMetaTags['twitter:title'] || defaultOgTitle, true);
+      updateMetaTag('twitter:description', originalMetaTags['twitter:description'] || defaultOgDescription, true);
+      updateMetaTag('twitter:image', originalMetaTags['twitter:image'] || defaultOgImage, true);
+      updateMetaTag('twitter:url', originalMetaTags['twitter:url'] || defaultOgUrl, true);
+    };
+  }, [product]); // Depende do objeto 'product'
+
   const handleAddToCart = () => {
     if (!session) {
       showError('Você precisa estar logado para adicionar produtos ao carrinho.');
@@ -132,6 +209,7 @@ const ProductDetail = () => {
         return;
     }
 
+    console.log(`Sharing ${platform}: ${shareUrl}`); // Log para depuração
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
   };
 
