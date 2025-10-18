@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
@@ -29,6 +28,7 @@ import MainLayout from "./components/MainLayout"; // Importar MainLayout
 import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
 import PagarmeReturnPage from "./pages/PagarmeReturnPage"; // Importar a nova página de retorno do Pagar.me
 import AdminSales from "./pages/AdminSales"; // Importar a página AdminSales
+import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect"; // Importar o novo componente de redirecionamento
 
 const queryClient = new QueryClient();
 
@@ -61,13 +61,13 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
-              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/" element={<LandingPage />} /> {/* LandingPage como rota raiz */}
               <Route path="/login" element={<Login />} />
-              <Route path="/pagarme-return" element={<PagarmeReturnPage />} /> {/* Nova rota */}
+              <Route path="/pagarme-return" element={<PagarmeReturnPage />} />
 
-              {/* Todas as rotas protegidas agora usam o MainLayout */}
+              {/* Rotas protegidas */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route path="/" element={<Index />} />
+                <Route path="/home-redirect" element={<AuthenticatedHomeRedirect />} /> {/* Nova rota para redirecionamento */}
                 <Route path="/profile" element={<UserProfile />} />
                 <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
                 <Route path="/explorar-produtos" element={<ProductListing />} />
@@ -77,12 +77,12 @@ const App = () => (
                 <Route path="/lojista-dashboard" element={<LojistaDashboard />} />
                 <Route path="/meus-produtos" element={<MeusProdutos />} />
                 <Route path="/minhas-vendas" element={<MinhasVendas />} />
-                <Route path="/shop-setup" element={<ShopSetupPage />} /> {/* Nova rota para configuração da loja */}
+                <Route path="/shop-setup" element={<ShopSetupPage />} />
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />
                 <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
                 <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
-                <Route path="/admin-sales" element={<AdminSales />} /> {/* Nova rota para AdminSales */}
+                <Route path="/admin-sales" element={<AdminSales />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

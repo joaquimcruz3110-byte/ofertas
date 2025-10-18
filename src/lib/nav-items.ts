@@ -8,18 +8,18 @@ interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
+  { name: 'Início', href: '/home-redirect', icon: Home, roles: ['comprador', 'lojista', 'administrador'] }, // Aponta para o redirecionamento
   { name: 'Ofertas do Dia', href: '/explorar-produtos?category=Ofertas do Dia', icon: Tag, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] }, // Para não autenticados, levará ao login primeiro
+  { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] },
   { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Contato', href: '/contact', icon: Mail, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['lojista', 'administrador'] }, // Removido para 'comprador'
+  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['lojista', 'administrador', 'comprador'] }, // Re-adicionado para comprador, pois agora está no dashboard
   { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
   { name: 'Configurar Loja', href: '/shop-setup', icon: Store, roles: ['lojista'] },
   { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
-  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador'] }, // Removido para 'comprador'
+  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador', 'comprador'] }, // Re-adicionado para comprador, pois agora está no dashboard
   { name: 'Meu Carrinho', href: '/cart', icon: ShoppingCart, roles: ['comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
