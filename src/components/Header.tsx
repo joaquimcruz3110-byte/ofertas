@@ -39,7 +39,7 @@ const Header = () => {
   // Removido o handleSearch
 
   const renderNavLinks = (isMobile: boolean) => (
-    <nav className={`flex ${isMobile ? 'flex-col space-y-1 p-4' : 'space-x-4'}`}>
+    <nav className={`flex ${isMobile ? 'flex-col space-y-1 p-4' : 'flex-wrap gap-x-4 gap-y-2'}`}>
       {navItems
         .filter(item => item.roles.includes(userRole || 'unauthenticated'))
         .map((item) => {
@@ -86,7 +86,7 @@ const Header = () => {
         <h1 className="text-2xl font-bold">Olímpia Ofertas</h1>
       </div>
 
-      <div className="hidden md:flex items-center space-x-4 mx-auto">
+      <div className="hidden md:flex flex-1 items-center justify-center">
         {renderNavLinks(false)}
       </div>
 
