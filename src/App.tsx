@@ -30,6 +30,7 @@ import PagarmeReturnPage from "./pages/PagarmeReturnPage"; // Importar a nova p�
 import AdminSales from "./pages/AdminSales"; // Importar a página AdminSales
 import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect"; // Importar o novo componente de redirecionamento
 import HelpPage from "./pages/Help"; // Importar a nova página de ajuda
+import ContactPage from "./pages/Contact"; // Importar a nova página de contato
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/help" element={<HelpPage />} /> {/* Nova rota de ajuda */}
+                <Route path="/contact" element={<ContactPage />} /> {/* Nova rota de contato */}
               </Route>
 
               {/* Rotas protegidas */}
