@@ -3,22 +3,21 @@
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, ShoppingCart, Menu, Search } from 'lucide-react';
+import { LogOut, ShoppingCart, Menu } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { useCart } from './CartProvider';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
 import { navItems } from '@/lib/nav-items';
-import { Input } from '@/components/ui/input';
-import { useState } from 'react'; // Adicionado o import de useState
+// Removido o import de Input e Search, e o estado searchTerm
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { totalItems } = useCart();
   const { userRole, session } = useSession();
-  const [searchTerm, setSearchTerm] = useState(''); // Estado para a barra de busca
+  // Removido o estado searchTerm
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -31,13 +30,7 @@ const Header = () => {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      navigate(`/explorar-produtos?search=${encodeURIComponent(searchTerm.trim())}`);
-      setSearchTerm('');
-    }
-  };
+  // Removido o handleSearch
 
   const renderNavLinks = (isMobile: boolean) => (
     <nav className={`flex ${isMobile ? 'flex-col space-y-1 p-4' : 'space-x-4'}`}>
@@ -96,19 +89,7 @@ const Header = () => {
       </div>
 
       <div className="flex items-center space-x-4 mt-4 md:mt-0 w-full md:w-auto justify-end">
-        <form onSubmit={handleSearch} className="relative flex items-center">
-          <Input
-            type="text"
-            placeholder="Buscar produtos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 pr-2 py-1 rounded-md text-dyad-dark-gray bg-dyad-white border-dyad-light-gray focus:ring-2 focus:ring-dyad-vibrant-orange"
-          />
-          <Search className="absolute left-2 h-4 w-4 text-gray-500" />
-          <Button type="submit" size="sm" className="ml-2 bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white">
-            Buscar
-          </Button>
-        </form>
+        {/* Removido o formulário de busca daqui */}
 
         {userRole === 'comprador' && (
           <Link to="/cart" className="relative">
