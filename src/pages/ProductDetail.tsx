@@ -288,7 +288,7 @@ const ProductDetail = () => {
         <h2 className="text-2xl font-bold mb-4 text-dyad-dark-blue">Detalhes do Produto</h2>
         <div 
           className="text-gray-700 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: product.description || 'Nenhuma descrição detalhada disponível para este produto.' }}
+          dangerouslySetInnerHTML={{ __html: product.description?.replace(/\n/g, '<br />') || 'Nenhuma descrição detalhada disponível para este produto.' }}
         />
       </section>
 
