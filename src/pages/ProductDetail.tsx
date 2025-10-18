@@ -9,6 +9,11 @@ import { showError } from '@/utils/toast';
 import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog"; // Importar componentes do Dialog
 
 interface Product {
   id: string;
@@ -35,6 +40,8 @@ const ProductDetail = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [mainImage, setMainImage] = useState<string | null>(null); // Estado para a imagem principal
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false); // Estado para controlar o Dialog
+  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null); // Estado para a URL da imagem expandida
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -95,6 +102,11 @@ const ProductDetail = () => {
     });
   };
 
+  const openImageDialog = (imageUrl: string) => {
+    setExpandedImageUrl(imageUrl);
+    setIsImageDialogOpen(true);
+  };
+
   if (isLoadingProduct) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
   }
@@ -131,11 +143,21 @@ const ProductDetail = () => {
         <div>
           <div className="relative mb-4">
             {mainImage ? (
-              <img
-                src={mainImage}
-                alt={`${product.name} - Imagem principal`}
-                className="w-full max-h-96 object-contain rounded-md shadow-sm"
-              />
+              <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+                <DialogTrigger asChild>
+                  <img
+                    src={mainImage}
+                    alt={`${product.name} - Imagem principal`}
+                    className="w-full max-h-96 object-contain rounded-md shadow-sm cursor-pointer"
+                    onClick={() => openImageDialog(mainImage)}
+                  />
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl p-0">
+                  {expandedImageUrl && (
+                    <img src={expandedImageUrl} alt="Imagem Expandida" className="w-full h-auto object-contain" />
+                  )}
+                </DialogContent>
+              </Dialog>
             ) : (
               <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
                 <ImageIcon className="h-12 w-12" /> Sem Imagem
