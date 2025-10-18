@@ -48,11 +48,9 @@ const Header = () => {
           if (item.name === 'Vender' && userRole === 'unauthenticated') {
             itemHref = '/login'; // Redireciona para login se não autenticado
           }
-          // Lógica para o item 'Início' para usuários não autenticados
-          if (item.name === 'Início' && userRole === 'unauthenticated') {
-            itemHref = '/landing'; // Redireciona para a LandingPage se não autenticado
-          }
-
+          // A lógica para o item 'Início' para usuários não autenticados foi removida,
+          // pois o navItem já aponta para '/', e o AuthenticatedHomeRedirect
+          // agora lida com a renderização da landing page para não autenticados.
 
           return (
             <Link

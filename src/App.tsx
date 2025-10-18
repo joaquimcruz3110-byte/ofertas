@@ -23,14 +23,14 @@ import CompradorDashboard from "./pages/CompradorDashboard";
 import UserProfile from "./pages/UserProfile";
 import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
-import LandingPage from "./pages/LandingPage";
-import MainLayout from "./components/MainLayout"; // Importar MainLayout
-import ShopSetupPage from "./pages/ShopSetupPage"; // Importar a nova página de configuração da loja
-import PagarmeReturnPage from "./pages/PagarmeReturnPage"; // Importar a nova página de retorno do Pagar.me
-import AdminSales from "./pages/AdminSales"; // Importar a página AdminSales
-import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect"; // Importar o novo componente de redirecionamento
-import HelpPage from "./pages/Help"; // Importar a nova página de ajuda
-import ContactPage from "./pages/Contact"; // Importar a nova página de contato
+// import LandingPage from "./pages/LandingPage"; // REMOVIDO
+import MainLayout from "./components/MainLayout";
+import ShopSetupPage from "./pages/ShopSetupPage";
+import PagarmeReturnPage from "./pages/PagarmeReturnPage";
+import AdminSales from "./pages/AdminSales";
+import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect";
+import HelpPage from "./pages/Help";
+import ContactPage from "./pages/Contact";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +43,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/landing" replace />; // Redireciona para a LandingPage se não autenticado
+    return <Navigate to="/" replace />; // Redireciona para a raiz (que agora lida com a landing page)
   }
 
   // Redireciona lojistas para a página de configuração da loja se não tiverem detalhes
@@ -63,8 +63,8 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
-              <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora é o redirecionador */}
-              <Route path="/landing" element={<LandingPage />} /> {/* Landing page movida */}
+              <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora renderiza o redirecionamento/landing */}
+              {/* <Route path="/landing" element={<LandingPage />} /> */} {/* REMOVIDO */}
               <Route path="/login" element={<Login />} />
               <Route path="/pagarme-return" element={<PagarmeReturnPage />} />
 
@@ -72,13 +72,12 @@ const App = () => (
               <Route element={<MainLayout />}>
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/help" element={<HelpPage />} /> {/* Nova rota de ajuda */}
-                <Route path="/contact" element={<ContactPage />} /> {/* Nova rota de contato */}
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="/contact" element={<ContactPage />} />
               </Route>
 
               {/* Rotas protegidas */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                {/* A rota /home-redirect foi removida, pois AuthenticatedHomeRedirect agora está na raiz */}
                 <Route path="/profile" element={<UserProfile />} />
                 <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
                 <Route path="/meus-pedidos" element={<MeusPedidos />} />

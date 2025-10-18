@@ -8,7 +8,7 @@ interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] }, // Aponta para a raiz
+  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] }, // Agora aponta para a raiz para todos, incluindo não autenticados
   { name: 'Ofertas do Dia', href: '/explorar-produtos?category=Ofertas do Dia', icon: Tag, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] },
   { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
