@@ -346,11 +346,13 @@ const ProductListing = () => {
                   <Link to={`/product/${product.id}`} className="block">
                     <CardHeader>
                       {product.photo_urls && product.photo_urls.length > 0 ? (
-                        <img
-                          src={product.photo_urls[0]}
-                          alt={product.name}
-                          className="w-full h-48 object-cover rounded-md mb-4"
-                        />
+                        <div className="w-full h-48 flex items-center justify-center rounded-md mb-4 bg-gray-100">
+                          <img
+                            src={product.photo_urls[0]}
+                            alt={product.name}
+                            className="max-w-full max-h-full object-contain rounded-md"
+                          />
+                        </div>
                       ) : (
                         <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md text-gray-500">
                           <ImageIcon className="h-12 w-12" />
