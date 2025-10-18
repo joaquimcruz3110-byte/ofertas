@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart, ReceiptText } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -9,6 +9,10 @@ interface NavItem {
 
 export const navItems: NavItem[] = [
   { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] },
+  { name: 'Ofertas do Dia', href: '/explorar-produtos?category=Ofertas do Dia', icon: Tag, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
+  { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] }, // Para não autenticados, levará ao login primeiro
+  { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
+  { name: 'Contato', href: '/contact', icon: Mail, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] },
   { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },

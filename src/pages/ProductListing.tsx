@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom'; // Adicionado useSearchParams
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
 import {
@@ -77,10 +77,15 @@ const ProductListing = () => {
   const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [searchParams, setSearchParams] = useSearchParams(); // Hook para gerenciar parâmetros da URL
+  const urlSearchTerm = searchParams.get('search') || '';
+  const urlCategory = searchParams.get('category') || '';
+
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm); // Inicializa com o termo da URL
   const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(urlCategory || undefined); // Inicializa com a categoria da URL
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -144,6 +149,13 @@ const ProductListing = () => {
     }
   }, [isSessionLoading, session, userRole, fetchShopkeepers]);
 
+  // Efeito para sincronizar o estado local com os parâmetros da URL
+  useEffect(() => {
+    setSearchTerm(urlSearchTerm);
+    setSelectedCategory(urlCategory || undefined);
+    setCurrentPage(1); // Resetar página ao mudar filtros da URL
+  }, [urlSearchTerm, urlCategory]);
+
   useEffect(() => {
     if (!isSessionLoading && session && userRole === 'comprador') {
       const handler = setTimeout(() => {
@@ -175,6 +187,20 @@ const ProductListing = () => {
     setCurrentPage(page);
   };
 
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchTerm = e.target.value;
+    setSearchTerm(newSearchTerm);
+    setSearchParams(prev => {
+      if (newSearchTerm) {
+        prev.set('search', newSearchTerm);
+      } else {
+        prev.delete('search');
+      }
+      prev.delete('page'); // Resetar página ao mudar o termo de busca
+      return prev;
+    }, { replace: true });
+  };
+
   const handleShopkeeperChange = (value: string) => {
     setSelectedShopkeeperId(value === 'all' ? undefined : value);
     setCurrentPage(1);
@@ -182,7 +208,15 @@ const ProductListing = () => {
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value === 'all' ? undefined : value);
-    setCurrentPage(1);
+    setSearchParams(prev => {
+      if (value !== 'all') {
+        prev.set('category', value);
+      } else {
+        prev.delete('category');
+      }
+      prev.delete('page'); // Resetar página ao mudar a categoria
+      return prev;
+    }, { replace: true });
   };
 
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,6 +236,7 @@ const ProductListing = () => {
     setMinPrice('');
     setMaxPrice('');
     setCurrentPage(1);
+    setSearchParams({}, { replace: true }); // Limpa todos os parâmetros da URL
   };
 
   if (isSessionLoading || isLoadingProducts) {
@@ -235,7 +270,7 @@ const ProductListing = () => {
             type="text"
             placeholder="Nome ou descrição..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchInputChange}
             className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-dyad-vibrant-orange"
           />
         </div>

@@ -119,7 +119,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       fetchUserProfile(session.user.id);
     } else {
       setUserName(null);
-      setUserRole(null);
+      setUserRole('unauthenticated'); // Definir como 'unauthenticated' quando não há sessão
       setHasShopDetails(false);
       setUserProfile(null);
     }
