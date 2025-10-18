@@ -89,7 +89,7 @@ const CompradorHomeSummary = () => {
         Aqui está um resumo rápido das suas atividades na plataforma.
       </p>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> {/* Removido mb-8 daqui */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
@@ -128,7 +128,7 @@ const CompradorHomeSummary = () => {
         </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 flex-wrap"> {/* Adicionado mt-8 e flex-wrap */}
         <Link to="/explorar-produtos">
           <Button className="w-full sm:w-auto bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white">
             Explorar Produtos
