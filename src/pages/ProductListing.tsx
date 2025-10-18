@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
 import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom'; // Adicionado useSearchParams
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,7 +29,7 @@ interface Product {
   price: number;
   quantity: number;
   category: string | null;
-  photo_urls: string[] | null; // Alterado para array de strings
+  photo_urls: string[] | null;
   discount: number | null;
   shopkeeper_id: string;
   created_at: string;
@@ -65,27 +65,28 @@ const CATEGORIES = [
   "Bandeiras, Cornetas +",
   "Mais Vendidos",
   "Ofertas",
-  "Alimentos", // Mantido das categorias anteriores
-  "Livros", // Mantido das categorias anteriores
-  "Esportes", // Mantido das categorias anteriores
-  "Automotivo", // Mantido das categorias anteriores
-  "Outros" // Mantido das categorias anteriores
+  "Alimentos",
+  "Livros",
+  "Esportes",
+  "Automotivo",
+  "Outros"
 ];
 
 const ProductListing = () => {
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session } = useSession(); // Removido isLoading: isSessionLoading
   const { addItem } = useCart();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
-  const [searchParams, setSearchParams] = useSearchParams(); // Hook para gerenciar parâmetros da URL
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlSearchTerm = searchParams.get('search') || '';
   const urlCategory = searchParams.get('category') || '';
 
-  const [searchTerm, setSearchTerm] = useState(urlSearchTerm); // Inicializa com o termo da URL
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [shopkeepers, setShopkeepers] = useState<ShopDetail[]>([]);
   const [selectedShopkeeperId, setSelectedShopkeeperId] = useState<string | undefined>(undefined);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(urlCategory || undefined); // Inicializa com a categoria da URL
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(urlCategory || undefined);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -144,31 +145,32 @@ const ProductListing = () => {
   }, []);
 
   useEffect(() => {
-    if (!isSessionLoading && session && userRole === 'comprador') {
-      fetchShopkeepers();
-    }
-  }, [isSessionLoading, session, userRole, fetchShopkeepers]);
+    fetchShopkeepers();
+  }, [fetchShopkeepers]);
 
-  // Efeito para sincronizar o estado local com os parâmetros da URL
   useEffect(() => {
     setSearchTerm(urlSearchTerm);
     setSelectedCategory(urlCategory || undefined);
-    setCurrentPage(1); // Resetar página ao mudar filtros da URL
+    setCurrentPage(1);
   }, [urlSearchTerm, urlCategory]);
 
   useEffect(() => {
-    if (!isSessionLoading && session && userRole === 'comprador') {
-      const handler = setTimeout(() => {
-        fetchProducts(currentPage, searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
-      }, 300);
+    const handler = setTimeout(() => {
+      fetchProducts(currentPage, searchTerm, selectedShopkeeperId, selectedCategory, minPrice, maxPrice);
+    }, 300);
 
-      return () => {
-        clearTimeout(handler);
-      };
-    }
-  }, [session, isSessionLoading, userRole, searchTerm, currentPage, selectedShopkeeperId, selectedCategory, minPrice, maxPrice, fetchProducts]);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm, currentPage, selectedShopkeeperId, selectedCategory, minPrice, maxPrice, fetchProducts]);
 
   const handleAddToCart = (product: Product) => {
+    if (!session) {
+      showError('Você precisa estar logado para adicionar produtos ao carrinho.');
+      navigate('/login');
+      return;
+    }
+
     const originalPrice = Number(product.price);
     const finalPrice = product.discount
       ? originalPrice * (1 - Number(product.discount) / 100)
@@ -179,7 +181,7 @@ const ProductListing = () => {
       name: product.name,
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
-      shopkeeper_id: product.shopkeeper_id, // Passa o shopkeeper_id
+      shopkeeper_id: product.shopkeeper_id,
     });
   };
 
@@ -196,7 +198,7 @@ const ProductListing = () => {
       } else {
         prev.delete('search');
       }
-      prev.delete('page'); // Resetar página ao mudar o termo de busca
+      prev.delete('page');
       return prev;
     }, { replace: true });
   };
@@ -214,7 +216,7 @@ const ProductListing = () => {
       } else {
         prev.delete('category');
       }
-      prev.delete('page'); // Resetar página ao mudar a categoria
+      prev.delete('page');
       return prev;
     }, { replace: true });
   };
@@ -236,22 +238,11 @@ const ProductListing = () => {
     setMinPrice('');
     setMaxPrice('');
     setCurrentPage(1);
-    setSearchParams({}, { replace: true }); // Limpa todos os parâmetros da URL
+    setSearchParams({}, { replace: true });
   };
 
-  if (isSessionLoading || isLoadingProducts) {
+  if (isLoadingProducts) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
-  }
-
-  if (!session || userRole !== 'comprador') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
-        <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-          <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -356,7 +347,7 @@ const ProductListing = () => {
                     <CardHeader>
                       {product.photo_urls && product.photo_urls.length > 0 ? (
                         <img
-                          src={product.photo_urls[0]} // Exibe a primeira imagem
+                          src={product.photo_urls[0]}
                           alt={product.name}
                           className="w-full h-48 object-cover rounded-md mb-4"
                         />

@@ -30,7 +30,7 @@ interface Product {
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading, userRole } = useSession();
+  const { session } = useSession(); // Removido isLoading: isSessionLoading
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
@@ -61,12 +61,16 @@ const ProductDetail = () => {
       setIsLoadingProduct(false);
     };
 
-    if (!isSessionLoading && session && userRole === 'comprador') {
-      fetchProduct();
-    }
-  }, [id, session, isSessionLoading, userRole, navigate]);
+    fetchProduct();
+  }, [id, navigate]);
 
   const handleAddToCart = () => {
+    if (!session) {
+      showError('Você precisa estar logado para adicionar produtos ao carrinho.');
+      navigate('/login');
+      return;
+    }
+
     if (!product) {
       showError('Produto não disponível para adicionar ao carrinho.');
       return;
@@ -80,23 +84,12 @@ const ProductDetail = () => {
       name: product.name,
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
-      shopkeeper_id: product.shopkeeper_id, // Passa o shopkeeper_id
+      shopkeeper_id: product.shopkeeper_id,
     });
   };
 
-  if (isSessionLoading || isLoadingProduct) {
+  if (isLoadingProduct) {
     return <div className="min-h-screen flex items-center justify-center bg-dyad-dark-blue text-dyad-white">Carregando...</div>;
-  }
-
-  if (!session || userRole !== 'comprador') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dyad-light-gray">
-        <div className="text-center bg-dyad-white p-8 rounded-dyad-rounded-lg shadow-dyad-soft">
-          <h1 className="text-4xl font-bold mb-4 text-dyad-dark-blue">Acesso Negado</h1>
-          <p className="text-xl text-gray-600">Você não tem permissão para acessar esta página.</p>
-        </div>
-      </div>
-    );
   }
 
   if (!product) {
@@ -131,7 +124,7 @@ const ProductDetail = () => {
         <div className="relative">
           {product.photo_urls && product.photo_urls.length > 0 ? (
             <img
-              src={product.photo_urls[0]} // Exibe apenas a primeira imagem
+              src={product.photo_urls[0]}
               alt={`${product.name} - Imagem principal`}
               className="w-full max-h-96 object-contain rounded-md shadow-sm"
             />

@@ -41,7 +41,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/landing" replace />; // Redireciona para a landing page se não autenticado
+    return <Navigate to="/" replace />; // Redireciona para a LandingPage (raiz) se não autenticado
   }
 
   // Redireciona lojistas para a página de configuração da loja se não tiverem detalhes
@@ -61,17 +61,21 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
-              <Route path="/" element={<LandingPage />} /> {/* LandingPage como rota raiz */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/pagarme-return" element={<PagarmeReturnPage />} />
 
-              {/* Rotas protegidas */}
-              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route path="/home-redirect" element={<AuthenticatedHomeRedirect />} /> {/* Nova rota para redirecionamento */}
-                <Route path="/profile" element={<UserProfile />} />
-                <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
+              {/* Rotas públicas que usam o MainLayout */}
+              <Route element={<MainLayout />}>
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
+              </Route>
+
+              {/* Rotas protegidas */}
+              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route path="/home-redirect" element={<AuthenticatedHomeRedirect />} />
+                <Route path="/profile" element={<UserProfile />} />
+                <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
                 <Route path="/meus-pedidos" element={<MeusPedidos />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/lojista-dashboard" element={<LojistaDashboard />} />

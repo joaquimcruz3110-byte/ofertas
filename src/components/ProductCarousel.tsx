@@ -64,8 +64,8 @@ const ProductCarousel = () => {
     return () => clearInterval(interval);
   }, [emblaApi]);
 
-  const handleProductClick = () => {
-    navigate('/login'); // Redireciona para a página de login/cadastro
+  const handleProductClick = (productId: string) => { // Recebe o ID do produto
+    navigate(`/product/${productId}`); // Redireciona para a página de detalhes do produto
   };
 
   if (isLoading) {
@@ -90,7 +90,7 @@ const ProductCarousel = () => {
         <div className="embla__container flex -ml-4">
           {products.map((product) => (
             <div key={product.id} className="embla__slide flex-[0_0_50%] min-w-0 md:flex-[0_0_33.33%] lg:flex-[0_0_25%] pl-4">
-              <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300" onClick={handleProductClick}>
+              <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300" onClick={() => handleProductClick(product.id)}>
                 <CardContent className="p-0 flex-grow">
                   {product.photo_urls && product.photo_urls.length > 0 ? (
                     <img src={product.photo_urls[0]} alt={product.name} className="w-full h-48 object-cover rounded-t-md" />
