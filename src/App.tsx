@@ -41,7 +41,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/" replace />; // Redireciona para a LandingPage (raiz) se não autenticado
+    return <Navigate to="/landing" replace />; // Redireciona para a LandingPage se não autenticado
   }
 
   // Redireciona lojistas para a página de configuração da loja se não tiverem detalhes
@@ -61,7 +61,8 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora é o redirecionador */}
+              <Route path="/landing" element={<LandingPage />} /> {/* Landing page movida */}
               <Route path="/login" element={<Login />} />
               <Route path="/pagarme-return" element={<PagarmeReturnPage />} />
 
@@ -73,7 +74,7 @@ const App = () => (
 
               {/* Rotas protegidas */}
               <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route path="/home-redirect" element={<AuthenticatedHomeRedirect />} />
+                {/* A rota /home-redirect foi removida, pois AuthenticatedHomeRedirect agora está na raiz */}
                 <Route path="/profile" element={<UserProfile />} />
                 <Route path="/comprador-dashboard" element={<CompradorDashboard />} />
                 <Route path="/meus-pedidos" element={<MeusPedidos />} />

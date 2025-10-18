@@ -38,9 +38,15 @@ const Header = () => {
         .filter(item => item.roles.includes(userRole || 'unauthenticated'))
         .map((item) => {
           let itemHref = item.href;
+          // Lógica para o item 'Vender' para usuários não autenticados
           if (item.name === 'Vender' && userRole === 'unauthenticated') {
-            itemHref = '/login';
+            itemHref = '/login'; // Redireciona para login se não autenticado
           }
+          // Lógica para o item 'Início' para usuários não autenticados
+          if (item.name === 'Início' && userRole === 'unauthenticated') {
+            itemHref = '/landing'; // Redireciona para a LandingPage se não autenticado
+          }
+
 
           return (
             <Link

@@ -24,10 +24,8 @@ const AuthenticatedHomeRedirect = () => {
         // Fallback para qualquer outro papel ou caso não definido
         navigate('/explorar-produtos', { replace: true });
       }
-    } else if (!isLoading && !session) {
-      // Se não houver sessão, redireciona para a landing page (já coberto pelo ProtectedRoute)
-      navigate('/landing', { replace: true });
     }
+    // O bloco 'else if (!isLoading && !session)' foi removido, pois a ProtectedRoute já lida com isso.
   }, [isLoading, session, userRole, hasShopDetails, navigate]);
 
   if (isLoading) {

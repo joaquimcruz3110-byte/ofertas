@@ -8,7 +8,7 @@ interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { name: 'Início', href: '/home-redirect', icon: Home, roles: ['comprador', 'lojista', 'administrador'] }, // Aponta para o redirecionamento
+  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador'] }, // Aponta para a raiz
   { name: 'Ofertas do Dia', href: '/explorar-produtos?category=Ofertas do Dia', icon: Tag, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] },
   { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
@@ -18,7 +18,7 @@ export const navItems: NavItem[] = [
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
   { name: 'Configurar Loja', href: '/shop-setup', icon: Store, roles: ['lojista'] },
   { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
-  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] }, // Agora acessível a todos
+  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador', 'comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
