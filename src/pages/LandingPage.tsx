@@ -38,7 +38,7 @@ const LandingPage = () => {
             <UserPlus className="mr-2 h-5 w-5" /> Criar Conta Grátis
           </Button>
           <Link to="/login">
-            <Button variant="outline" className="w-full sm:w-auto border-dyad-white text-dyad-white hover:bg-dyad-light-gray hover:text-dyad-dark-blue py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
+            <Button variant="outline" className="w-full sm:w-auto border-dyad-vibrant-orange text-dyad-vibrant-orange hover:bg-dyad-light-gray hover:text-dyad-dark-blue py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
               <LogIn className="mr-2 h-5 w-5" /> Entrar
             </Button>
           </Link>
