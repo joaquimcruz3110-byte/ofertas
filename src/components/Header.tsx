@@ -43,19 +43,11 @@ const Header = () => {
       {navItems
         .filter(item => item.roles.includes(userRole || 'unauthenticated'))
         .map((item) => {
-          let itemHref = item.href;
-          // Lógica para o item 'Vender' para usuários não autenticados
-          if (item.name === 'Vender' && userRole === 'unauthenticated') {
-            itemHref = '/login'; // Redireciona para login se não autenticado
-          }
-          // A lógica para o item 'Início' para usuários não autenticados foi removida,
-          // pois o navItem já aponta para '/', e o AuthenticatedHomeRedirect
-          // agora lida com a renderização da landing page para não autenticados.
-
+          // A lógica condicional para itemHref foi removida, pois navItems agora define o href correto
           return (
             <Link
               key={item.name + item.href}
-              to={itemHref}
+              to={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-dyad-white transition-all hover:bg-dyad-vibrant-orange hover:text-dyad-white",
                 isMobile ? 'text-dyad-dark-blue hover:bg-dyad-light-gray' : '',

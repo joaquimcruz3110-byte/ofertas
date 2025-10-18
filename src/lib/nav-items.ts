@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, User, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -8,22 +8,30 @@ interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] }, // Agora aponta para a raiz para todos, incluindo não autenticados
+  // Itens comuns a todos (autenticados ou não)
+  { name: 'Início', href: '/', icon: Home, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Ofertas do Dia', href: '/explorar-produtos?category=Ofertas do Dia', icon: Tag, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] },
+  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Contato', href: '/contact', icon: Mail, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['lojista', 'administrador', 'comprador'] },
-  { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
-  { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
-  { name: 'Configurar Loja', href: '/shop-setup', icon: Store, roles: ['lojista'] },
-  { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
-  { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador', 'comprador'] },
+
+  // Item para usuários não autenticados que querem vender
+  { name: 'Vender', href: '/login', icon: Store, roles: ['unauthenticated'] },
+
+  // Itens para usuários autenticados (comprador, lojista, administrador)
+  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['comprador', 'lojista', 'administrador'] },
+
+  // Itens específicos para Comprador
+  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['comprador'] },
+
+  // Itens específicos para Lojista
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
+  { name: 'Configurar Loja', href: '/shop-setup', icon: Store, roles: ['lojista'] },
+
+  // Itens específicos para Administrador
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
-  { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Store, roles: ['administrador'] },
+  { name: 'Gerenciar Produtos', href: '/gerenciar-produtos', icon: Package, roles: ['administrador'] }, // Usando Package para produtos
   { name: 'Gerenciar Comissões', href: '/gerenciar-comissoes', icon: Settings, roles: ['administrador'] },
   { name: 'Gerenciar Vendas', href: '/admin-sales', icon: ReceiptText, roles: ['administrador'] },
 ];
