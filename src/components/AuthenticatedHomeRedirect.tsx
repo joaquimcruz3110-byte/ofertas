@@ -10,6 +10,8 @@ import FeaturedOffersSection from '@/components/landing/FeaturedOffersSection';
 import ProductCategoriesSection from '@/components/landing/ProductCategoriesSection';
 import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
+import NewArrivalsCarousel from './NewArrivalsCarousel'; // Importar o novo carrossel de novidades
+import BestSellersCarousel from './BestSellersCarousel'; // Importar o novo carrossel de mais vendidos
 
 const AuthenticatedHomeRedirect = () => {
   const { session, isLoading, userRole, hasShopDetails } = useSession();
@@ -75,6 +77,42 @@ const AuthenticatedHomeRedirect = () => {
 
         {/* Featured Offers Section */}
         <FeaturedOffersSection />
+
+        {/* New Arrivals Section */}
+        <section className="w-full py-16 bg-dyad-light-gray text-dyad-dark-blue">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-4xl font-bold mb-6">Novidades</h2>
+            <p className="text-lg mb-10 max-w-2xl mx-auto text-gray-700">
+              Confira os produtos mais recentes adicionados à nossa plataforma.
+            </p>
+            <NewArrivalsCarousel />
+            <div className="mt-12">
+              <Link to="/explorar-produtos?sort=newest">
+                <Button className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white py-3 px-8 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
+                  Ver Todas as Novidades <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Best Sellers Section */}
+        <section className="w-full py-16 bg-dyad-white text-dyad-dark-blue">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-4xl font-bold mb-6">Mais Vendidos</h2>
+            <p className="text-lg mb-10 max-w-2xl mx-auto text-gray-700">
+              Descubra os produtos que estão fazendo mais sucesso entre nossos clientes.
+            </p>
+            <BestSellersCarousel />
+            <div className="mt-12">
+              <Link to="/explorar-produtos?sort=bestsellers">
+                <Button className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white py-3 px-8 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
+                  Ver Todos os Mais Vendidos <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* Product Categories Section */}
         <ProductCategoriesSection />

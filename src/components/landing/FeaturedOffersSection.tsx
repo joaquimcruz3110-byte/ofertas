@@ -2,7 +2,7 @@
 
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import ProductCarousel from '@/components/ProductCarousel';
+import FeaturedProductsCarousel from '@/components/FeaturedProductsCarousel'; // Atualizado para o novo nome
 import { ArrowRight } from 'lucide-react';
 
 const FeaturedOffersSection = () => {
@@ -13,7 +13,7 @@ const FeaturedOffersSection = () => {
         <p className="text-lg mb-10 max-w-2xl mx-auto">
           Não perca as melhores promoções e produtos exclusivos.
         </p>
-        <ProductCarousel />
+        <FeaturedProductsCarousel />
         <div className="mt-12">
           <Link to="/explorar-produtos">
             <Button className="bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white py-3 px-8 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">

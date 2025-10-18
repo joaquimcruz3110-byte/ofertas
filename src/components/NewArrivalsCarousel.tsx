@@ -14,12 +14,12 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  photo_urls: string[] | null; // Alterado para array de strings
+  photo_urls: string[] | null;
 }
 
-const AUTOPLAY_INTERVAL = 3000; // 3 segundos
+const AUTOPLAY_INTERVAL = 3500; // 3.5 segundos
 
-const ProductCarousel = () => {
+const NewArrivalsCarousel = () => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start' });
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,19 +27,19 @@ const ProductCarousel = () => {
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
-    console.log("Fetching products for carousel with select: 'id, name, price, photo_urls'"); // Log para depuração
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, price, photo_urls') // Removido o tipo genérico aqui
+      .select('id, name, price, photo_urls')
       .gt('quantity', 0) // Apenas produtos em estoque
-      .limit(10); // Limitar a 10 produtos para o carrossel
+      .order('created_at', { ascending: false }) // Ordenar pelos mais recentes
+      .limit(10); // Limitar a 10 produtos
 
     if (error) {
-      showError('Erro ao carregar produtos para o carrossel: ' + error.message);
-      console.error('Erro ao carregar produtos para o carrossel:', error.message);
+      showError('Erro ao carregar novidades: ' + error.message);
+      console.error('Erro ao carregar novidades:', error.message);
       setProducts([]);
     } else {
-      setProducts((data as Product[]) || []); // Cast explícito para Product[]
+      setProducts((data as Product[]) || []);
     }
     setIsLoading(false);
   }, []);
@@ -64,14 +64,14 @@ const ProductCarousel = () => {
     return () => clearInterval(interval);
   }, [emblaApi]);
 
-  const handleProductClick = (productId: string) => { // Recebe o ID do produto
-    navigate(`/product/${productId}`); // Redireciona para a página de detalhes do produto
+  const handleProductClick = (productId: string) => {
+    navigate(`/product/${productId}`);
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-dyad-white">
-        Carregando produtos...
+        Carregando novidades...
       </div>
     );
   }
@@ -79,7 +79,7 @@ const ProductCarousel = () => {
   if (products.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-dyad-white">
-        Nenhum produto disponível para exibir no momento.
+        Nenhuma novidade disponível no momento.
       </div>
     );
   }
@@ -120,4 +120,4 @@ const ProductCarousel = () => {
   );
 };
 
-export default ProductCarousel;
+export default NewArrivalsCarousel;
