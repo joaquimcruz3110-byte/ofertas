@@ -23,7 +23,6 @@ import CompradorDashboard from "./pages/CompradorDashboard";
 import UserProfile from "./pages/UserProfile";
 import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
-// import LandingPage from "./pages/LandingPage"; // REMOVIDO
 import MainLayout from "./components/MainLayout";
 import ShopSetupPage from "./pages/ShopSetupPage";
 import PagarmeReturnPage from "./pages/PagarmeReturnPage";
@@ -31,7 +30,8 @@ import AdminSales from "./pages/AdminSales";
 import AuthenticatedHomeRedirect from "./components/AuthenticatedHomeRedirect";
 import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
-import AdminBanners from "./pages/AdminBanners"; // Importar a nova página de administração de banners
+import AdminBanners from "./pages/AdminBanners";
+import LandingPageContent from "./pages/LandingPageContent"; // Importar o novo componente
 
 const queryClient = new QueryClient();
 
@@ -64,13 +64,12 @@ const App = () => (
         <SessionContextProvider>
           <CartProvider>
             <Routes>
-              <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora renderiza o redirecionamento/landing */}
-              {/* <Route path="/landing" element={<LandingPage />} /> */} {/* REMOVIDO */}
               <Route path="/login" element={<Login />} />
               <Route path="/pagarme-return" element={<PagarmeReturnPage />} />
 
               {/* Rotas públicas que usam o MainLayout */}
               <Route element={<MainLayout />}>
+                <Route path="/" element={<AuthenticatedHomeRedirect />} /> {/* A raiz agora renderiza o redirecionamento/landing */}
                 <Route path="/explorar-produtos" element={<ProductListing />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/help" element={<HelpPage />} />
@@ -92,7 +91,7 @@ const App = () => (
                 <Route path="/gerenciar-produtos" element={<GerenciarProdutos />} />
                 <Route path="/gerenciar-comissoes" element={<GerenciarComissoes />} />
                 <Route path="/admin-sales" element={<AdminSales />} />
-                <Route path="/admin-banners" element={<AdminBanners />} /> {/* Nova rota */}
+                <Route path="/admin-banners" element={<AdminBanners />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
