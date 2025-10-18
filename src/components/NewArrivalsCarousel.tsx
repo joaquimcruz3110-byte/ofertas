@@ -91,9 +91,9 @@ const NewArrivalsCarousel = () => {
           {products.map((product) => (
             <div key={product.id} className="embla__slide flex-[0_0_50%] min-w-0 md:flex-[0_0_33.33%] lg:flex-[0_0_25%] pl-4">
               <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300" onClick={() => handleProductClick(product.id)}>
-                <CardContent className="p-0 flex-grow flex items-center justify-center h-48 bg-gray-100 rounded-t-md">
+                <CardContent className="p-0 flex-grow flex items-center justify-center aspect-square bg-gray-100 rounded-t-md">
                   {product.photo_urls && product.photo_urls.length > 0 ? (
-                    <img src={product.photo_urls[0]} alt={product.name} className="max-w-full max-h-full object-contain rounded-t-md" />
+                    <img src={product.photo_urls[0]} alt={product.name} className="w-full h-full object-cover rounded-t-md" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-t-md text-gray-500">
                       <ImageIcon className="h-12 w-12" />
