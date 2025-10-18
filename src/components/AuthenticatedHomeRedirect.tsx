@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useSession } from '@/components/SessionContextProvider';
 import { Button } from '@/components/ui/button';
-import { ShoppingBag, LogIn, UserPlus, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react'; // 'ShoppingBag', 'LogIn', 'UserPlus' removidos
 import RoleSelectionDialog from '@/components/RoleSelectionDialog';
 import FeaturedOffersSection from '@/components/landing/FeaturedOffersSection';
 import ProductCategoriesSection from '@/components/landing/ProductCategoriesSection';
@@ -12,6 +12,7 @@ import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import NewArrivalsCarousel from './NewArrivalsCarousel'; // Importar o novo carrossel de novidades
 import BestSellersCarousel from './BestSellersCarousel'; // Importar o novo carrossel de mais vendidos
+import HeroBanner from './HeroBanner'; // Importar o novo HeroBanner
 
 const AuthenticatedHomeRedirect = () => {
   const { session, isLoading, userRole, hasShopDetails } = useSession();
@@ -46,34 +47,10 @@ const AuthenticatedHomeRedirect = () => {
     return (
       <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-dyad-dark-blue to-blue-900 text-dyad-white">
         {/* Hero Section */}
-        <section className="w-full py-20 md:py-32 flex flex-col items-center justify-center text-center px-4">
-          <ShoppingBag className="mx-auto h-24 w-24 text-dyad-vibrant-orange mb-6" />
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Bem-vindo(a) ao <span className="text-dyad-vibrant-orange">Olímpia Ofertas</span>
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 max-w-3xl">
-            Olímpia Ofertas: compre mais, gaste menos! Descubra uma nova forma de comprar e vender produtos online.
-            Conecte-se com lojistas e encontre tudo o que você precisa, ou comece a vender seus próprios produtos hoje mesmo!
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link to="/explorar-produtos">
-              <Button className="w-full sm:w-auto bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
-                Explorar Ofertas <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Button
-              className="w-full sm:w-auto bg-dyad-dark-blue text-dyad-white hover:bg-dyad-vibrant-orange py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
-              onClick={() => setIsRoleSelectionOpen(true)}
-            >
-              <UserPlus className="mr-2 h-5 w-5" /> Criar Conta Grátis
-            </Button>
-            <Link to="/login">
-              <Button variant="outline" className="w-full sm:w-auto border-dyad-vibrant-orange text-dyad-vibrant-orange hover:bg-dyad-light-gray hover:text-dyad-dark-blue py-3 px-6 text-lg rounded-dyad-rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105">
-                <LogIn className="mr-2 h-5 w-5" /> Entrar
-              </Button>
-            </Link>
-          </div>
-        </section>
+        <HeroBanner />
+
+        {/* Product Categories Section (agora um carrossel) */}
+        <ProductCategoriesSection />
 
         {/* Featured Offers Section */}
         <FeaturedOffersSection />
@@ -113,9 +90,6 @@ const AuthenticatedHomeRedirect = () => {
             </div>
           </div>
         </section>
-
-        {/* Product Categories Section */}
-        <ProductCategoriesSection />
 
         {/* How It Works Section */}
         <HowItWorksSection />
