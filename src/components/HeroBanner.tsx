@@ -145,14 +145,14 @@ const HeroBanner = () => {
                   <img
                     src={banner.image_url}
                     alt={banner.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </Link>
               ) : (
                 <img
                   src={banner.image_url}
                   alt={banner.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               )}
             </div>
