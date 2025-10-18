@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ShoppingCart, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
+import { Home, ShoppingBag, Store, Users, Settings, Package, DollarSign, LayoutGrid, LayoutDashboard, User, ReceiptText, Tag, HelpCircle, Mail } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -13,14 +13,13 @@ export const navItems: NavItem[] = [
   { name: 'Vender', href: '/shop-setup', icon: Store, roles: ['lojista', 'unauthenticated'] },
   { name: 'Ajuda', href: '/help', icon: HelpCircle, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
   { name: 'Contato', href: '/contact', icon: Mail, roles: ['comprador', 'lojista', 'administrador', 'unauthenticated'] },
-  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['lojista', 'administrador', 'comprador'] }, // Re-adicionado para comprador, pois agora está no dashboard
+  { name: 'Meu Perfil', href: '/profile', icon: User, roles: ['lojista', 'administrador', 'comprador'] },
   { name: 'Painel', href: '/comprador-dashboard', icon: LayoutDashboard, roles: ['comprador'] },
   { name: 'Painel', href: '/lojista-dashboard', icon: LayoutDashboard, roles: ['lojista'] },
   { name: 'Configurar Loja', href: '/shop-setup', icon: Store, roles: ['lojista'] },
   { name: 'Painel do Administrador', href: '/admin-dashboard', icon: LayoutDashboard, roles: ['administrador'] },
   { name: 'Explorar Produtos', href: '/explorar-produtos', icon: LayoutGrid, roles: ['comprador'] },
-  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador', 'comprador'] }, // Re-adicionado para comprador, pois agora está no dashboard
-  { name: 'Meu Carrinho', href: '/cart', icon: ShoppingCart, roles: ['comprador'] },
+  { name: 'Meus Pedidos', href: '/meus-pedidos', icon: ShoppingBag, roles: ['lojista', 'administrador', 'comprador'] },
   { name: 'Meus Produtos', href: '/meus-produtos', icon: Package, roles: ['lojista'] },
   { name: 'Minhas Vendas', href: '/minhas-vendas', icon: DollarSign, roles: ['lojista'] },
   { name: 'Gerenciar Usuários', href: '/gerenciar-usuarios', icon: Users, roles: ['administrador'] },
