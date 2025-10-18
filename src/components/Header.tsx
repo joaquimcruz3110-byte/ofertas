@@ -20,12 +20,18 @@ const Header = () => {
   // Removido o estado searchTerm
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      showError('Erro ao fazer logout: ' + error.message);
-      console.error('Erro ao fazer logout:', error.message);
+    if (session) { // Só tenta fazer logout se houver uma sessão ativa
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        showError('Erro ao fazer logout: ' + error.message);
+        console.error('Erro ao fazer logout:', error.message);
+      } else {
+        showSuccess('Você foi desconectado com sucesso!');
+        navigate('/login');
+      }
     } else {
-      showSuccess('Você foi desconectado com sucesso!');
+      // Se não há sessão, o usuário já está efetivamente desconectado.
+      showSuccess('Você já está desconectado.');
       navigate('/login');
     }
   };
