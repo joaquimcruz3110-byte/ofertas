@@ -45,16 +45,30 @@ interface Product {
 }
 
 const CATEGORIES = [
-  "Alimentos",
-  "Eletrônicos",
-  "Roupas",
-  "Livros",
-  "Casa e Decoração",
-  "Esportes",
-  "Beleza",
+  "Ofertas do Dia",
   "Brinquedos",
-  "Automotivo",
-  "Outros"
+  "Papelaria",
+  "Halloween",
+  "Enfeites de Natal",
+  "Casa e Decoração",
+  "Malas e Mochilas",
+  "Eletrônicos",
+  "Bolsas no Atacado",
+  "Carteiras Femininas",
+  "Necessaire e Térmica",
+  "Infláveis e Piscinas",
+  "Roupas Femininas",
+  "Infantil",
+  "Masculinos",
+  "Beleza e Cuidado Pessoal",
+  "Bandeiras, Cornetas +",
+  "Mais Vendidos",
+  "Ofertas",
+  "Alimentos", // Mantido das categorias anteriores
+  "Livros", // Mantido das categorias anteriores
+  "Esportes", // Mantido das categorias anteriores
+  "Automotivo", // Mantido das categorias anteriores
+  "Outros" // Mantido das categorias anteriores
 ];
 
 const productFormSchema = z.object({
