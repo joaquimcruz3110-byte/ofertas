@@ -94,7 +94,7 @@ const Login = () => {
           redirectTo={`${window.location.origin}/`} // Redireciona para a raiz após login/cadastro
         />
         <div className="mt-6 text-center">
-          <Link to="/landing" className="text-dyad-dark-blue hover:text-dyad-vibrant-orange text-sm underline">
+          <Link to="/" className="text-dyad-dark-blue hover:text-dyad-vibrant-orange text-sm underline">
             Voltar para a página inicial
           </Link>
         </div>
