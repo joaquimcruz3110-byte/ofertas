@@ -47,11 +47,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addItem = useCallback((product: Omit<CartItem, 'quantity'>, quantityToAdd: number = 1) => {
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      
+      // Lógica para pedido mínimo
       let newQuantity = quantityToAdd;
       if (newQuantity < MIN_ORDER_QUANTITY) {
         newQuantity = MIN_ORDER_QUANTITY;
+      }
+
+      const existingItem = prevItems.find(item => item.id === product.id);
+
+      // Lógica para permitir apenas um lojista por carrinho
+      if (prevItems.length > 0 && !existingItem) { // Se o carrinho não está vazio e o item não é um item existente
+        const currentShopkeeperId = prevItems[0].shopkeeper_id;
+        if (product.shopkeeper_id !== currentShopkeeperId) {
+          showError('Você só pode adicionar produtos de um lojista por vez. Limpe o carrinho para adicionar produtos de outro lojista.');
+          return prevItems; // Impede a adição
+        }
       }
 
       if (existingItem) {
