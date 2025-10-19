@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface CartItem {
   id: string; // Product ID
@@ -10,7 +10,7 @@ interface CartItem {
   quantity: number;
   photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
   shopkeeper_id: string; // Adicionado para identificar o lojista
-  shipping_cost: number; // Adicionado
+  // shipping_cost: number; // Removido
 }
 
 interface CartContextType {
@@ -21,10 +21,12 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
-  totalShippingCost: number; // Adicionado
+  // totalShippingCost: number; // Removido
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+const MIN_ORDER_QUANTITY = 6; // Definindo o pedido mínimo
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
@@ -46,24 +48,35 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const addItem = useCallback((product: Omit<CartItem, 'quantity'>, quantityToAdd: number = 1) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
+      
+      let newQuantity = quantityToAdd;
+      if (newQuantity < MIN_ORDER_QUANTITY) {
+        newQuantity = MIN_ORDER_QUANTITY;
+      }
+
       if (existingItem) {
+        const updatedQuantity = existingItem.quantity + newQuantity;
+        if (updatedQuantity < MIN_ORDER_QUANTITY) {
+          showError(`A quantidade total para ${product.name} deve ser de pelo menos ${MIN_ORDER_QUANTITY} unidades.`);
+          return prevItems; // Não atualiza se a soma ainda for menor que o mínimo
+        }
         showSuccess(`${product.name} quantity updated in cart!`);
         return prevItems.map(item =>
           item.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + quantityToAdd,
+                quantity: updatedQuantity,
                 name: product.name, // Atualiza o nome
                 price: product.price, // Atualiza o preço
                 photo_url: product.photo_url, // Atualiza a URL da foto
                 shopkeeper_id: product.shopkeeper_id, // Atualiza o shopkeeper_id
-                shipping_cost: product.shipping_cost, // Atualiza o custo de frete
+                // shipping_cost: product.shipping_cost, // Removido
               }
             : item
         );
       } else {
         showSuccess(`${product.name} added to cart!`);
-        return [...prevItems, { ...product, quantity: quantityToAdd }];
+        return [...prevItems, { ...product, quantity: newQuantity }];
       }
     });
   }, []);
@@ -79,8 +92,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(productId);
+    if (quantity < MIN_ORDER_QUANTITY) {
+      showError(`A quantidade para este item deve ser de pelo menos ${MIN_ORDER_QUANTITY} unidades.`);
       return;
     }
     setCartItems(prevItems =>
@@ -88,7 +101,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         item.id === productId ? { ...item, quantity } : item
       )
     );
-  }, [removeItem]);
+  }, []);
 
   const clearCart = useCallback(() => {
     setCartItems([]);
@@ -96,9 +109,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalProductsPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const totalShippingCost = cartItems.reduce((sum, item) => sum + (item.shipping_cost * item.quantity), 0); // Adicionado
-  const totalPrice = totalProductsPrice + totalShippingCost; // Preço total incluindo frete
+  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // const totalShippingCost = cartItems.reduce((sum, item) => sum + (item.shipping_cost * item.quantity), 0); // Removido
+  // const totalPrice = totalProductsPrice + totalShippingCost; // Preço total incluindo frete
 
   const value = {
     cartItems,
@@ -108,7 +121,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     clearCart,
     totalItems,
     totalPrice,
-    totalShippingCost, // Adicionado
+    // totalShippingCost, // Removido
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

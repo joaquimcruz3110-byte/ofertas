@@ -262,11 +262,14 @@ serve(async (req: Request) => {
       if (numberToParse.length === 11) {
         areaCode = numberToParse.substring(0, 2);
         number = numberToParse.substring(2);
-      } else if (numberToParse.length === 10) {
-        areaCode = numberToParse.substring(0, 2);
-        number = numberToParse.substring(2);
-      } else {
-        console.error('create-pagarme-payment: Phone number length is not standard for Brazilian numbers (10 or 11 digits after DDD):', cleanedPhoneNumber);
+      }
+      // Removido o caso de 10 dígitos, pois o formato brasileiro geralmente é 11 (DDD + 9 + 8 dígitos)
+      // else if (numberToParse.length === 10) {
+      //   areaCode = numberToParse.substring(0, 2);
+      //   number = numberToParse.substring(2);
+      // }
+      else {
+        console.error('create-pagarme-payment: Phone number length is not standard for Brazilian numbers (11 digits after DDD):', cleanedPhoneNumber);
         return new Response(JSON.stringify({ error: 'Número de telefone inválido. Por favor, verifique o formato no seu perfil (ex: DDXXXXXXXXX).' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -378,7 +381,7 @@ serve(async (req: Request) => {
           complementary_info: customer_address_complement || '', 
         },
         description: "Entrega padrão",
-        amount: 0,
+        amount: 0, // O custo de frete agora é 0, pois será calculado dinamicamente no futuro
         recipient_name: customerName,
         service_code: "STANDARD", 
         delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],

@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon, Truck } from 'lucide-react'; // Adicionado Truck
+import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon } from 'lucide-react'; // Truck removido
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
-  shipping_cost: number; // Adicionado
+  // shipping_cost: number; // Removido
   shopkeeper_id: string;
   created_at: string;
   shop_details: {
@@ -46,6 +46,7 @@ interface ShopDetail {
 }
 
 const PRODUCTS_PER_PAGE = 8;
+const MIN_ORDER_QUANTITY = 6; // Definindo o pedido mínimo
 const CATEGORIES = [
   "Ofertas do Dia",
   "Brinquedos",
@@ -172,6 +173,11 @@ const ProductListing = () => {
       return;
     }
 
+    if (product.quantity < MIN_ORDER_QUANTITY) {
+      showError(`Este produto requer um pedido mínimo de ${MIN_ORDER_QUANTITY} unidades.`);
+      return;
+    }
+
     const originalPrice = Number(product.price);
     const finalPrice = product.discount
       ? originalPrice * (1 - Number(product.discount) / 100)
@@ -183,8 +189,8 @@ const ProductListing = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
-      shipping_cost: product.shipping_cost, // Adicionado
-    });
+      // shipping_cost: product.shipping_cost, // Removido
+    }, MIN_ORDER_QUANTITY); // Adiciona a quantidade mínima
   };
 
   const handlePageChange = (page: number) => {
@@ -386,11 +392,11 @@ const ProductListing = () => {
                           </span>
                         )}
                       </p>
-                      {product.shipping_cost > 0 && ( // Adicionado
+                      {/* {product.shipping_cost > 0 && ( // Removido
                         <p className="text-sm text-gray-600 flex items-center gap-1">
                           <Truck className="h-4 w-4 text-gray-500" /> Frete: {formatCurrency(product.shipping_cost)}
                         </p>
-                      )}
+                      )} */}
                       <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
                       <p className="text-xs text-gray-400 mt-2">
                         Disponível: {product.quantity} unidades
@@ -401,10 +407,10 @@ const ProductListing = () => {
                     <Button
                       className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white"
                       onClick={() => handleAddToCart(product)}
-                      disabled={product.quantity <= 0}
+                      disabled={product.quantity < MIN_ORDER_QUANTITY} // Desabilita se a quantidade disponível for menor que o mínimo
                     >
                       <ShoppingCart className="mr-2 h-4 w-4" />
-                      {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
+                      {product.quantity < MIN_ORDER_QUANTITY ? `Mínimo ${MIN_ORDER_QUANTITY} unidades` : 'Adicionar ao Carrinho'}
                     </Button>
                   </CardFooter>
                 </Card>

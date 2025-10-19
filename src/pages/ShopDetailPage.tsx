@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { showError } from '@/utils/toast';
-import { ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShoppingCart, Truck } from 'lucide-react'; // Adicionado Truck
+import { ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShoppingCart } from 'lucide-react'; // Truck removido
 import { formatCurrency } from '@/utils/formatters';
 import { useCart } from '@/components/CartProvider';
 import { useSession } from '@/components/SessionContextProvider';
@@ -28,10 +28,12 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
-  shipping_cost: number; // Adicionado
+  // shipping_cost: number; // Removido
   shopkeeper_id: string;
   created_at: string;
 }
+
+const MIN_ORDER_QUANTITY = 6; // Definindo o pedido mínimo
 
 const ShopDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,6 +102,11 @@ const ShopDetailPage = () => {
       return;
     }
 
+    if (product.quantity < MIN_ORDER_QUANTITY) {
+      showError(`Este produto requer um pedido mínimo de ${MIN_ORDER_QUANTITY} unidades.`);
+      return;
+    }
+
     const originalPrice = Number(product.price);
     const finalPrice = product.discount
       ? originalPrice * (1 - Number(product.discount) / 100)
@@ -111,8 +118,8 @@ const ShopDetailPage = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
-      shipping_cost: product.shipping_cost, // Adicionado
-    });
+      // shipping_cost: product.shipping_cost, // Removido
+    }, MIN_ORDER_QUANTITY); // Adiciona a quantidade mínima
   };
 
   if (isLoading) {
@@ -200,11 +207,11 @@ const ShopDetailPage = () => {
                         </span>
                       )}
                     </p>
-                    {product.shipping_cost > 0 && ( // Adicionado
+                    {/* {product.shipping_cost > 0 && ( // Removido
                       <p className="text-sm text-gray-600 flex items-center gap-1">
                         <Truck className="h-4 w-4 text-gray-500" /> Frete: {formatCurrency(product.shipping_cost)}
                       </p>
-                    )}
+                    )} */}
                     <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
                     <p className="text-xs text-gray-400 mt-2">
                       Disponível: {product.quantity} unidades

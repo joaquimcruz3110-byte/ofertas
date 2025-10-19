@@ -6,7 +6,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Facebook, Twitter, Mail, Truck } from 'lucide-react'; // Adicionado Truck
+import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Facebook, Twitter, Mail } from 'lucide-react'; // Truck removido
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 import {
@@ -27,7 +27,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
-  shipping_cost: number; // Adicionado
+  // shipping_cost: number; // Removido
   shopkeeper_id: string;
   created_at: string;
   shop_details: {
@@ -35,6 +35,8 @@ interface Product {
     shop_logo_url: string | null;
   } | null;
 }
+
+const MIN_ORDER_QUANTITY = 6; // Definindo o pedido mínimo
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -169,6 +171,12 @@ const ProductDetail = () => {
       showError('Produto não disponível para adicionar ao carrinho.');
       return;
     }
+
+    if (product.quantity < MIN_ORDER_QUANTITY) {
+      showError(`Este produto requer um pedido mínimo de ${MIN_ORDER_QUANTITY} unidades.`);
+      return;
+    }
+
     const finalPrice = product.discount
       ? product.price * (1 - product.discount / 100)
       : product.price;
@@ -179,8 +187,8 @@ const ProductDetail = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
-      shipping_cost: product.shipping_cost, // Adicionado
-    });
+      // shipping_cost: product.shipping_cost, // Removido
+    }, MIN_ORDER_QUANTITY); // Adiciona a quantidade mínima
   };
 
   const openImageDialog = (imageUrl: string) => {
@@ -338,11 +346,11 @@ const ProductDetail = () => {
             )}
           </p>
           
-          {product.shipping_cost > 0 && ( // Adicionado
+          {/* {product.shipping_cost > 0 && ( // Removido
             <p className="text-lg text-gray-700 mb-4 flex items-center gap-2">
               <Truck className="h-5 w-5 text-dyad-dark-blue" /> Custo de Frete: <span className="font-semibold">{formatCurrency(product.shipping_cost)}</span>
             </p>
-          )}
+          )} */}
 
           <div className="space-y-2 mb-6">
             <div className="flex items-center text-green-600 font-medium">
@@ -353,10 +361,10 @@ const ProductDetail = () => {
           <Button
             className="w-full bg-dyad-dark-blue hover:bg-dyad-vibrant-orange text-dyad-white py-3 text-lg mb-6"
             onClick={handleAddToCart}
-            disabled={product.quantity <= 0}
+            disabled={product.quantity < MIN_ORDER_QUANTITY} // Desabilita se a quantidade disponível for menor que o mínimo
           >
             <ShoppingCart className="mr-2 h-5 w-5" />
-            {product.quantity <= 0 ? 'Esgotado' : 'Adicionar ao Carrinho'}
+            {product.quantity < MIN_ORDER_QUANTITY ? `Mínimo ${MIN_ORDER_QUANTITY} unidades` : 'Adicionar ao Carrinho'}
           </Button>
 
           <div className="flex space-x-4 mb-6 justify-center">

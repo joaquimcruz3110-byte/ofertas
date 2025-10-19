@@ -4,7 +4,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy, Truck } from 'lucide-react'; // Adicionado Truck
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy } from 'lucide-react'; // Truck removido
 import { Link, useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/utils/toast';
 import { useState } from 'react';
@@ -12,9 +12,11 @@ import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client'; // Importar supabase
 import { Label } from '@/components/ui/label'; // Importar o componente Label
 
+const MIN_ORDER_QUANTITY = 6; // Definindo o pedido mínimo
+
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userProfile } = useSession(); // Obter userProfile
-  const { cartItems, removeItem, updateQuantity, clearCart, totalPrice, totalShippingCost } = useCart(); // Adicionado totalShippingCost
+  const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart(); // totalShippingCost removido
   const navigate = useNavigate();
 
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -31,6 +33,13 @@ const CartPage = () => {
 
     if (cartItems.length === 0) {
       showError('Seu carrinho está vazio.');
+      return;
+    }
+
+    // Verificar pedido mínimo para cada item no carrinho
+    const itemsBelowMinQuantity = cartItems.filter(item => item.quantity < MIN_ORDER_QUANTITY);
+    if (itemsBelowMinQuantity.length > 0) {
+      showError(`Todos os produtos devem ter pelo menos ${MIN_ORDER_QUANTITY} unidades. Por favor, ajuste as quantidades.`);
       return;
     }
 
@@ -139,7 +148,7 @@ const CartPage = () => {
             quantity: item.quantity,
             price: item.price,
             shopkeeper_id: item.shopkeeper_id,
-            shipping_cost: item.shipping_cost, // Adicionado
+            // shipping_cost: item.shipping_cost, // Removido
           })),
           buyer_id: refreshedSession.user.id,
           customer_cpf: userProfile.cpf,
@@ -272,18 +281,18 @@ const CartPage = () => {
               <div className="flex-grow">
                 <h2 className="text-lg font-semibold text-dyad-dark-blue">{item.name}</h2>
                 <p className="text-gray-600">{formatCurrency(item.price)}</p>
-                {item.shipping_cost > 0 && ( // Adicionado
+                {/* {item.shipping_cost > 0 && ( // Removido
                   <p className="text-sm text-gray-500 flex items-center gap-1">
                     <Truck className="h-4 w-4" /> Frete: {formatCurrency(item.shipping_cost)}
                   </p>
-                )}
+                )} */}
               </div>
               <div className="flex items-center space-x-2 mt-2 sm:mt-0">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1 || isProcessingCheckout}
+                  disabled={item.quantity <= MIN_ORDER_QUANTITY || isProcessingCheckout} // Desabilita se a quantidade for igual ou menor que o mínimo
                 >
                   <MinusCircle className="h-4 w-4" />
                 </Button>
@@ -292,7 +301,7 @@ const CartPage = () => {
                   value={item.quantity}
                   onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
                   className="w-16 text-center"
-                  min="1"
+                  min={MIN_ORDER_QUANTITY} // Define o mínimo no input
                   disabled={isProcessingCheckout}
                 />
                 <Button
@@ -317,17 +326,17 @@ const CartPage = () => {
           ))}
 
           <div className="flex justify-between items-center pt-4 border-t mt-6">
-            <h3 className="text-lg font-bold text-dyad-dark-blue">Subtotal dos Produtos:</h3>
-            <span className="text-xl font-bold text-dyad-dark-blue">{formatCurrency(totalPrice - totalShippingCost)}</span>
+            <h3 className="text-lg font-bold text-dyad-dark-blue">Total dos Produtos:</h3>
+            <span className="text-2xl font-bold text-dyad-vibrant-orange">{formatCurrency(totalPrice)}</span>
           </div>
-          <div className="flex justify-between items-center pt-2">
+          {/* <div className="flex justify-between items-center pt-2"> // Removido
             <h3 className="text-lg font-bold text-dyad-dark-blue">Custo Total do Frete:</h3>
             <span className="text-xl font-bold text-dyad-dark-blue">{formatCurrency(totalShippingCost)}</span>
           </div>
           <div className="flex justify-between items-center pt-4 border-t mt-4">
             <h3 className="text-xl font-bold text-dyad-dark-blue">Total do Pedido:</h3>
             <span className="text-2xl font-bold text-dyad-vibrant-orange">{formatCurrency(totalPrice)}</span>
-          </div>
+          </div> */}
 
           <div className="flex justify-end space-x-4 mt-6">
             <Button

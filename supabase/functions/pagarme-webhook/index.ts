@@ -141,6 +141,7 @@ serve(async (req: Request) => {
           p_commission_rate: commission_rate,
           p_payment_gateway_id: orderId, // Usar o ID do pedido como ID do gateway
           p_payment_gateway_status: orderStatus,
+          // p_shipping_cost: item.shipping_cost, // Removido
         });
 
         if (saleError) {
