@@ -4,7 +4,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useCart } from '@/components/CartProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ShoppingCart as ShoppingCartIcon, Copy, Truck } from 'lucide-react'; // Adicionado Truck
 import { Link, useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/utils/toast';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'; // Importar o componente Label
 
 const CartPage = () => {
   const { session, isLoading: isSessionLoading, userProfile } = useSession(); // Obter userProfile
-  const { cartItems, removeItem, updateQuantity, clearCart, totalPrice } = useCart();
+  const { cartItems, removeItem, updateQuantity, clearCart, totalPrice, totalShippingCost } = useCart(); // Adicionado totalShippingCost
   const navigate = useNavigate();
 
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -139,6 +139,7 @@ const CartPage = () => {
             quantity: item.quantity,
             price: item.price,
             shopkeeper_id: item.shopkeeper_id,
+            shipping_cost: item.shipping_cost, // Adicionado
           })),
           buyer_id: refreshedSession.user.id,
           customer_cpf: userProfile.cpf,
@@ -260,19 +261,24 @@ const CartPage = () => {
       ) : (
         <div className="space-y-6">
           {cartItems.map((item) => (
-            <div key={item.id} className="flex items-center border-b pb-4 last:border-b-0 last:pb-0">
+            <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center border-b pb-4 last:border-b-0 last:pb-0">
               {item.photo_url && (
                 <img
                   src={item.photo_url}
                   alt={item.name}
-                  className="w-20 h-20 object-cover rounded-md mr-4"
+                  className="w-20 h-20 object-cover rounded-md mr-4 mb-2 sm:mb-0"
                 />
               )}
               <div className="flex-grow">
                 <h2 className="text-lg font-semibold text-dyad-dark-blue">{item.name}</h2>
                 <p className="text-gray-600">{formatCurrency(item.price)}</p>
+                {item.shipping_cost > 0 && ( // Adicionado
+                  <p className="text-sm text-gray-500 flex items-center gap-1">
+                    <Truck className="h-4 w-4" /> Frete: {formatCurrency(item.shipping_cost)}
+                  </p>
+                )}
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 mt-2 sm:mt-0">
                 <Button
                   variant="outline"
                   size="icon"
@@ -310,8 +316,16 @@ const CartPage = () => {
             </div>
           ))}
 
-          <div className="flex justify-between items-center pt-6 border-t mt-6">
-            <h3 className="text-xl font-bold text-dyad-dark-blue">Total:</h3>
+          <div className="flex justify-between items-center pt-4 border-t mt-6">
+            <h3 className="text-lg font-bold text-dyad-dark-blue">Subtotal dos Produtos:</h3>
+            <span className="text-xl font-bold text-dyad-dark-blue">{formatCurrency(totalPrice - totalShippingCost)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <h3 className="text-lg font-bold text-dyad-dark-blue">Custo Total do Frete:</h3>
+            <span className="text-xl font-bold text-dyad-dark-blue">{formatCurrency(totalShippingCost)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-4 border-t mt-4">
+            <h3 className="text-xl font-bold text-dyad-dark-blue">Total do Pedido:</h3>
             <span className="text-2xl font-bold text-dyad-vibrant-orange">{formatCurrency(totalPrice)}</span>
           </div>
 

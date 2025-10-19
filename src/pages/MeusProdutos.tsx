@@ -40,6 +40,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null; // Alterado para array de strings
   discount: number;
+  shipping_cost: number; // Adicionado
   shopkeeper_id: string;
   created_at: string;
 }
@@ -87,6 +88,10 @@ const productFormSchema = z.object({
     (val) => Number(val),
     z.number().min(0, "O desconto não pode ser negativo.").max(100, "O desconto não pode ser maior que 100.")
   ),
+  shipping_cost: z.preprocess( // Adicionado
+    (val) => Number(val),
+    z.number().min(0, "O custo de frete não pode ser negativo.")
+  ),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -110,6 +115,7 @@ const MeusProdutos = () => {
       quantity: 0,
       category: "",
       discount: 0, // Alterado para 0
+      shipping_cost: 0, // Adicionado
     },
   });
 
@@ -151,6 +157,7 @@ const MeusProdutos = () => {
       quantity: 0,
       category: "",
       discount: 0, // Alterado para 0
+      shipping_cost: 0, // Adicionado
     });
     setCurrentImages([]);
     setIsDialogOpen(true);
@@ -165,6 +172,7 @@ const MeusProdutos = () => {
       quantity: product.quantity,
       category: product.category || "",
       discount: product.discount || 0, // Alterado para 0
+      shipping_cost: product.shipping_cost || 0, // Adicionado
     });
     setCurrentImages(product.photo_urls?.map(url => ({ url })) || []);
     setIsDialogOpen(true);
@@ -290,6 +298,7 @@ const MeusProdutos = () => {
             quantity: values.quantity,
             category: values.category,
             discount: values.discount,
+            shipping_cost: values.shipping_cost, // Adicionado
             shopkeeper_id: session?.user?.id,
           })
           .select('id')
@@ -327,6 +336,7 @@ const MeusProdutos = () => {
             category: values.category,
             photo_urls: productPhotoUrls, // Salva o array de URLs
             discount: values.discount,
+            shipping_cost: values.shipping_cost, // Adicionado
           })
           .eq('id', currentProductId)
           .eq('shopkeeper_id', session?.user?.id);
@@ -387,6 +397,7 @@ const MeusProdutos = () => {
                 <TableHead>Imagem</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Preço</TableHead>
+                <TableHead>Frete</TableHead> {/* Adicionado */}
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Desconto (%)</TableHead>
@@ -411,6 +422,7 @@ const MeusProdutos = () => {
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{formatCurrency(product.price)}</TableCell>
+                  <TableCell>{formatCurrency(product.shipping_cost)}</TableCell> {/* Adicionado */}
                   <TableCell>{product.quantity}</TableCell>
                   <TableCell>{product.category || 'N/A'}</TableCell>
                   <TableCell>{product.discount ? `${product.discount}%` : '0%'}</TableCell>
@@ -541,6 +553,22 @@ const MeusProdutos = () => {
                 )}
               />
               </div>
+              <FormField // Adicionado
+                control={form.control}
+                name="shipping_cost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custo de Frete (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Custo de frete por unidade do produto.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormItem>
                 <FormLabel>Fotos do Produto (até {MAX_IMAGES})</FormLabel>
                 <FormControl>

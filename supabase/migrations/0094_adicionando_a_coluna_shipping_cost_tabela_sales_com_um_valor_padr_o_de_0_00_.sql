@@ -1,0 +1,2 @@
+ALTER TABLE public.sales
+ADD COLUMN shipping_cost NUMERIC DEFAULT 0.00;

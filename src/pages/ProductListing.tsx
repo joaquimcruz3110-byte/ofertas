@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon } from 'lucide-react';
+import { ShoppingCart, Search, Store as StoreIcon, XCircle, Image as ImageIcon, Truck } from 'lucide-react'; // Adicionado Truck
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
+  shipping_cost: number; // Adicionado
   shopkeeper_id: string;
   created_at: string;
   shop_details: {
@@ -182,6 +183,7 @@ const ProductListing = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
+      shipping_cost: product.shipping_cost, // Adicionado
     });
   };
 
@@ -384,6 +386,11 @@ const ProductListing = () => {
                           </span>
                         )}
                       </p>
+                      {product.shipping_cost > 0 && ( // Adicionado
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <Truck className="h-4 w-4 text-gray-500" /> Frete: {formatCurrency(product.shipping_cost)}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
                       <p className="text-xs text-gray-400 mt-2">
                         Disponível: {product.quantity} unidades

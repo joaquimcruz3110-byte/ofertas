@@ -6,7 +6,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { showError } from '@/utils/toast';
-import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Facebook, Twitter, Mail } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShieldCheck, Facebook, Twitter, Mail, Truck } from 'lucide-react'; // Adicionado Truck
 import { useCart } from '@/components/CartProvider';
 import { formatCurrency } from '@/utils/formatters';
 import {
@@ -27,6 +27,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
+  shipping_cost: number; // Adicionado
   shopkeeper_id: string;
   created_at: string;
   shop_details: {
@@ -178,6 +179,7 @@ const ProductDetail = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
+      shipping_cost: product.shipping_cost, // Adicionado
     });
   };
 
@@ -336,6 +338,12 @@ const ProductDetail = () => {
             )}
           </p>
           
+          {product.shipping_cost > 0 && ( // Adicionado
+            <p className="text-lg text-gray-700 mb-4 flex items-center gap-2">
+              <Truck className="h-5 w-5 text-dyad-dark-blue" /> Custo de Frete: <span className="font-semibold">{formatCurrency(product.shipping_cost)}</span>
+            </p>
+          )}
+
           <div className="space-y-2 mb-6">
             <div className="flex items-center text-green-600 font-medium">
               <ShieldCheck className="h-5 w-5 mr-2" /> Compra garantida

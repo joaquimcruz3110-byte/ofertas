@@ -10,6 +10,7 @@ interface CartItem {
   quantity: number;
   photo_url: string | null; // Mantido como string | null para a imagem principal do item no carrinho
   shopkeeper_id: string; // Adicionado para identificar o lojista
+  shipping_cost: number; // Adicionado
 }
 
 interface CartContextType {
@@ -20,6 +21,7 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  totalShippingCost: number; // Adicionado
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -55,6 +57,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 price: product.price, // Atualiza o preço
                 photo_url: product.photo_url, // Atualiza a URL da foto
                 shopkeeper_id: product.shopkeeper_id, // Atualiza o shopkeeper_id
+                shipping_cost: product.shipping_cost, // Atualiza o custo de frete
               }
             : item
         );
@@ -93,7 +96,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalProductsPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalShippingCost = cartItems.reduce((sum, item) => sum + (item.shipping_cost * item.quantity), 0); // Adicionado
+  const totalPrice = totalProductsPrice + totalShippingCost; // Preço total incluindo frete
 
   const value = {
     cartItems,
@@ -103,6 +108,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     clearCart,
     totalItems,
     totalPrice,
+    totalShippingCost, // Adicionado
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

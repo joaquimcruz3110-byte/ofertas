@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { showError } from '@/utils/toast';
-import { ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Store as StoreIcon, Image as ImageIcon, ShoppingCart, Truck } from 'lucide-react'; // Adicionado Truck
 import { formatCurrency } from '@/utils/formatters';
 import { useCart } from '@/components/CartProvider';
 import { useSession } from '@/components/SessionContextProvider';
@@ -28,6 +28,7 @@ interface Product {
   category: string | null;
   photo_urls: string[] | null;
   discount: number | null;
+  shipping_cost: number; // Adicionado
   shopkeeper_id: string;
   created_at: string;
 }
@@ -110,6 +111,7 @@ const ShopDetailPage = () => {
       price: finalPrice,
       photo_url: product.photo_urls && product.photo_urls.length > 0 ? product.photo_urls[0] : null,
       shopkeeper_id: product.shopkeeper_id,
+      shipping_cost: product.shipping_cost, // Adicionado
     });
   };
 
@@ -198,6 +200,11 @@ const ShopDetailPage = () => {
                         </span>
                       )}
                     </p>
+                    {product.shipping_cost > 0 && ( // Adicionado
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Truck className="h-4 w-4 text-gray-500" /> Frete: {formatCurrency(product.shipping_cost)}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600">{product.description?.substring(0, 70)}{product.description && product.description.length > 70 ? '...' : ''}</p>
                     <p className="text-xs text-gray-400 mt-2">
                       Disponível: {product.quantity} unidades

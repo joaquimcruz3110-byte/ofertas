@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { Image as ImageIcon, ArrowRight } from 'lucide-react';
+import { Image as ImageIcon, ArrowRight, Truck } from 'lucide-react'; // Adicionado Truck
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -16,6 +16,7 @@ interface Product {
   price: number;
   photo_urls: string[] | null;
   discount: number | null; // Adicionado o campo de desconto
+  shipping_cost: number; // Adicionado
   total_quantity_sold?: number; // Adicionado para armazenar a quantidade vendida
 }
 
@@ -64,7 +65,7 @@ const BestSellersCarousel = () => {
       // Passo 2: Buscar os detalhes completos dos produtos mais vendidos
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('id, name, price, photo_urls, discount') // Incluído 'discount'
+        .select('id, name, price, photo_urls, discount, shipping_cost') // Incluído 'discount' e 'shipping_cost'
         .in('id', sortedProductIds)
         .gt('quantity', 0); // Apenas produtos em estoque
 
@@ -163,6 +164,11 @@ const BestSellersCarousel = () => {
                         <span className="text-lg font-bold text-dyad-vibrant-orange">{formatCurrency(originalPrice)}</span>
                       )}
                     </CardDescription>
+                    {product.shipping_cost > 0 && ( // Adicionado
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <Truck className="h-4 w-4 text-gray-500" /> Frete: {formatCurrency(product.shipping_cost)}
+                      </p>
+                    )}
                   </CardHeader>
                   <div className="p-4 pt-0">
                     <Button className="w-full bg-dyad-vibrant-orange hover:bg-orange-600 text-dyad-white">
